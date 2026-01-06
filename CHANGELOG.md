@@ -4,6 +4,40 @@ All notable changes to Trader Bias will be documented in this file.
 
 ## [Unreleased] - 2026-01-06
 
+### Added - Backend Server (Option 2: Centralized Data Collection)
+
+- **Backend Server for Shared Data**: Optional Node.js backend server for centralized data collection
+  - **Instant Data for All Users**: New visitors see 4 hours of data immediately (no waiting!)
+  - **Shared Historical Data**: All users see the same data (collected by backend 24/7)
+  - **Memory Optimized**: Uses ~120MB RAM on 1GB VPS (leaves 650MB+ headroom)
+  - **5 Exchange Support**: Hyperliquid, Binance, Bybit, Nado, AsterDex
+  - **Auto-Cleanup**: Retains 4 hours of history, prunes old data every 10 minutes
+  - **Location**: `server/` directory
+
+- **Backend REST API Endpoints**:
+  - `GET /api/health` - Server health check and statistics
+  - `GET /api/data/:exchange` - Get 4 hours of historical data + current snapshot
+  - `GET /api/snapshot/:exchange` - Get current values only (faster, smaller payload)
+  - `GET /api/data/all` - Get all exchanges in one request
+  - `GET /api/stats` - Detailed server statistics and memory usage
+
+- **PM2 Process Management**:
+  - Auto-restart on crash
+  - Daily cron restart at 4 AM (clears memory leaks)
+  - Memory limit: Auto-restart if >800MB
+  - Startup script for auto-start on VPS reboot
+  - Logging to `server/logs/`
+
+- **Frontend Integration Layer**:
+  - `src/services/backendApi.js` - Backend API service wrapper
+  - Environment variable support: `VITE_USE_BACKEND` and `VITE_BACKEND_API_URL`
+  - Optional usage (can use direct APIs or backend APIs)
+
+- **Comprehensive Documentation**:
+  - `BACKEND_DEPLOYMENT.md` - Complete deployment guide for VPS
+  - `server/README.md` - Backend server documentation
+  - API endpoint reference, troubleshooting, monitoring guides
+
 ### Added - Day Trading Enhancements
 
 - **1 Hour Timeframe**: Added 1H timeframe option for day traders
