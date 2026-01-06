@@ -1,0 +1,9 @@
+# Robots.txt for Crypto Whale Tracker
+User-agent: *
+Allow: /
+
+# Sitemap (update with your domain)
+Sitemap: https://yoursite.com/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
