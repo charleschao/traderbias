@@ -6,6 +6,14 @@ import { formatUSD } from '../utils/formatters';
 const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', hasEnoughData = true }) => {
     const coins = ['BTC', 'ETH', 'SOL'];
 
+    // Check if individual coins have timeframe data
+    const getCoinDataStatus = (coin) => {
+        const hasOiData = oiData?.[coin]?.hasTimeframeData !== false;
+        const hasPriceData = priceData?.[coin]?.hasTimeframeData !== false;
+        const hasCvdData = cvdData?.[coin]?.hasTimeframeData !== false;
+        return { hasOiData, hasPriceData, hasCvdData, hasAllData: hasOiData && hasPriceData && hasCvdData };
+    };
+
     // Get confluence indicator styling
     const getConfluenceStyle = (confluenceType) => {
         const styles = {
@@ -34,6 +42,20 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
                 icon="📊"
                 updateInterval={hasEnoughData ? `${timeframe.toUpperCase()} rolling` : `⚠️ Collecting data...`}
             />
+
+            {/* Data Collection Warning */}
+            {!hasEnoughData && (
+                <div className="mb-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-2">
+                    <span className="text-yellow-400 text-sm">⏳</span>
+                    <div className="text-xs text-yellow-400">
+                        <div className="font-bold mb-1">Collecting {timeframe.toUpperCase()} historical data...</div>
+                        <div className="text-yellow-400/80">
+                            Timeframe calculations require {timeframe.toUpperCase()} of historical data.
+                            Data shown below may use session data until enough history is collected.
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {coins.map(coin => {
                     const oi = oiData?.[coin];
@@ -42,11 +64,18 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
                     const confluence = calculateFlowConfluence(coin, oi, cvd, price);
                     const style = getConfluenceStyle(confluence.confluenceType);
 
+                    const dataStatus = getCoinDataStatus(coin);
+
                     return (
-                        <div key={coin} className={`${style.bg} ${style.border} border rounded-lg p-3`}>
+                        <div key={coin} className={`${style.bg} ${style.border} border rounded-lg p-3 ${!dataStatus.hasAllData ? 'opacity-60' : ''}`}>
                             {/* Header: Coin + Confluence Type */}
                             <div className="flex items-center justify-between mb-3">
-                                <span className="font-bold text-white text-lg">{coin}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-white text-lg">{coin}</span>
+                                    {!dataStatus.hasAllData && (
+                                        <span className="text-[10px] text-yellow-400 animate-pulse">⏳</span>
+                                    )}
+                                </div>
                                 <span className={`text-xs font-bold px-2 py-1 rounded ${style.bg} ${style.color}`}>
                                     {style.icon} {style.label}
                                 </span>
@@ -54,8 +83,10 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
 
                             {/* Confluence Table: Price, OI, CVD directions */}
                             <div className="grid grid-cols-3 gap-2 text-center mb-3 bg-slate-800/50 rounded-lg p-2">
-                                <div>
-                                    <div className="text-white text-[10px] uppercase">Price</div>
+                                <div className={`${!dataStatus.hasPriceData ? 'opacity-40' : ''}`}>
+                                    <div className="text-white text-[10px] uppercase flex items-center justify-center gap-1">
+                                        Price {!dataStatus.hasPriceData && <span className="text-yellow-400">⏳</span>}
+                                    </div>
                                     <div className={`text-xl font-bold ${confluence.priceDir === '↑' ? 'text-green-400' : confluence.priceDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
                                         {confluence.priceDir}
                                     </div>
@@ -63,8 +94,10 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
                                         {(confluence.priceChange || 0) >= 0 ? '+' : ''}{(confluence.priceChange || 0).toFixed(2)}%
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="text-white text-[10px] uppercase">OI</div>
+                                <div className={`${!dataStatus.hasOiData ? 'opacity-40' : ''}`}>
+                                    <div className="text-white text-[10px] uppercase flex items-center justify-center gap-1">
+                                        OI {!dataStatus.hasOiData && <span className="text-yellow-400">⏳</span>}
+                                    </div>
                                     <div className={`text-xl font-bold ${confluence.oiDir === '↑' ? 'text-green-400' : confluence.oiDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
                                         {confluence.oiDir}
                                     </div>
@@ -72,8 +105,10 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
                                         {(confluence.oiChange || 0) >= 0 ? '+' : ''}{(confluence.oiChange || 0).toFixed(1)}%
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="text-white text-[10px] uppercase">CVD {timeframe}</div>
+                                <div className={`${!dataStatus.hasCvdData ? 'opacity-40' : ''}`}>
+                                    <div className="text-white text-[10px] uppercase flex items-center justify-center gap-1">
+                                        CVD {timeframe} {!dataStatus.hasCvdData && <span className="text-yellow-400">⏳</span>}
+                                    </div>
                                     <div className={`text-xl font-bold ${confluence.cvdDir === '↑' ? 'text-green-400' : confluence.cvdDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
                                         {confluence.cvdDir}
                                     </div>

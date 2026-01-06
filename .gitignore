@@ -1,17 +1,23 @@
 # Logs
 logs
 *.log
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+AGENT_INTEGRATION_GUIDE.md
+PRODUCTION_DEPLOYMENT.md
+RESEARCH_AGENT_README.md
+CLAUDE.md
+deploy.ps1
 node_modules
 dist
 dist-ssr
 *.local
-
+.claude/*
+.agent/*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -341,8 +341,10 @@ export const calculateFlowConfluence = (coin, oiData, cvdData, priceData) => {
     const priceDown = priceChange < -0.3;
     const oiUp = oiChange > 1;
     const oiDown = oiChange < -1;
-    const cvdUp = cvdDelta > 0 && cvdTrend >= 0;
-    const cvdDown = cvdDelta < 0 && cvdTrend <= 0;
+    // CVD direction based on net delta over timeframe (not trend)
+    // Use small threshold to avoid noise from tiny deltas
+    const cvdUp = cvdDelta > 1000; // > $1k net buying
+    const cvdDown = cvdDelta < -1000; // < -$1k net selling
 
     // Direction arrows for display
     const priceDir = priceUp ? '↑' : priceDown ? '↓' : '↔';

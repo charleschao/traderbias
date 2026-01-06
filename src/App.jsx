@@ -373,7 +373,10 @@ export default function App() {
         acc.history.push({ delta: recentDelta, time: now });
         acc.history = acc.history.filter(item => now - item.time < MAX_HISTORY_AGE_MS); // Keep 1 hour of history
 
-        const rolling5mDelta = acc.history.reduce((sum, item) => sum + item.delta, 0);
+        // Calculate rolling 5m delta (sum only last 5 minutes of history, not all history)
+        const fiveMinAgo = now - (5 * 60 * 1000);
+        const recent5mHistory = acc.history.filter(item => item.time >= fiveMinAgo);
+        const rolling5mDelta = recent5mHistory.reduce((sum, item) => sum + item.delta, 0);
         const trend = recentDelta - acc.lastDelta;
         acc.lastDelta = recentDelta;
 
