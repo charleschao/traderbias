@@ -1,7 +1,12 @@
 # Logs
 logs
 *.log
-
+*.old.jsx
+deploy-dev.ps1
+deploy-prod.ps1
+.env
+.env.example
+server/node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
