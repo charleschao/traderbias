@@ -35,53 +35,92 @@ import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
 const BIAS_HISTORY_KEY = 'traderBias_biasHistory';
-const MAX_HISTORY_AGE_MS = 60 * 60 * 1000; // 60 minutes (1 hour) - ensures 30M timeframe has historical data on page load
+const MAX_HISTORY_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours - ensures robust historical data for all timeframes
 const MAX_BIAS_HISTORY_AGE_MS = 15 * 60 * 1000; // 15 minutes
 
-const loadHistoricalData = () => {
+const getEmptyExchangeData = () => ({
+  oi: { BTC: [], ETH: [], SOL: [] },
+  price: { BTC: [], ETH: [], SOL: [] },
+  orderbook: { BTC: [], ETH: [], SOL: [] },
+  cvd: { BTC: [], ETH: [], SOL: [] }
+});
+
+const loadHistoricalData = (exchange = 'hyperliquid') => {
   try {
     const saved = localStorage.getItem(HISTORICAL_DATA_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved);
+      const allData = JSON.parse(saved);
+
+      // If old format (no exchange keys), migrate to new format
+      if (allData.oi && !allData.hyperliquid) {
+        const migratedData = {
+          hyperliquid: { ...allData },
+          binance: getEmptyExchangeData(),
+          bybit: getEmptyExchangeData(),
+          nado: getEmptyExchangeData(),
+          asterdex: getEmptyExchangeData()
+        };
+        localStorage.setItem(HISTORICAL_DATA_KEY, JSON.stringify(migratedData));
+        return migratedData[exchange] || getEmptyExchangeData();
+      }
+
+      // New format - per exchange
+      const exchangeData = allData[exchange] || getEmptyExchangeData();
       const now = Date.now();
+
       // Clean up old entries on load
       ['BTC', 'ETH', 'SOL'].forEach(coin => {
-        if (parsed.oi?.[coin]) {
-          parsed.oi[coin] = parsed.oi[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
+        if (exchangeData.oi?.[coin]) {
+          exchangeData.oi[coin] = exchangeData.oi[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
         }
-        if (parsed.price?.[coin]) {
-          parsed.price[coin] = parsed.price[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
+        if (exchangeData.price?.[coin]) {
+          exchangeData.price[coin] = exchangeData.price[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
         }
-        if (parsed.orderbook?.[coin]) {
-          parsed.orderbook[coin] = parsed.orderbook[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
+        if (exchangeData.orderbook?.[coin]) {
+          exchangeData.orderbook[coin] = exchangeData.orderbook[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
         }
-        // Also load CVD history
-        if (parsed.cvd?.[coin]) {
-          parsed.cvd[coin] = parsed.cvd[coin].filter(e => now - e.time < MAX_HISTORY_AGE_MS);
+        if (exchangeData.cvd?.[coin]) {
+          exchangeData.cvd[coin] = exchangeData.cvd[coin].filter(e => now - e.time < MAX_HISTORY_AGE_MS);
         }
       });
 
-      // Ensure cvd structure exists (for backwards compatibility with old localStorage data)
-      if (!parsed.cvd) {
-        parsed.cvd = { BTC: [], ETH: [], SOL: [] };
+      // Ensure cvd structure exists
+      if (!exchangeData.cvd) {
+        exchangeData.cvd = { BTC: [], ETH: [], SOL: [] };
       }
 
-      return parsed;
+      return exchangeData;
     }
   } catch (e) {
     console.warn('Failed to load historical data:', e);
   }
-  return {
-    oi: { BTC: [], ETH: [], SOL: [] },
-    price: { BTC: [], ETH: [], SOL: [] },
-    orderbook: { BTC: [], ETH: [], SOL: [] },
-    cvd: { BTC: [], ETH: [], SOL: [] }
-  };
+  return getEmptyExchangeData();
 };
 
-const saveHistoricalData = (data) => {
+const saveHistoricalData = (exchange, exchangeData) => {
   try {
-    localStorage.setItem(HISTORICAL_DATA_KEY, JSON.stringify(data));
+    const saved = localStorage.getItem(HISTORICAL_DATA_KEY);
+    let allData = {};
+
+    if (saved) {
+      try {
+        allData = JSON.parse(saved);
+      } catch (e) {
+        console.warn('Failed to parse existing data, creating new:', e);
+      }
+    }
+
+    // Ensure all exchanges exist
+    if (!allData.hyperliquid) allData.hyperliquid = getEmptyExchangeData();
+    if (!allData.binance) allData.binance = getEmptyExchangeData();
+    if (!allData.bybit) allData.bybit = getEmptyExchangeData();
+    if (!allData.nado) allData.nado = getEmptyExchangeData();
+    if (!allData.asterdex) allData.asterdex = getEmptyExchangeData();
+
+    // Update specific exchange data
+    allData[exchange] = exchangeData;
+
+    localStorage.setItem(HISTORICAL_DATA_KEY, JSON.stringify(allData));
   } catch (e) {
     console.warn('Failed to save historical data:', e);
   }
@@ -120,7 +159,7 @@ const saveBiasHistory = (data) => {
 
 // ============== TIMEFRAME HELPERS ==============
 const timeframeToMinutes = (tf) => {
-  const map = { '5m': 5, '15m': 15, '30m': 30 };
+  const map = { '5m': 5, '15m': 15, '30m': 30, '1h': 60 };
   return map[tf] || 5;
 };
 
@@ -295,7 +334,7 @@ export default function App() {
       if (!historicalDataRef.current.cvd) {
         historicalDataRef.current.cvd = { BTC: [], ETH: [], SOL: [] };
       }
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('hyperliquid', historicalDataRef.current);
 
     } catch (err) {
       console.error('Error fetching market data:', err);
@@ -335,7 +374,7 @@ export default function App() {
       }
 
       setOrderbookData(newOrderbookData);
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('hyperliquid', historicalDataRef.current);
     } catch (err) {
       console.error('Error fetching orderbooks:', err);
     }
@@ -395,7 +434,7 @@ export default function App() {
           historicalDataRef.current.cvd[coin] = cvdAccumulatorRef.current[coin].history;
         }
       });
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('hyperliquid', historicalDataRef.current);
     } catch (err) {
       console.error('Error fetching CVD:', err);
     }
@@ -678,7 +717,7 @@ export default function App() {
           historicalDataRef.current.orderbook[coin] = historicalDataRef.current.orderbook[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
         }
       });
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('binance', historicalDataRef.current);
     } catch (error) {
       console.error("Binance Fetch Error:", error);
     }
@@ -770,7 +809,7 @@ export default function App() {
           historicalDataRef.current.orderbook[coin] = historicalDataRef.current.orderbook[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
         }
       });
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('bybit', historicalDataRef.current);
     } catch (error) {
       console.error("Bybit Fetch Error:", error);
     }
@@ -870,7 +909,7 @@ export default function App() {
           historicalDataRef.current.price[coin] = historicalDataRef.current.price[coin].filter(e => now - e.timestamp < MAX_HISTORY_AGE_MS);
         }
       });
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('nado', historicalDataRef.current);
     } catch (error) {
       console.error('Nado Fetch Error:', error);
     }
@@ -965,7 +1004,7 @@ export default function App() {
       if (!historicalDataRef.current.cvd) {
         historicalDataRef.current.cvd = { BTC: [], ETH: [], SOL: [] };
       }
-      saveHistoricalData(historicalDataRef.current);
+      saveHistoricalData('asterdex', historicalDataRef.current);
     } catch (error) {
       console.error('AsterDex Fetch Error:', error);
     }
@@ -974,6 +1013,17 @@ export default function App() {
   // ============== EFFECTS ==============
 
   useEffect(() => {
+    // Load persisted data for the active exchange
+    const loadedData = loadHistoricalData(activeExchange);
+    historicalDataRef.current = loadedData;
+
+    // Update CVD accumulator with loaded data
+    ['BTC', 'ETH', 'SOL'].forEach(coin => {
+      if (cvdAccumulatorRef.current[coin]) {
+        cvdAccumulatorRef.current[coin].history = loadedData.cvd?.[coin] || [];
+      }
+    });
+
     if (activeExchange === 'hyperliquid') {
       fetchLeaderboard();
       fetchMarketData();
@@ -995,12 +1045,8 @@ export default function App() {
         clearInterval(whaleTradesInterval);
       };
     } else {
-      // Clear data for other exchanges
-      setOiData({});
-      setPriceData({});
-      setFundingData({});
-      setOrderbookData({});
-      setCvdData({});
+      // For other exchanges, keep existing data while loading (don't clear)
+      // This allows immediate display of persisted data
       setConsensus({});
       setWhaleTrades([]);
       setPositionChanges([]);
@@ -1199,7 +1245,8 @@ export default function App() {
 
     timeframeOiData[coin] = {
       ...oiData[coin],
-      sessionChange: oiHasData ? tfOiChange : (oiData[coin]?.sessionChange || 0),
+      timeframeChange: oiHasData ? tfOiChange : (oiData[coin]?.sessionChange || 0),
+      sessionChange: oiData[coin]?.sessionChange || 0,
       hasTimeframeData: oiHasData
     };
 
@@ -1211,7 +1258,8 @@ export default function App() {
 
     timeframePriceData[coin] = {
       ...priceData[coin],
-      sessionChange: priceHasData ? tfPriceChange : (priceData[coin]?.sessionChange || 0),
+      timeframeChange: priceHasData ? tfPriceChange : (priceData[coin]?.sessionChange || 0),
+      sessionChange: priceData[coin]?.sessionChange || 0,
       hasTimeframeData: priceHasData
     };
 
@@ -1338,7 +1386,9 @@ export default function App() {
                   priceHistory={getSparklineData(coin, 'price')}
                   oiHistory={getSparklineData(coin, 'oi')}
                   cvdHistory={getSparklineData(coin, 'cvd')}
-                  biasHistory={biasHistory[coin] || []} />
+                  biasHistory={biasHistory[coin] || []}
+                  timeframe={dashboardTimeframe}
+                  timeframeMinutes={timeframeMinutes} />
               ))}
             </div>
 
@@ -1367,7 +1417,7 @@ export default function App() {
               {activeTab === 'dashboard' && (
                 <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
                   <span className="text-xs text-slate-400 px-2">Timeframe:</span>
-                  {['5m', '15m', '30m'].map(tf => (
+                  {['5m', '15m', '30m', '1h'].map(tf => (
                     <button key={tf} onClick={() => setDashboardTimeframe(tf)}
                       className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dashboardTimeframe === tf ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}>
                       {tf.toUpperCase()}

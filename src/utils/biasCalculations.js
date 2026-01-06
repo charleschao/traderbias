@@ -3,14 +3,15 @@
 // ============== ALGORITHM IMPROVEMENTS ==============
 
 // OI Velocity (Rate of Change) - How fast is OI changing?
-export const calculateOIVelocity = (currentOI, historicalOI) => {
+// timeframeMinutes: the user-selected timeframe (5, 15, or 30 minutes)
+export const calculateOIVelocity = (currentOI, historicalOI, timeframeMinutes = 5) => {
     if (!historicalOI || historicalOI.length < 2) {
         return { velocity: 0, label: 'Stable', color: 'text-slate-400', icon: '→' };
     }
 
     const now = Date.now();
-    const fiveMinAgo = now - (5 * 60 * 1000);
-    const recentEntries = historicalOI.filter(e => e.timestamp >= fiveMinAgo);
+    const timeframeAgo = now - (timeframeMinutes * 60 * 1000);
+    const recentEntries = historicalOI.filter(e => e.timestamp >= timeframeAgo);
 
     if (recentEntries.length < 2) {
         return { velocity: 0, label: 'Stable', color: 'text-slate-400', icon: '→' };
@@ -53,6 +54,7 @@ export const calculateFundingTrend = (currentRate, historicalFunding) => {
 };
 
 // Divergence Strength Score (0-100) - Higher = stronger divergence signal
+// Note: This should be called with timeframeChange values, not sessionChange
 export const calculateDivergenceStrength = (priceChange, cvdDelta) => {
     const priceMagnitude = Math.abs(priceChange || 0);
     const cvdDirection = cvdDelta > 0 ? 1 : cvdDelta < 0 ? -1 : 0;
@@ -146,9 +148,9 @@ export const getBiasIndicator = (score, maxScore = 10) => {
 export const calculateOIBias = (coin, oiData, fundingData, priceData) => {
     if (!oiData || !fundingData || !priceData) return { score: 0, reason: 'Loading...' };
 
-    const oiChange = oiData.sessionChange || 0;
+    const oiChange = oiData.timeframeChange || oiData.sessionChange || 0;
     const fundingRate = fundingData.rate || 0;
-    const priceChange = priceData.sessionChange || 0;
+    const priceChange = priceData.timeframeChange || priceData.sessionChange || 0;
 
     let score = 0;
     let reasons = [];
@@ -279,7 +281,7 @@ export const calculateCVDBias = (coin, cvdData, priceData) => {
     const cumulativeDelta = cvdData.sessionDelta || 0;
     const rollingDelta = cvdData.rolling5mDelta || 0;
     const deltaTrend = cvdData.trend || 0;
-    const priceChange = priceData?.sessionChange || 0;
+    const priceChange = priceData?.timeframeChange || priceData?.sessionChange || 0;
 
     let score = 0;
     let reasons = [];
@@ -331,10 +333,10 @@ export const calculateFlowConfluence = (coin, oiData, cvdData, priceData) => {
         };
     }
 
-    const oiChange = oiData.sessionChange || 0;
+    const oiChange = oiData.timeframeChange || oiData.sessionChange || 0;
     const cvdDelta = cvdData.rolling5mDelta || 0;
     const cvdTrend = cvdData.trend || 0;
-    const priceChange = priceData.sessionChange || 0;
+    const priceChange = priceData.timeframeChange || priceData.sessionChange || 0;
 
     // Determine directions with thresholds
     const priceUp = priceChange > 0.3;

@@ -22,7 +22,10 @@ const BiasCard = ({
     oiHistory = [],
     cvdHistory = [],
     // New: Bias history for time-weighted display
-    biasHistory = []
+    biasHistory = [],
+    // Timeframe information
+    timeframe = '5m',
+    timeframeMinutes = 5
 }) => {
     if (!biasData) return null;
 
@@ -54,9 +57,9 @@ const BiasCard = ({
     const confluence = calculateFlowConfluence(coin, oiData, cvdData, priceData);
 
     // New algorithm improvements
-    const oiVelocity = calculateOIVelocity(oiData?.current, oiHistory);
+    const oiVelocity = calculateOIVelocity(oiData?.current, oiHistory, timeframeMinutes);
     const divergence = calculateDivergenceStrength(
-        priceData?.sessionChange,
+        priceData?.timeframeChange || priceData?.sessionChange || 0,
         cvdData?.rolling5mDelta
     );
 
@@ -102,20 +105,29 @@ const BiasCard = ({
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-white">OI Change</span>
+                        <span className="text-white">OI Change ({timeframe})</span>
+                        {!oiData?.hasTimeframeData && (
+                            <span className="text-yellow-400 text-[9px]">⚠️</span>
+                        )}
                     </div>
-                    <div className={`font-mono font-bold ${(oiData?.sessionChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {(oiData?.sessionChange || 0) >= 0 ? '+' : ''}{(oiData?.sessionChange || 0).toFixed(2)}%
+                    <div className={`font-mono font-bold ${(oiData?.timeframeChange || oiData?.sessionChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {(oiData?.timeframeChange || oiData?.sessionChange || 0) >= 0 ? '+' : ''}{(oiData?.timeframeChange || oiData?.sessionChange || 0).toFixed(2)}%
                     </div>
+                    {!oiData?.hasTimeframeData && (
+                        <div className="text-[9px] text-yellow-400">Warming up...</div>
+                    )}
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-white">CVD</span>
+                        <span className="text-white">CVD ({timeframe})</span>
                         <Sparkline data={cvdHistory} width={40} height={14} strokeWidth={1} />
                     </div>
                     <div className={`font-mono font-bold ${(cvdData?.rolling5mDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {formatUSD(cvdData?.rolling5mDelta || 0)}
                     </div>
+                    {!cvdData?.hasTimeframeData && (
+                        <div className="text-[9px] text-yellow-400">Warming up...</div>
+                    )}
                 </div>
             </div>
 
@@ -127,10 +139,10 @@ const BiasCard = ({
                     <div className="flex items-center gap-2">
                         {/* Color-coded direction indicators */}
                         <div className="flex items-center gap-1 text-[10px] font-mono">
-                            <span className={getDirectionColor(priceData?.sessionChange, 0.3)}>
+                            <span className={getDirectionColor(priceData?.timeframeChange || priceData?.sessionChange, 0.3)}>
                                 P{confluence.priceDir}
                             </span>
-                            <span className={getDirectionColor(oiData?.sessionChange, 1)}>
+                            <span className={getDirectionColor(oiData?.timeframeChange || oiData?.sessionChange, 1)}>
                                 OI{confluence.oiDir}
                             </span>
                             <span className={getDirectionColor(cvdData?.rolling5mDelta, 0)}>

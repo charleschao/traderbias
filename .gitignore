@@ -12,10 +12,12 @@ PRODUCTION_DEPLOYMENT.md
 RESEARCH_AGENT_README.md
 CLAUDE.md
 HANDOVER.md
+CHANGES.md
 deploy.ps1
 node_modules
 dist
 dist-ssr
+TIPS.md
 *.local
 .claude/*
 .agent/*
