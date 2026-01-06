@@ -254,9 +254,13 @@ export default function App() {
 
   // Process and transform backend data to frontend format
   const processBackendData = (data) => {
-    if (!data) return;
+    if (!data) {
+      console.log('[Backend] No data to process');
+      setLoading(false);
+      return;
+    }
 
-    // Set historical data
+    // Set historical data (use empty arrays for missing data)
     historicalDataRef.current = {
       oi: data.oi || { BTC: [], ETH: [], SOL: [] },
       price: data.price || { BTC: [], ETH: [], SOL: [] },
@@ -270,6 +274,13 @@ export default function App() {
         cvdAccumulatorRef.current[coin].history = data.cvd?.[coin] || [];
       }
     });
+
+    // Check if we have any current data to process
+    if (!data.current) {
+      console.log('[Backend] Exchange has no current data yet (still collecting)');
+      setLoading(false);
+      return;
+    }
 
     // Set current state from backend data - transform to match frontend expected format
     if (data.current) {
