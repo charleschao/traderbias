@@ -145,6 +145,25 @@ async function fetchBinanceData() {
       const totalVol = bidVol + askVol;
       const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
       dataStore.addOrderbook('binance', coin, imbalance);
+
+      // Fetch recent trades for CVD
+      const tradesRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/trades?symbol=${symbol}&limit=100`);
+      const trades = await tradesRes.json();
+
+      let buyVol = 0, sellVol = 0;
+      if (Array.isArray(trades)) {
+        trades.forEach(trade => {
+          const vol = parseFloat(trade.price) * parseFloat(trade.qty);
+          // isBuyerMaker=true means sell (taker was seller)
+          if (trade.isBuyerMaker) {
+            sellVol += vol;
+          } else {
+            buyVol += vol;
+          }
+        });
+      }
+      const delta = buyVol - sellVol;
+      dataStore.addCVD('binance', coin, delta);
     }
 
     console.log('[Binance] Data fetched successfully');
@@ -195,6 +214,24 @@ async function fetchBybitData() {
         const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
         dataStore.addOrderbook('bybit', coin, imbalance);
       }
+
+      // Fetch recent trades for CVD
+      const tradesRes = await fetch(`${BYBIT_API_BASE}/v5/market/recent-trade?category=linear&symbol=${symbol}&limit=100`);
+      const tradesData = await tradesRes.json();
+
+      let buyVol = 0, sellVol = 0;
+      if (tradesData.retCode === 0 && tradesData.result?.list) {
+        tradesData.result.list.forEach(trade => {
+          const vol = parseFloat(trade.price) * parseFloat(trade.size);
+          if (trade.side === 'Buy') {
+            buyVol += vol;
+          } else {
+            sellVol += vol;
+          }
+        });
+      }
+      const delta = buyVol - sellVol;
+      dataStore.addCVD('bybit', coin, delta);
     }
 
     console.log('[Bybit] Data fetched successfully');
@@ -320,6 +357,24 @@ async function fetchAsterDexData() {
         const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
         dataStore.addOrderbook('asterdex', coin, imbalance);
       }
+
+      // Fetch recent trades for CVD
+      const tradesRes = await fetch(`${ASTERDEX_API}/fapi/v1/trades?symbol=${symbol}&limit=100`);
+      const trades = await tradesRes.json();
+
+      let buyVol = 0, sellVol = 0;
+      if (Array.isArray(trades)) {
+        trades.forEach(trade => {
+          const vol = parseFloat(trade.price) * parseFloat(trade.qty);
+          if (trade.isBuyerMaker) {
+            sellVol += vol;
+          } else {
+            buyVol += vol;
+          }
+        });
+      }
+      const cvdDelta = buyVol - sellVol;
+      dataStore.addCVD('asterdex', coin, cvdDelta);
     }
 
     console.log('[AsterDex] Data fetched successfully');
