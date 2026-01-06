@@ -32,6 +32,9 @@ import { platformAgent } from './agents/PlatformImprovementAgent';
 import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
+// Backend API imports
+import { isBackendEnabled, getExchangeData } from './services/backendApi';
+
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
 const BIAS_HISTORY_KEY = 'traderBias_biasHistory';
@@ -245,6 +248,48 @@ export default function App() {
   }, []);
 
   // ============== DATA FETCHING ==============
+
+  // Load data from backend (if enabled)
+  const loadDataFromBackend = async (exchange) => {
+    try {
+      console.log(`[Backend] Loading data for ${exchange}...`);
+      const data = await getExchangeData(exchange);
+
+      console.log('[Backend] Data received:', data);
+
+      // Set historical data
+      historicalDataRef.current = {
+        oi: data.oi || { BTC: [], ETH: [], SOL: [] },
+        price: data.price || { BTC: [], ETH: [], SOL: [] },
+        orderbook: data.orderbook || { BTC: [], ETH: [], SOL: [] },
+        cvd: data.cvd || { BTC: [], ETH: [], SOL: [] }
+      };
+
+      // Update CVD accumulator
+      ['BTC', 'ETH', 'SOL'].forEach(coin => {
+        if (cvdAccumulatorRef.current[coin]) {
+          cvdAccumulatorRef.current[coin].history = data.cvd?.[coin] || [];
+        }
+      });
+
+      // Set current state from backend data
+      if (data.current) {
+        setPriceData(data.current.price || {});
+        setOiData(data.current.oi || {});
+        setFundingData(data.current.funding || {});
+        setOrderbookData(data.current.orderbook || {});
+        setCvdData(data.current.cvd || {});
+      }
+
+      console.log('[Backend] Data loaded successfully');
+      setLoading(false);
+    } catch (error) {
+      console.error('[Backend] Failed to load data:', error);
+      console.log('[Backend] Falling back to direct API calls');
+      // Fall back to direct API calls if backend fails
+      setLoading(false);
+    }
+  };
 
   const fetchMarketData = async () => {
     try {
@@ -1013,51 +1058,86 @@ export default function App() {
   // ============== EFFECTS ==============
 
   useEffect(() => {
-    // Load persisted data for the active exchange
-    const loadedData = loadHistoricalData(activeExchange);
-    historicalDataRef.current = loadedData;
+    // Check if backend is enabled
+    const backendEnabled = isBackendEnabled();
 
-    // Update CVD accumulator with loaded data
-    ['BTC', 'ETH', 'SOL'].forEach(coin => {
-      if (cvdAccumulatorRef.current[coin]) {
-        cvdAccumulatorRef.current[coin].history = loadedData.cvd?.[coin] || [];
+    if (backendEnabled) {
+      console.log('[App] Backend mode enabled, loading data from backend...');
+      // Load data from backend
+      loadDataFromBackend(activeExchange);
+
+      // Set up interval to refresh from backend every 60 seconds
+      const backendRefreshInterval = setInterval(() => {
+        loadDataFromBackend(activeExchange);
+      }, 60000);
+
+      // Still fetch leaderboard data if Hyperliquid (backend doesn't provide this yet)
+      if (activeExchange === 'hyperliquid') {
+        fetchLeaderboard();
+        const leaderboardInterval = setInterval(fetchLeaderboard, 30000);
+
+        return () => {
+          clearInterval(backendRefreshInterval);
+          clearInterval(leaderboardInterval);
+        };
       }
-    });
-
-    if (activeExchange === 'hyperliquid') {
-      fetchLeaderboard();
-      fetchMarketData();
-      fetchOrderbooks();
-      fetchCVD();
-      fetchWhaleTrades();
-
-      const leaderboardInterval = setInterval(fetchLeaderboard, 30000);
-      const marketDataInterval = setInterval(fetchMarketData, 60000);
-      const orderbookInterval = setInterval(fetchOrderbooks, 30000);
-      const cvdInterval = setInterval(fetchCVD, 30000);
-      const whaleTradesInterval = setInterval(fetchWhaleTrades, 15000);
 
       return () => {
-        clearInterval(leaderboardInterval);
-        clearInterval(marketDataInterval);
-        clearInterval(orderbookInterval);
-        clearInterval(cvdInterval);
-        clearInterval(whaleTradesInterval);
+        clearInterval(backendRefreshInterval);
       };
     } else {
-      // For other exchanges, keep existing data while loading (don't clear)
-      // This allows immediate display of persisted data
-      setConsensus({});
-      setWhaleTrades([]);
-      setPositionChanges([]);
-      setTraderPositions([]);
-      setLoading(false);
+      // Original client-side data fetching
+      console.log('[App] Client-side mode, loading from localStorage...');
+
+      // Load persisted data for the active exchange
+      const loadedData = loadHistoricalData(activeExchange);
+      historicalDataRef.current = loadedData;
+
+      // Update CVD accumulator with loaded data
+      ['BTC', 'ETH', 'SOL'].forEach(coin => {
+        if (cvdAccumulatorRef.current[coin]) {
+          cvdAccumulatorRef.current[coin].history = loadedData.cvd?.[coin] || [];
+        }
+      });
+
+      if (activeExchange === 'hyperliquid') {
+        fetchLeaderboard();
+        fetchMarketData();
+        fetchOrderbooks();
+        fetchCVD();
+        fetchWhaleTrades();
+
+        const leaderboardInterval = setInterval(fetchLeaderboard, 30000);
+        const marketDataInterval = setInterval(fetchMarketData, 60000);
+        const orderbookInterval = setInterval(fetchOrderbooks, 30000);
+        const cvdInterval = setInterval(fetchCVD, 30000);
+        const whaleTradesInterval = setInterval(fetchWhaleTrades, 15000);
+
+        return () => {
+          clearInterval(leaderboardInterval);
+          clearInterval(marketDataInterval);
+          clearInterval(orderbookInterval);
+          clearInterval(cvdInterval);
+          clearInterval(whaleTradesInterval);
+        };
+      } else {
+        // For other exchanges, keep existing data while loading (don't clear)
+        // This allows immediate display of persisted data
+        setConsensus({});
+        setWhaleTrades([]);
+        setPositionChanges([]);
+        setTraderPositions([]);
+        setLoading(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeExchange]);
 
   // Effect for Alternate Exchanges (Binance/Bybit/Nado/AsterDex)
+  // Only runs when backend is NOT enabled
   useEffect(() => {
+    // Skip if backend is enabled (backend handles all exchanges)
+    if (isBackendEnabled()) return;
     if (activeExchange === 'hyperliquid') return;
 
     let intervalId;
