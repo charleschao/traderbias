@@ -33,7 +33,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -225,6 +225,7 @@ export default function App() {
   const isFirstLoadRef = useRef(true);
   const historicalDataRef = useRef(loadHistoricalData());
   const prevTradeCountRef = useRef(0);
+  const allExchangeDataRef = useRef({}); // Cache for all exchange data (preloaded)
 
   // Initialize CVD accumulator with history from localStorage
   const cvdAccumulatorRef = useRef({
@@ -249,126 +250,130 @@ export default function App() {
 
   // ============== DATA FETCHING ==============
 
+  // Process and transform backend data to frontend format
+  const processBackendData = (data) => {
+    if (!data) return;
+
+    // Set historical data
+    historicalDataRef.current = {
+      oi: data.oi || { BTC: [], ETH: [], SOL: [] },
+      price: data.price || { BTC: [], ETH: [], SOL: [] },
+      orderbook: data.orderbook || { BTC: [], ETH: [], SOL: [] },
+      cvd: data.cvd || { BTC: [], ETH: [], SOL: [] }
+    };
+
+    // Update CVD accumulator
+    ['BTC', 'ETH', 'SOL'].forEach(coin => {
+      if (cvdAccumulatorRef.current[coin]) {
+        cvdAccumulatorRef.current[coin].history = data.cvd?.[coin] || [];
+      }
+    });
+
+    // Set current state from backend data - transform to match frontend expected format
+    if (data.current) {
+      const coins = ['BTC', 'ETH', 'SOL'];
+
+      // Transform price data
+      const transformedPrice = {};
+      coins.forEach(coin => {
+        const price = data.current.price?.[coin];
+        if (price) {
+          if (!sessionStartRef.current.price[coin]) {
+            sessionStartRef.current.price[coin] = price;
+          }
+          const sessionChange = sessionStartRef.current.price[coin] > 0
+            ? ((price - sessionStartRef.current.price[coin]) / sessionStartRef.current.price[coin]) * 100
+            : 0;
+          transformedPrice[coin] = {
+            markPx: price,
+            sessionStart: sessionStartRef.current.price[coin],
+            sessionChange
+          };
+        }
+      });
+      setPriceData(transformedPrice);
+
+      // Transform OI data
+      const transformedOi = {};
+      coins.forEach(coin => {
+        const oiValue = data.current.oi?.[coin];
+        if (oiValue) {
+          if (!sessionStartRef.current.oi[coin]) {
+            sessionStartRef.current.oi[coin] = oiValue;
+          }
+          const sessionChange = sessionStartRef.current.oi[coin] > 0
+            ? ((oiValue - sessionStartRef.current.oi[coin]) / sessionStartRef.current.oi[coin]) * 100
+            : 0;
+          transformedOi[coin] = {
+            current: oiValue,
+            sessionChange,
+            volume: 0
+          };
+        }
+      });
+      setOiData(transformedOi);
+
+      // Transform funding data
+      const transformedFunding = {};
+      coins.forEach(coin => {
+        const rate = data.current.funding?.[coin];
+        if (rate !== undefined) {
+          transformedFunding[coin] = {
+            rate,
+            trend: 0,
+            annualized: rate * 3 * 365 * 100
+          };
+        }
+      });
+      setFundingData(transformedFunding);
+
+      // Transform orderbook data
+      const transformedOrderbook = {};
+      coins.forEach(coin => {
+        const imbalance = data.current.orderbook?.[coin];
+        if (imbalance !== undefined) {
+          transformedOrderbook[coin] = {
+            bidVolume: 0,
+            askVolume: 0,
+            imbalance,
+            avgImbalance: imbalance
+          };
+        }
+      });
+      setOrderbookData(transformedOrderbook);
+
+      // Transform CVD data
+      const transformedCvd = {};
+      coins.forEach(coin => {
+        const delta = data.current.cvd?.[coin];
+        if (delta !== undefined) {
+          transformedCvd[coin] = {
+            recentDelta: delta,
+            sessionDelta: delta,
+            rolling5mDelta: delta,
+            trend: 0,
+            totalBuyVolume: 0,
+            totalSellVolume: 0
+          };
+        }
+      });
+      setCvdData(transformedCvd);
+    }
+
+    setLoading(false);
+  };
+
   // Load data from backend (if enabled)
   const loadDataFromBackend = async (exchange) => {
     try {
       console.log(`[Backend] Loading data for ${exchange}...`);
       const data = await getExchangeData(exchange);
-
       console.log('[Backend] Data received:', data);
-
-      // Set historical data
-      historicalDataRef.current = {
-        oi: data.oi || { BTC: [], ETH: [], SOL: [] },
-        price: data.price || { BTC: [], ETH: [], SOL: [] },
-        orderbook: data.orderbook || { BTC: [], ETH: [], SOL: [] },
-        cvd: data.cvd || { BTC: [], ETH: [], SOL: [] }
-      };
-
-      // Update CVD accumulator
-      ['BTC', 'ETH', 'SOL'].forEach(coin => {
-        if (cvdAccumulatorRef.current[coin]) {
-          cvdAccumulatorRef.current[coin].history = data.cvd?.[coin] || [];
-        }
-      });
-
-      // Set current state from backend data - transform to match frontend expected format
-      if (data.current) {
-        const coins = ['BTC', 'ETH', 'SOL'];
-
-        // Transform price data: backend returns { BTC: 92044.5 }, frontend expects { BTC: { markPx: 92044.5, sessionChange: 0 } }
-        const transformedPrice = {};
-        coins.forEach(coin => {
-          const price = data.current.price?.[coin];
-          if (price) {
-            if (!sessionStartRef.current.price[coin]) {
-              sessionStartRef.current.price[coin] = price;
-            }
-            const sessionChange = sessionStartRef.current.price[coin] > 0
-              ? ((price - sessionStartRef.current.price[coin]) / sessionStartRef.current.price[coin]) * 100
-              : 0;
-            transformedPrice[coin] = {
-              markPx: price,
-              sessionStart: sessionStartRef.current.price[coin],
-              sessionChange
-            };
-          }
-        });
-        setPriceData(transformedPrice);
-
-        // Transform OI data: backend returns { BTC: 2946498553 }, frontend expects { BTC: { current: 2946498553, sessionChange: 0 } }
-        const transformedOi = {};
-        coins.forEach(coin => {
-          const oiValue = data.current.oi?.[coin];
-          if (oiValue) {
-            if (!sessionStartRef.current.oi[coin]) {
-              sessionStartRef.current.oi[coin] = oiValue;
-            }
-            const sessionChange = sessionStartRef.current.oi[coin] > 0
-              ? ((oiValue - sessionStartRef.current.oi[coin]) / sessionStartRef.current.oi[coin]) * 100
-              : 0;
-            transformedOi[coin] = {
-              current: oiValue,
-              sessionChange,
-              volume: 0
-            };
-          }
-        });
-        setOiData(transformedOi);
-
-        // Transform funding data: backend returns { BTC: 0.0000149 }, frontend expects { BTC: { rate: 0.0000149, annualized: ... } }
-        const transformedFunding = {};
-        coins.forEach(coin => {
-          const rate = data.current.funding?.[coin];
-          if (rate !== undefined) {
-            transformedFunding[coin] = {
-              rate,
-              trend: 0,
-              annualized: rate * 3 * 365 * 100
-            };
-          }
-        });
-        setFundingData(transformedFunding);
-
-        // Transform orderbook data: backend returns { BTC: 95.5 } (imbalance), frontend expects { BTC: { imbalance: 95.5, avgImbalance: 95.5 } }
-        const transformedOrderbook = {};
-        coins.forEach(coin => {
-          const imbalance = data.current.orderbook?.[coin];
-          if (imbalance !== undefined) {
-            transformedOrderbook[coin] = {
-              bidVolume: 0,
-              askVolume: 0,
-              imbalance,
-              avgImbalance: imbalance
-            };
-          }
-        });
-        setOrderbookData(transformedOrderbook);
-
-        // Transform CVD data: backend returns { BTC: 2727.78 }, frontend expects { BTC: { sessionDelta: 2727.78, recentDelta: 0, ... } }
-        const transformedCvd = {};
-        coins.forEach(coin => {
-          const delta = data.current.cvd?.[coin];
-          if (delta !== undefined) {
-            transformedCvd[coin] = {
-              recentDelta: delta,
-              sessionDelta: delta,
-              rolling5mDelta: delta,
-              trend: 0,
-              totalBuyVolume: 0,
-              totalSellVolume: 0
-            };
-          }
-        });
-        setCvdData(transformedCvd);
-      }
-
+      processBackendData(data);
       console.log('[Backend] Data loaded successfully');
-      setLoading(false);
     } catch (error) {
       console.error('[Backend] Failed to load data:', error);
       console.log('[Backend] Falling back to direct API calls');
-      // Fall back to direct API calls if backend fails
       setLoading(false);
     }
   };
@@ -1145,10 +1150,41 @@ export default function App() {
 
     if (backendEnabled) {
       console.log('[App] Backend mode enabled, loading data from backend...');
-      // Load data from backend
-      loadDataFromBackend(activeExchange);
 
-      // Set up interval to refresh from backend every 60 seconds
+      // Check if we have cached data for this exchange (from preload)
+      const cachedData = allExchangeDataRef.current[activeExchange];
+
+      if (cachedData) {
+        // Use cached data instantly
+        console.log(`[Backend] Using cached data for ${activeExchange}`);
+        processBackendData(cachedData);
+      } else if (Object.keys(allExchangeDataRef.current).length === 0) {
+        // First load - preload ALL exchange data for instant tab switching
+        const preloadAllExchanges = async () => {
+          try {
+            console.log('[Backend] Preloading all exchange data...');
+            const allData = await getAllExchangesData();
+            allExchangeDataRef.current = allData;
+            console.log('[Backend] All exchange data preloaded:', Object.keys(allData));
+
+            // Load the active exchange data immediately
+            if (allData[activeExchange]) {
+              processBackendData(allData[activeExchange]);
+            }
+          } catch (error) {
+            console.error('[Backend] Failed to preload all exchanges, falling back to single exchange:', error);
+            loadDataFromBackend(activeExchange);
+          }
+        };
+
+        preloadAllExchanges();
+      } else {
+        // Cache exists but no data for this exchange - fetch individually
+        console.log(`[Backend] No cached data for ${activeExchange}, fetching...`);
+        loadDataFromBackend(activeExchange);
+      }
+
+      // Set up interval to refresh current exchange from backend every 60 seconds
       const backendRefreshInterval = setInterval(() => {
         loadDataFromBackend(activeExchange);
       }, 60000);

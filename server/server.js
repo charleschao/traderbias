@@ -44,6 +44,24 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
+ * Get data for all exchanges (full historical data)
+ * GET /api/data/all
+ *
+ * Returns all exchange data (larger payload)
+ * NOTE: This route MUST be defined BEFORE /api/data/:exchange
+ */
+app.get('/api/data/all', (req, res) => {
+  const allData = {
+    hyperliquid: dataStore.getExchangeData('hyperliquid'),
+    binance: dataStore.getExchangeData('binance'),
+    bybit: dataStore.getExchangeData('bybit'),
+    nado: dataStore.getExchangeData('nado'),
+    asterdex: dataStore.getExchangeData('asterdex')
+  };
+  res.json(allData);
+});
+
+/**
  * Get historical data for a specific exchange
  * GET /api/data/:exchange
  *
@@ -83,23 +101,6 @@ app.get('/api/snapshot/:exchange', (req, res) => {
 
   const snapshot = dataStore.getCurrentSnapshot(exchange);
   res.json(snapshot);
-});
-
-/**
- * Get data for all exchanges (full historical data)
- * GET /api/data/all
- *
- * Returns all exchange data (larger payload)
- */
-app.get('/api/data/all', (req, res) => {
-  const allData = {
-    hyperliquid: dataStore.getExchangeData('hyperliquid'),
-    binance: dataStore.getExchangeData('binance'),
-    bybit: dataStore.getExchangeData('bybit'),
-    nado: dataStore.getExchangeData('nado'),
-    asterdex: dataStore.getExchangeData('asterdex')
-  };
-  res.json(allData);
 });
 
 /**
