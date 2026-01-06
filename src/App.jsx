@@ -343,11 +343,15 @@ export default function App() {
       // Transform orderbook data
       const transformedOrderbook = {};
       coins.forEach(coin => {
-        const imbalance = data.current.orderbook?.[coin];
-        if (imbalance !== undefined) {
+        const obData = data.current.orderbook?.[coin];
+        // Handle both old format (number) and new format (object)
+        if (obData !== undefined && obData !== null) {
+          const imbalance = typeof obData === 'object' ? obData.imbalance : obData;
+          const bidVolume = typeof obData === 'object' ? obData.bidDepth : 0;
+          const askVolume = typeof obData === 'object' ? obData.askDepth : 0;
           transformedOrderbook[coin] = {
-            bidVolume: 0,
-            askVolume: 0,
+            bidVolume,
+            askVolume,
             imbalance,
             avgImbalance: imbalance
           };
