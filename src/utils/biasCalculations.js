@@ -11,7 +11,7 @@ export const calculateOIVelocity = (currentOI, historicalOI, timeframeMinutes = 
 
     const now = Date.now();
     const timeframeAgo = now - (timeframeMinutes * 60 * 1000);
-    const recentEntries = historicalOI.filter(e => e.timestamp >= timeframeAgo);
+    const recentEntries = historicalOI.filter(e => e && e.timestamp >= timeframeAgo);
 
     if (recentEntries.length < 2) {
         return { velocity: 0, label: 'Stable', color: 'text-slate-400', icon: '→' };
@@ -37,7 +37,7 @@ export const calculateFundingTrend = (currentRate, historicalFunding) => {
 
     const now = Date.now();
     const oneHourAgo = now - (60 * 60 * 1000);
-    const recentEntries = historicalFunding.filter(e => e.timestamp >= oneHourAgo);
+    const recentEntries = historicalFunding.filter(e => e && e.timestamp >= oneHourAgo);
 
     if (recentEntries.length < 2) {
         return { trend: 0, label: 'Stable', color: 'text-slate-400', direction: 'flat' };

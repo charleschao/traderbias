@@ -24,7 +24,7 @@ const Sparkline = ({
     }
 
     // Normalize data to fit within SVG bounds
-    const values = data.map(d => (typeof d === 'object' ? d.value : d));
+    const values = data.filter(d => d != null).map(d => (typeof d === 'object' ? d.value : d));
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;

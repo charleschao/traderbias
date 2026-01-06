@@ -78,7 +78,7 @@ export const useSparklineHistory = (maxPoints = 30, intervalMs = 10000) => {
             cvd: cvdHistory,
             funding: fundingHistory
         };
-        return (historyMap[type]?.[coin] || []).map(p => p.value);
+        return (historyMap[type]?.[coin] || []).filter(p => p != null).map(p => p.value);
     }, [priceHistory, oiHistory, cvdHistory, fundingHistory]);
 
     return {
