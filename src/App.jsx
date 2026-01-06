@@ -169,7 +169,8 @@ const timeframeToMinutes = (tf) => {
 const calculateTimeframeChange = (currentValue, history, minutes) => {
   if (!currentValue || !history || history.length === 0) return null;
   const targetTime = Date.now() - (minutes * 60 * 1000);
-  const relevantEntries = history.filter(e => e.timestamp >= targetTime);
+  // Filter out null entries and entries with invalid timestamps
+  const relevantEntries = history.filter(e => e && e.timestamp >= targetTime && e.value != null);
   if (relevantEntries.length === 0) return null;
   const oldestEntry = relevantEntries.reduce((oldest, e) =>
     e.timestamp < oldest.timestamp ? e : oldest, relevantEntries[0]);
@@ -178,8 +179,9 @@ const calculateTimeframeChange = (currentValue, history, minutes) => {
 };
 
 const getAverageImbalance = (history, minutes) => {
+  if (!history || history.length === 0) return 0;
   const targetTime = Date.now() - (minutes * 60 * 1000);
-  const relevantEntries = history.filter(e => e.timestamp >= targetTime);
+  const relevantEntries = history.filter(e => e && e.timestamp >= targetTime);
   if (relevantEntries.length === 0) return 0;
   const sum = relevantEntries.reduce((acc, e) => acc + (e.imbalance || 0), 0);
   return sum / relevantEntries.length;
