@@ -18,7 +18,14 @@ const OrderbookSection = ({ orderbookData, timeframe = '5m', hasEnoughData = tru
                     const ob = orderbookData?.[coin];
                     const bias = calculateOrderbookBias(coin, ob);
                     const indicator = getBiasIndicator(bias.score, 6);
-                    const bidPct = ob ? (ob.bidVolume / (ob.bidVolume + ob.askVolume)) * 100 : 50;
+                    // Calculate bidPct from volumes if available, otherwise derive from imbalance
+                    // Imbalance formula: imbalance = ((bid - ask) / (bid + ask)) * 100
+                    // So: bidPct = 50 + (imbalance / 2)
+                    const bidPct = ob && ob.bidVolume > 0 && ob.askVolume > 0
+                        ? (ob.bidVolume / (ob.bidVolume + ob.askVolume)) * 100
+                        : ob?.imbalance !== undefined
+                            ? 50 + (ob.imbalance / 2)
+                            : 50;
 
                     return (
                         <div key={coin} className="bg-slate-800/50 rounded-lg p-3">

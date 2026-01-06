@@ -272,13 +272,95 @@ export default function App() {
         }
       });
 
-      // Set current state from backend data
+      // Set current state from backend data - transform to match frontend expected format
       if (data.current) {
-        setPriceData(data.current.price || {});
-        setOiData(data.current.oi || {});
-        setFundingData(data.current.funding || {});
-        setOrderbookData(data.current.orderbook || {});
-        setCvdData(data.current.cvd || {});
+        const coins = ['BTC', 'ETH', 'SOL'];
+
+        // Transform price data: backend returns { BTC: 92044.5 }, frontend expects { BTC: { markPx: 92044.5, sessionChange: 0 } }
+        const transformedPrice = {};
+        coins.forEach(coin => {
+          const price = data.current.price?.[coin];
+          if (price) {
+            if (!sessionStartRef.current.price[coin]) {
+              sessionStartRef.current.price[coin] = price;
+            }
+            const sessionChange = sessionStartRef.current.price[coin] > 0
+              ? ((price - sessionStartRef.current.price[coin]) / sessionStartRef.current.price[coin]) * 100
+              : 0;
+            transformedPrice[coin] = {
+              markPx: price,
+              sessionStart: sessionStartRef.current.price[coin],
+              sessionChange
+            };
+          }
+        });
+        setPriceData(transformedPrice);
+
+        // Transform OI data: backend returns { BTC: 2946498553 }, frontend expects { BTC: { current: 2946498553, sessionChange: 0 } }
+        const transformedOi = {};
+        coins.forEach(coin => {
+          const oiValue = data.current.oi?.[coin];
+          if (oiValue) {
+            if (!sessionStartRef.current.oi[coin]) {
+              sessionStartRef.current.oi[coin] = oiValue;
+            }
+            const sessionChange = sessionStartRef.current.oi[coin] > 0
+              ? ((oiValue - sessionStartRef.current.oi[coin]) / sessionStartRef.current.oi[coin]) * 100
+              : 0;
+            transformedOi[coin] = {
+              current: oiValue,
+              sessionChange,
+              volume: 0
+            };
+          }
+        });
+        setOiData(transformedOi);
+
+        // Transform funding data: backend returns { BTC: 0.0000149 }, frontend expects { BTC: { rate: 0.0000149, annualized: ... } }
+        const transformedFunding = {};
+        coins.forEach(coin => {
+          const rate = data.current.funding?.[coin];
+          if (rate !== undefined) {
+            transformedFunding[coin] = {
+              rate,
+              trend: 0,
+              annualized: rate * 3 * 365 * 100
+            };
+          }
+        });
+        setFundingData(transformedFunding);
+
+        // Transform orderbook data: backend returns { BTC: 95.5 } (imbalance), frontend expects { BTC: { imbalance: 95.5, avgImbalance: 95.5 } }
+        const transformedOrderbook = {};
+        coins.forEach(coin => {
+          const imbalance = data.current.orderbook?.[coin];
+          if (imbalance !== undefined) {
+            transformedOrderbook[coin] = {
+              bidVolume: 0,
+              askVolume: 0,
+              imbalance,
+              avgImbalance: imbalance
+            };
+          }
+        });
+        setOrderbookData(transformedOrderbook);
+
+        // Transform CVD data: backend returns { BTC: 2727.78 }, frontend expects { BTC: { sessionDelta: 2727.78, recentDelta: 0, ... } }
+        const transformedCvd = {};
+        coins.forEach(coin => {
+          const delta = data.current.cvd?.[coin];
+          if (delta !== undefined) {
+            transformedCvd[coin] = {
+              recentDelta: delta,
+              sessionDelta: delta,
+              rolling5mDelta: delta,
+              trend: 0,
+              totalBuyVolume: 0,
+              totalSellVolume: 0
+            };
+          }
+        });
+        setCvdData(transformedCvd);
       }
 
       console.log('[Backend] Data loaded successfully');
