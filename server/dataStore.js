@@ -80,10 +80,19 @@ class DataStore {
   /**
    * Add orderbook imbalance data point
    */
-  addOrderbook(exchange, coin, imbalance) {
+  addOrderbook(exchange, coin, imbalance, bidDepth = 0, askDepth = 0) {
     const timestamp = Date.now();
-    this.data[exchange].orderbook[coin].push({ timestamp, imbalance: parseFloat(imbalance) });
-    this.data[exchange].current.orderbook[coin] = parseFloat(imbalance);
+    this.data[exchange].orderbook[coin].push({
+      timestamp,
+      imbalance: parseFloat(imbalance),
+      bidDepth: parseFloat(bidDepth),
+      askDepth: parseFloat(askDepth)
+    });
+    this.data[exchange].current.orderbook[coin] = {
+      imbalance: parseFloat(imbalance),
+      bidDepth: parseFloat(bidDepth),
+      askDepth: parseFloat(askDepth)
+    };
     this.lastUpdate[exchange] = timestamp;
   }
 

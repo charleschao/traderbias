@@ -71,7 +71,7 @@ async function fetchHyperliquidData() {
       const totalVol = bidVol + askVol;
       const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
 
-      dataStore.addOrderbook('hyperliquid', coin, imbalance);
+      dataStore.addOrderbook('hyperliquid', coin, imbalance, bidVol, askVol);
     }
 
     // Fetch CVD (recent trades)
@@ -144,7 +144,7 @@ async function fetchBinanceData() {
 
       const totalVol = bidVol + askVol;
       const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
-      dataStore.addOrderbook('binance', coin, imbalance);
+      dataStore.addOrderbook('binance', coin, imbalance, bidVol, askVol);
 
       // Fetch recent trades for CVD
       const tradesRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/trades?symbol=${symbol}&limit=100`);
@@ -212,7 +212,7 @@ async function fetchBybitData() {
 
         const totalVol = bidVol + askVol;
         const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
-        dataStore.addOrderbook('bybit', coin, imbalance);
+        dataStore.addOrderbook('bybit', coin, imbalance, bidVol, askVol);
       }
 
       // Fetch recent trades for CVD
@@ -355,7 +355,7 @@ async function fetchAsterDexData() {
 
         const totalVol = bidVol + askVol;
         const imbalance = totalVol > 0 ? ((bidVol - askVol) / totalVol) * 100 : 0;
-        dataStore.addOrderbook('asterdex', coin, imbalance);
+        dataStore.addOrderbook('asterdex', coin, imbalance, bidVol, askVol);
       }
 
       // Fetch recent trades for CVD
