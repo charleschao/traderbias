@@ -22,7 +22,7 @@ services:
       - TZ=UTC
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "https://api.ipify.org"]
+      test: [ "CMD", "wget", "-q", "--spider", "https://api.ipify.org" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -33,8 +33,7 @@ services:
     container_name: traderbias-backend
     network_mode: "service:gluetun"
     depends_on:
-      gluetun:
-        condition: service_healthy
+      - gluetun
     environment:
       - NODE_ENV=production
       - PORT=3001
