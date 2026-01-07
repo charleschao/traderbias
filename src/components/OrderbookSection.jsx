@@ -3,15 +3,15 @@ import SectionBiasHeader from './SectionBiasHeader';
 import { calculateOrderbookBias, getBiasIndicator } from '../utils/biasCalculations';
 import { formatUSD } from '../utils/formatters';
 
-const OrderbookSection = ({ orderbookData, timeframe = '5m', hasEnoughData = true }) => {
+const OrderbookSection = ({ orderbookData }) => {
     const coins = ['BTC', 'ETH', 'SOL'];
 
     return (
         <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
             <SectionBiasHeader
-                title={`ORDERBOOK IMBALANCE (${timeframe.toUpperCase()})`}
+                title="ORDERBOOK IMBALANCE"
                 icon="📈"
-                updateInterval={hasEnoughData ? `${timeframe.toUpperCase()} avg` : `⚠️ Collecting data...`}
+                updateInterval="Updates: 10s"
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {coins.map(coin => {
@@ -19,8 +19,6 @@ const OrderbookSection = ({ orderbookData, timeframe = '5m', hasEnoughData = tru
                     const bias = calculateOrderbookBias(coin, ob);
                     const indicator = getBiasIndicator(bias.score, 6);
                     // Calculate bidPct from volumes if available, otherwise derive from imbalance
-                    // Imbalance formula: imbalance = ((bid - ask) / (bid + ask)) * 100
-                    // So: bidPct = 50 + (imbalance / 2)
                     const bidPct = ob && ob.bidVolume > 0 && ob.askVolume > 0
                         ? (ob.bidVolume / (ob.bidVolume + ob.askVolume)) * 100
                         : ob?.imbalance !== undefined
@@ -56,14 +54,10 @@ const OrderbookSection = ({ orderbookData, timeframe = '5m', hasEnoughData = tru
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-700/50">
-                                <span className="text-xs text-slate-300">Current</span>
-                                <span className={`text-xs font-mono ${(ob?.imbalance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            <div className="flex justify-center items-center mt-2 pt-2 border-t border-slate-700/50">
+                                <span className="text-xs text-slate-300 mr-2">Imbalance:</span>
+                                <span className={`text-sm font-bold font-mono ${(ob?.imbalance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {(ob?.imbalance || 0) >= 0 ? '+' : ''}{(ob?.imbalance || 0).toFixed(1)}%
-                                </span>
-                                <span className="text-xs text-slate-300">Avg</span>
-                                <span className={`text-xs font-mono ${(ob?.avgImbalance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {(ob?.avgImbalance || 0) >= 0 ? '+' : ''}{(ob?.avgImbalance || 0).toFixed(1)}%
                                 </span>
                             </div>
                         </div>
@@ -71,7 +65,7 @@ const OrderbookSection = ({ orderbookData, timeframe = '5m', hasEnoughData = tru
                 })}
             </div>
             <div className="mt-3 text-[10px] text-slate-400">
-                Shows L2 depth imbalance. Avg = rolling 5-minute average for sustained pressure detection.
+                L2 depth imbalance. Positive = more bid pressure (bullish). Negative = more ask pressure (bearish).
             </div>
         </div>
     );

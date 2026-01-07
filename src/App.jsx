@@ -1201,10 +1201,10 @@ export default function App() {
         loadDataFromBackend(activeExchange);
       }
 
-      // Set up interval to refresh current exchange from backend every 30 seconds
+      // Set up interval to refresh current exchange from backend every 10 seconds
       const backendRefreshInterval = setInterval(() => {
         loadDataFromBackend(activeExchange);
-      }, 30000);
+      }, 10000);
 
       // Still fetch leaderboard data if Hyperliquid (backend doesn't provide this yet)
       if (activeExchange === 'hyperliquid') {
@@ -1646,7 +1646,7 @@ export default function App() {
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
-                <OrderbookSection orderbookData={timeframeOrderbookData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
+                <OrderbookSection orderbookData={orderbookData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
                 {EXCHANGES[activeExchange]?.features.includes('whales') && (
                   <>
                     <WhaleActivityFeed consensus={consensus} positionChanges={positionChanges} whaleTrades={whaleTrades} />
