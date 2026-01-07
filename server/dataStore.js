@@ -172,6 +172,7 @@ class DataStore {
     let totalRemoved = 0;
 
     Object.keys(this.data).forEach(exchange => {
+      if (exchange === 'whaleTrades') return;
       ['BTC', 'ETH', 'SOL'].forEach(coin => {
         // Clean price
         const priceBefore = this.data[exchange].price[coin].length;
@@ -212,6 +213,7 @@ class DataStore {
     let totalDataPoints = 0;
 
     Object.keys(this.data).forEach(exchange => {
+      if (exchange === 'whaleTrades') return;
       ['BTC', 'ETH', 'SOL'].forEach(coin => {
         totalDataPoints += this.data[exchange].price[coin].length;
         totalDataPoints += this.data[exchange].oi[coin].length;
@@ -227,18 +229,20 @@ class DataStore {
     return {
       totalDataPoints,
       memoryUsageMB,
-      exchanges: Object.keys(this.data).map(ex => ({
-        name: ex,
-        lastUpdate: this.lastUpdate[ex] ? new Date(this.lastUpdate[ex]).toISOString() : 'Never',
-        dataPoints: ['BTC', 'ETH', 'SOL'].reduce((sum, coin) => {
-          return sum +
-            this.data[ex].price[coin].length +
-            this.data[ex].oi[coin].length +
-            this.data[ex].orderbook[coin].length +
-            this.data[ex].cvd[coin].length +
-            this.data[ex].funding[coin].length;
-        }, 0)
-      }))
+      exchanges: Object.keys(this.data)
+        .filter(ex => ex !== 'whaleTrades')
+        .map(ex => ({
+          name: ex,
+          lastUpdate: this.lastUpdate[ex] ? new Date(this.lastUpdate[ex]).toISOString() : 'Never',
+          dataPoints: ['BTC', 'ETH', 'SOL'].reduce((sum, coin) => {
+            return sum +
+              this.data[ex].price[coin].length +
+              this.data[ex].oi[coin].length +
+              this.data[ex].orderbook[coin].length +
+              this.data[ex].cvd[coin].length +
+              this.data[ex].funding[coin].length;
+          }, 0)
+        }))
     };
   }
 }
