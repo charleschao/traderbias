@@ -1201,10 +1201,10 @@ export default function App() {
         loadDataFromBackend(activeExchange);
       }
 
-      // Set up interval to refresh current exchange from backend every 60 seconds
+      // Set up interval to refresh current exchange from backend every 30 seconds
       const backendRefreshInterval = setInterval(() => {
         loadDataFromBackend(activeExchange);
-      }, 60000);
+      }, 30000);
 
       // Still fetch leaderboard data if Hyperliquid (backend doesn't provide this yet)
       if (activeExchange === 'hyperliquid') {

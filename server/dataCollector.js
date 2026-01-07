@@ -396,11 +396,11 @@ function startDataCollection() {
   setTimeout(() => fetchAsterDexData(), 9000);
 
   // Set intervals for continuous collection
-  setInterval(fetchHyperliquidData, 60000); // Every 60 seconds
-  setInterval(fetchBinanceData, 60000);     // Every 60 seconds
-  setInterval(fetchBybitData, 60000);       // Every 60 seconds
-  setInterval(fetchNadoData, 120000);       // Every 120 seconds (slower API)
-  setInterval(fetchAsterDexData, 60000);    // Every 60 seconds
+  setInterval(fetchHyperliquidData, 30000); // Every 30 seconds
+  setInterval(fetchBinanceData, 30000);     // Every 30 seconds
+  setInterval(fetchBybitData, 30000);       // Every 30 seconds
+  setInterval(fetchNadoData, 60000);        // Every 60 seconds (slower API)
+  setInterval(fetchAsterDexData, 30000);    // Every 30 seconds
 
   console.log('[DataCollector] Workers started successfully');
 }
