@@ -7,7 +7,7 @@ const CONFIG = {
 
     EXCHANGES: {
         binanceSpot: {
-            url: 'wss://stream.binance.com/stream?streams=btcusdt@aggTrade/ethusdt@aggTrade/solusdt@aggTrade',
+            url: 'wss://stream.binance.com/stream?streams=btcusdt@aggTrade',
             type: 'SPOT',
             name: 'Binance',
             parse: (msg) => {
@@ -26,7 +26,7 @@ const CONFIG = {
             }
         },
         binanceFutures: {
-            url: 'wss://fstream.binance.com/stream?streams=btcusdt@aggTrade/ethusdt@aggTrade/solusdt@aggTrade',
+            url: 'wss://fstream.binance.com/stream?streams=btcusdt@aggTrade',
             type: 'PERP',
             name: 'Binance',
             parse: (msg) => {
@@ -48,7 +48,7 @@ const CONFIG = {
             url: 'wss://stream.bybit.com/v5/public/linear',
             type: 'PERP',
             name: 'Bybit',
-            subscribe: { op: 'subscribe', args: ['publicTrade.BTCUSDT', 'publicTrade.ETHUSDT', 'publicTrade.SOLUSDT'] },
+            subscribe: { op: 'subscribe', args: ['publicTrade.BTCUSDT'] },
             ping: { op: 'ping' },
             pingInterval: 20000,
             parse: (msg) => {
@@ -72,9 +72,7 @@ const CONFIG = {
             subscribe: {
                 op: 'subscribe',
                 args: [
-                    { channel: 'trades', instId: 'BTC-USDT-SWAP' },
-                    { channel: 'trades', instId: 'ETH-USDT-SWAP' },
-                    { channel: 'trades', instId: 'SOL-USDT-SWAP' }
+                    { channel: 'trades', instId: 'BTC-USDT-SWAP' }
                 ]
             },
             ping: 'ping',
@@ -106,9 +104,7 @@ const CONFIG = {
             type: 'PERP',
             name: 'Hyperliquid',
             subscribe: [
-                { method: 'subscribe', subscription: { type: 'trades', coin: 'BTC' } },
-                { method: 'subscribe', subscription: { type: 'trades', coin: 'ETH' } },
-                { method: 'subscribe', subscription: { type: 'trades', coin: 'SOL' } }
+                { method: 'subscribe', subscription: { type: 'trades', coin: 'BTC' } }
             ],
             ping: { method: 'ping' },
             pingInterval: 30000,
@@ -132,7 +128,7 @@ const CONFIG = {
             name: 'Coinbase',
             subscribe: {
                 type: 'subscribe',
-                product_ids: ['BTC-USD', 'ETH-USD', 'SOL-USD'],
+                product_ids: ['BTC-USD'],
                 channel: 'market_trades'
             },
             ping: { type: 'ping' }, // Coinbase specific ping not always needed but good practice? Actually they use keepalives.
@@ -166,7 +162,7 @@ const CONFIG = {
             name: 'Kraken',
             subscribe: {
                 method: 'subscribe',
-                params: { channel: 'trade', symbol: ['BTC/USD', 'ETH/USD', 'SOL/USD'] }
+                params: { channel: 'trade', symbol: ['BTC/USD'] }
             },
             ping: { method: 'ping' },
             pingInterval: 30000,
