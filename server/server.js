@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const dataStore = require('./dataStore');
 const { startDataCollection } = require('./dataCollector');
+const whaleWatcher = require('./whaleWatcher');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -104,6 +105,16 @@ app.get('/api/snapshot/:exchange', (req, res) => {
 });
 
 /**
+ * Get recent whale trades
+ * GET /api/whale-trades
+ */
+app.get('/api/whale-trades', (req, res) => {
+  const limit = parseInt(req.query.limit) || 100;
+  const trades = dataStore.getWhaleTrades(limit);
+  res.json(trades);
+});
+
+/**
  * Get server statistics
  * GET /api/stats
  */
@@ -139,6 +150,7 @@ app.get('/', (req, res) => {
       health: 'GET /api/health',
       data: 'GET /api/data/:exchange',
       snapshot: 'GET /api/snapshot/:exchange',
+      whaleTrades: 'GET /api/whale-trades',
       all: 'GET /api/data/all',
       stats: 'GET /api/stats'
     },
@@ -179,6 +191,9 @@ function formatUptime(seconds) {
 function startServer() {
   // Start data collection workers
   startDataCollection();
+
+  // Start whale watcher
+  whaleWatcher.start();
 
   // Start Express server
   app.listen(PORT, () => {
