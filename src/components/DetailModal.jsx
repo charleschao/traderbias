@@ -31,17 +31,7 @@ const DetailModal = ({ coin, biasData, priceData, oiData, orderbookData, cvdData
                     {/* MARKET DATA SECTION */}
                     <div className="mb-6">
                         <h4 className="text-sm font-bold text-white mb-3">📊 MARKET DATA</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="bg-slate-800/50 rounded-lg p-3">
-                                <div className="text-xs text-white">Mark Price</div>
-                                <div className="text-lg font-mono text-white">${formatPrice(priceData?.markPx || 0)}</div>
-                            </div>
-                            <div className="bg-slate-800/50 rounded-lg p-3">
-                                <div className="text-xs text-white">Session Change</div>
-                                <div className={`text-lg font-mono font-bold ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-                                </div>
-                            </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                             <div className="bg-slate-800/50 rounded-lg p-3">
                                 <div className="text-xs text-white">Open Interest</div>
                                 <div className="text-lg font-mono text-white">{formatUSD(oiData?.current || 0)}</div>
@@ -53,25 +43,15 @@ const DetailModal = ({ coin, biasData, priceData, oiData, orderbookData, cvdData
                                 </div>
                             </div>
                             <div className="bg-slate-800/50 rounded-lg p-3">
-                                <div className="text-xs text-white">24h Volume</div>
-                                <div className="text-lg font-mono text-white">{formatUSD(oiData?.volume || 0)}</div>
+                                <div className="text-xs text-white">Book Imbalance</div>
+                                <div className={`text-lg font-mono font-bold ${imbalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {imbalance >= 0 ? '+' : ''}{imbalance.toFixed(1)}%
+                                </div>
                             </div>
                             <div className="bg-slate-800/50 rounded-lg p-3">
                                 <div className="text-xs text-white">Funding Rate</div>
                                 <div className={`text-lg font-mono font-bold ${rate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {(rate * 100).toFixed(4)}%
-                                </div>
-                            </div>
-                            <div className="bg-slate-800/50 rounded-lg p-3">
-                                <div className="text-xs text-white">Funding APR</div>
-                                <div className={`text-lg font-mono font-bold ${rate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {(rate * 3 * 365 * 100).toFixed(1)}%
-                                </div>
-                            </div>
-                            <div className="bg-slate-800/50 rounded-lg p-3">
-                                <div className="text-xs text-white">Book Imbalance</div>
-                                <div className={`text-lg font-mono font-bold ${imbalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {imbalance >= 0 ? '+' : ''}{imbalance.toFixed(1)}%
                                 </div>
                             </div>
                         </div>

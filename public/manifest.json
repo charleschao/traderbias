@@ -1,7 +1,7 @@
 {
-    "name": "Crypto Whale Tracker",
-    "short_name": "Whale Tracker",
-    "description": "Real-time whale tracking and trading signals for BTC, ETH, SOL",
+    "name": "Trader's Bias",
+    "short_name": "TraderBias",
+    "description": "Real-time orderflow edge signals and trading analytics for BTC, ETH, SOL",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0f172a",

@@ -2,11 +2,10 @@ import React from 'react';
 
 // Available threshold options in USD
 export const THRESHOLD_OPTIONS = [
-    { value: 1_000_000, label: '$1M' },
-    { value: 2_000_000, label: '$2M' },
-    { value: 4_000_000, label: '$4M' },
-    { value: 10_000_000, label: '$10M' },
-    { value: 25_000_000, label: '$25M' },
+    { value: 450_000, label: '450K' },
+    { value: 1_000_000, label: '1M' },
+    { value: 4_000_000, label: '4M' },
+    { value: 10_000_000, label: '10M' },
 ];
 
 /**

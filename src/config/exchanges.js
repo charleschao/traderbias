@@ -13,7 +13,7 @@ export const EXCHANGES = {
         status: 'active',
         description: 'Top perps DEX on Arbitrum',
         profileUrl: (addr) => `https://hyperscreener.asxn.xyz/profile/${addr}`,
-        features: ['market', 'orderbook', 'funding', 'leaderboard', 'whales', 'cvd', 'liquidations'],
+        features: ['market', 'orderbook', 'funding', 'leaderboard', 'whales', 'cvd'],
         apiBase: HYPERLIQUID_API,
         coins: ['BTC', 'ETH', 'SOL']
     },

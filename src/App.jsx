@@ -10,9 +10,11 @@ import DetailModal from './components/DetailModal';
 import ExchangeComingSoon from './components/ExchangeComingSoon';
 import ExchangeSelector from './components/ExchangeSelector';
 import FlowConfluenceSection from './components/FlowConfluenceSection';
-import FundingRatesSection from './components/FundingRatesSection';
-import LiquidationMap from './components/LiquidationMap';
+import FlowSignalsSection from './components/FlowSignalsSection';
+
+
 import MegaWhaleFeed from './components/MegaWhaleFeed';
+import TradingQuote from './components/TradingQuote';
 import OrderbookSection from './components/OrderbookSection';
 import PositionCard from './components/PositionCard';
 import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
@@ -1574,6 +1576,9 @@ export default function App() {
           <ExchangeSelector activeExchange={activeExchange} onExchangeChange={setActiveExchange} />
         </div>
 
+        {/* Trading Quote */}
+        <TradingQuote />
+
         {/* Mega Whale Feed */}
         <MegaWhaleFeed
           trades={megaWhaleTrades}
@@ -1586,6 +1591,9 @@ export default function App() {
           notificationSupported={notificationSupported}
           onNotificationToggle={toggleNotifications}
         />
+
+        {/* Flow Signals - Live orderflow detection */}
+        <FlowSignalsSection oiData={oiData} cvdData={cvdData} priceData={priceData} />
 
         {/* Main Content */}
         {EXCHANGES[activeExchange]?.status !== 'active' ? (
@@ -1612,7 +1620,7 @@ export default function App() {
               <div className="flex gap-2 flex-wrap">
                 {[
                   { id: 'dashboard', label: '📊 Dashboard', feature: 'market' },
-                  { id: 'liquidations', label: '💀 Liquidations', feature: 'liquidations' },
+
                   { id: 'whales', label: '🐋 Leaderboard', feature: 'leaderboard' },
                   // Platform Insights tab - DEVELOPMENT ONLY
                   ...(import.meta.env.DEV ? [{ id: 'improvements', label: '🔬 Platform Insights [DEV]', feature: 'market' }] : []),
@@ -1645,6 +1653,7 @@ export default function App() {
             {/* Dashboard */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
+
                 <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
                 <OrderbookSection orderbookData={orderbookData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
                 {EXCHANGES[activeExchange]?.features.includes('whales') && (
@@ -1653,28 +1662,11 @@ export default function App() {
                     <ConsensusSection consensus={consensus} />
                   </>
                 )}
-                <FundingRatesSection fundingData={fundingData} />
+
               </div>
             )}
 
-            {/* Liquidations */}
-            {activeTab === 'liquidations' && (
-              <div className="space-y-6">
-                <LiquidationMap positions={allPositions} priceData={priceData} />
-                <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-4">
-                  <h3 className="text-sm font-bold text-white mb-4">📋 ALL WHALE POSITIONS</h3>
-                  {allPositions.length === 0 ? (
-                    <div className="text-center py-8 text-slate-300">Loading whale positions...</div>
-                  ) : (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
-                      {allPositions.sort((a, b) => b.notional - a.notional).slice(0, 15).map((pos, i) => (
-                        <PositionCard key={i} position={pos} marketData={priceData} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+
 
             {/* Leaderboard */}
             {activeTab === 'whales' && (

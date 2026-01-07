@@ -27,6 +27,8 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
             longNotional,
             shortNotional,
             totalNotional,
+            topLong: longs[0] || null,
+            topShort: shorts[0] || null,
             topTraders: [...longs.slice(0, 4), ...shorts.slice(0, 4)].sort((a, b) => b.notional - a.notional)
         };
     }).filter(Boolean);
@@ -55,8 +57,22 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
                             <div className="text-white font-bold text-lg mb-2">{formatUSD(signal.totalNotional)}</div>
 
                             <div className="flex gap-2 text-xs">
-                                <span className="text-green-400">{signal.longCount}L ({formatUSD(signal.longNotional)})</span>
-                                <span className="text-red-400">{signal.shortCount}S ({formatUSD(signal.shortNotional)})</span>
+                                {signal.topLong ? (
+                                    <a href={getProfileUrl(signal.topLong.trader)} target="_blank" rel="noopener noreferrer"
+                                        className="text-green-400 hover:underline cursor-pointer">
+                                        {signal.longCount}L ({formatUSD(signal.longNotional)})
+                                    </a>
+                                ) : (
+                                    <span className="text-green-400">{signal.longCount}L ({formatUSD(signal.longNotional)})</span>
+                                )}
+                                {signal.topShort ? (
+                                    <a href={getProfileUrl(signal.topShort.trader)} target="_blank" rel="noopener noreferrer"
+                                        className="text-red-400 hover:underline cursor-pointer">
+                                        {signal.shortCount}S ({formatUSD(signal.shortNotional)})
+                                    </a>
+                                ) : (
+                                    <span className="text-red-400">{signal.shortCount}S ({formatUSD(signal.shortNotional)})</span>
+                                )}
                             </div>
 
                             {signal.topTraders.length > 0 && (

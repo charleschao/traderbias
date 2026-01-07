@@ -8,6 +8,8 @@ export const useWhaleWebSockets = () => {
     const [connectionStatus, setConnectionStatus] = useState({ backend: 'connecting' });
     const [isConnected, setIsConnected] = useState(false);
 
+    const SUPPORTED_EXCHANGES = ['binanceSpot', 'binanceFutures', 'bybitLinear', 'okxSwap', 'hyperliquid', 'coinbase', 'kraken'];
+
     const fetchTrades = useCallback(async () => {
         try {
             const response = await fetch(`${API_Base}/api/whale-trades?limit=100`);
@@ -27,7 +29,8 @@ export const useWhaleWebSockets = () => {
                     .slice(0, 100);
             });
 
-            setConnectionStatus({ backend: 'connected' });
+            const statusObj = SUPPORTED_EXCHANGES.reduce((acc, ex) => ({ ...acc, [ex]: 'connected' }), {});
+            setConnectionStatus(statusObj);
             setIsConnected(true);
         } catch (err) {
             console.error('[WhaleFeed] Fetch error:', err);
