@@ -80,7 +80,7 @@ const FlowSignalsSection = ({ oiData, cvdData, priceData }) => {
                                 <div className="mt-2">
                                     <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
                                         <span>Strength</span>
-                                        <span className={priority.color}>{priority.strength}%</span>
+                                        <span className={priority.color}>{Math.round(priority.strength)}%</span>
                                     </div>
                                     <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
                                         <div

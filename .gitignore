@@ -5,6 +5,8 @@ logs
 deploy-dev.ps1
 deploy-prod.ps1
 .env
+server/docker-compose.yml
+*/docker-compose.yml
 .env.example
 server/node_modules
 npm-debug.log*
