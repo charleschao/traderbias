@@ -113,8 +113,7 @@ const MegaWhaleFeed = ({
                                 </div>
                             </div>
                             <p className="text-[10px] text-slate-400">
-                                {connectedCount}/{totalConnections} exchanges •
-                                {isConnected ? <span className="text-green-400 ml-1">● LIVE</span> : <span className="text-yellow-400 ml-1">● ...</span>}
+                                {isConnected ? <span className="text-green-400">● LIVE</span> : <span className="text-yellow-400">● ...</span>}
                             </p>
                         </div>
                     </div>

@@ -3,7 +3,7 @@ const dataStore = require('./dataStore');
 
 const CONFIG = {
     // Threshold to keep in memory (lower than frontend to allow filtering)
-    MIN_STORE_THRESHOLD: 100_000,
+    MIN_STORE_THRESHOLD: 500_000,
 
     EXCHANGES: {
         binanceSpot: {
