@@ -164,7 +164,7 @@ const saveBiasHistory = (data) => {
 
 // ============== TIMEFRAME HELPERS ==============
 const timeframeToMinutes = (tf) => {
-  const map = { '5m': 5, '15m': 15, '30m': 30, '1h': 60 };
+  const map = { '5m': 5, '15m': 15, '1h': 60 };
   return map[tf] || 5;
 };
 
@@ -190,14 +190,14 @@ const getAverageImbalance = (history, minutes) => {
 };
 
 // ============== MAIN APP COMPONENT ==============
-export default function App() {
+export default function App({ focusCoin = null }) {
   // Core state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [activeExchange, setActiveExchange] = useState('hyperliquid');
   const [dashboardTimeframe, setDashboardTimeframe] = useState('5m');
   const [expandedCoin, setExpandedCoin] = useState(null);
+  const [showTop10, setShowTop10] = useState(false); // Toggle for Top10/whale sections
 
   // Market data state
   const [priceData, setPriceData] = useState({});
@@ -217,7 +217,7 @@ export default function App() {
   const [lastUpdate, setLastUpdate] = useState(null);
 
   // Threshold state for whale alerts
-  const [whaleThreshold, setWhaleThreshold] = useState(10_000_000);
+  const [whaleThreshold, setWhaleThreshold] = useState(1_000_000);
 
   // Research agent state
   const [agentReport, setAgentReport] = useState(null);
@@ -1572,185 +1572,197 @@ export default function App() {
                 <>Session: {sessionDuration}min{lastUpdate && <span className="ml-2">• Updated {lastUpdate.toLocaleTimeString()}</span>}</>
               ) : EXCHANGES[activeExchange]?.description}
             </p>
+            {/* Timeframe Toggle - in header, hide when Top10 active */}
+            {EXCHANGES[activeExchange]?.status === 'active' && !showTop10 && (
+              <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1 mt-2">
+                <span className="text-xs text-slate-400 px-2">Timeframe:</span>
+                {['5m', '15m', '1h'].map(tf => (
+                  <button key={tf} onClick={() => setDashboardTimeframe(tf)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dashboardTimeframe === tf ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}>
+                    {tf.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <ExchangeSelector activeExchange={activeExchange} onExchangeChange={setActiveExchange} />
+          <ExchangeSelector
+            activeExchange={activeExchange}
+            onExchangeChange={(exchange) => { setActiveExchange(exchange); setShowTop10(false); }}
+            onTop10Click={() => { setShowTop10(!showTop10); if (!showTop10) setTimeout(() => document.getElementById('top10-section')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
+            showTop10={showTop10}
+          />
         </div>
-
-        {/* Trading Quote */}
-        <TradingQuote />
-
-        {/* Mega Whale Feed */}
-        <MegaWhaleFeed
-          trades={megaWhaleTrades}
-          isConnected={whaleWsConnected}
-          connectionStatus={whaleConnectionStatus}
-          threshold={whaleThreshold}
-          onThresholdChange={handleThresholdChange}
-          notificationEnabled={notificationEnabled}
-          notificationPermission={notificationPermission}
-          notificationSupported={notificationSupported}
-          onNotificationToggle={toggleNotifications}
-        />
-
-        {/* Flow Signals - Live orderflow detection */}
-        <FlowSignalsSection oiData={oiData} cvdData={cvdData} priceData={priceData} />
 
         {/* Main Content */}
         {EXCHANGES[activeExchange]?.status !== 'active' ? (
           <ExchangeComingSoon exchange={EXCHANGES[activeExchange]} />
         ) : (
           <>
-            {/* Bias Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {['BTC', 'ETH', 'SOL'].map(coin => (
-                <BiasCard key={coin} coin={coin} biasData={biasScores[coin]} priceData={timeframePriceData[coin]}
-                  oiData={timeframeOiData[coin]} orderbookData={timeframeOrderbookData[coin]} cvdData={timeframeCvdData[coin]}
-                  fundingData={fundingData[coin]} onExpand={setExpandedCoin}
-                  priceHistory={getSparklineData(coin, 'price')}
-                  oiHistory={getSparklineData(coin, 'oi')}
-                  cvdHistory={getSparklineData(coin, 'cvd')}
-                  biasHistory={biasHistory[coin] || []}
-                  timeframe={dashboardTimeframe}
-                  timeframeMinutes={timeframeMinutes} />
-              ))}
-            </div>
+            {/* Focus Mode Back Button */}
+            {focusCoin && (
+              <div className="mb-4">
+                <a
+                  href="/"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all"
+                >
+                  ← Back to All Coins
+                </a>
+              </div>
+            )}
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { id: 'dashboard', label: '📊 Dashboard', feature: 'market' },
-
-                  { id: 'whales', label: '🐋 Leaderboard', feature: 'leaderboard' },
-                  // Platform Insights tab - DEVELOPMENT ONLY
-                  ...(import.meta.env.DEV ? [{ id: 'improvements', label: '🔬 Platform Insights [DEV]', feature: 'market' }] : []),
-                ].filter(tab => EXCHANGES[activeExchange]?.features.includes(tab.feature)).map(tab => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 rounded-xl font-bold transition-all ${activeTab === tab.id ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700'}`}>
-                    {tab.label}
-                    {tab.id === 'improvements' && agentReport?.summary.critical > 0 && (
-                      <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-red-500 text-white">
-                        {agentReport.summary.critical}
-                      </span>
-                    )}
-                  </button>
+            {/* Bias Cards - Show single or all based on focusCoin, hide when Top10 active */}
+            {!showTop10 && (
+              <div className={`grid gap-4 mb-6 ${focusCoin ? 'grid-cols-1 max-w-2xl mx-auto' : 'grid-cols-1 md:grid-cols-3'}`}>
+                {(focusCoin ? [focusCoin] : ['BTC', 'ETH', 'SOL']).map(coin => (
+                  <BiasCard key={coin} coin={coin} biasData={biasScores[coin]} priceData={timeframePriceData[coin]}
+                    oiData={timeframeOiData[coin]} orderbookData={timeframeOrderbookData[coin]} cvdData={timeframeCvdData[coin]}
+                    fundingData={fundingData[coin]} onExpand={setExpandedCoin}
+                    priceHistory={getSparklineData(coin, 'price')}
+                    oiHistory={getSparklineData(coin, 'oi')}
+                    cvdHistory={getSparklineData(coin, 'cvd')}
+                    biasHistory={biasHistory[coin] || []}
+                    timeframe={dashboardTimeframe}
+                    timeframeMinutes={timeframeMinutes} />
                 ))}
               </div>
+            )}
 
-              {activeTab === 'dashboard' && (
-                <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
-                  <span className="text-xs text-slate-400 px-2">Timeframe:</span>
-                  {['5m', '15m', '30m', '1h'].map(tf => (
-                    <button key={tf} onClick={() => setDashboardTimeframe(tf)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dashboardTimeframe === tf ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}>
-                      {tf.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* DEV only: Platform Improvements button */}
+            {import.meta.env.DEV && !showTop10 && (
+              <div className="mb-6">
+                <button
+                  onClick={() => document.getElementById('dev-improvements')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="px-4 py-2 rounded-xl font-bold transition-all bg-slate-800/50 text-slate-300 hover:bg-slate-700"
+                >
+                  🔬 Platform Insights
+                  {agentReport?.summary.critical > 0 && (
+                    <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-red-500 text-white">
+                      {agentReport.summary.critical}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
 
-            {/* Dashboard */}
-            {activeTab === 'dashboard' && (
+            {/* Flow Confluence & Orderbook - hide when Top10 active */}
+            {!showTop10 && (
               <div className="space-y-6">
-
                 <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
                 <OrderbookSection orderbookData={orderbookData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
-                {EXCHANGES[activeExchange]?.features.includes('whales') && (
-                  <>
-                    <WhaleActivityFeed consensus={consensus} positionChanges={positionChanges} whaleTrades={whaleTrades} />
-                    <ConsensusSection consensus={consensus} />
-                  </>
-                )}
-
               </div>
             )}
 
+            {/* Whale & Top10 Sections - Hyperliquid only, shown when Top10 active */}
+            {showTop10 && EXCHANGES[activeExchange]?.features.includes('whales') && (
+              <div className="space-y-6">
+                <WhaleActivityFeed consensus={consensus} positionChanges={positionChanges} whaleTrades={whaleTrades} />
+                <ConsensusSection consensus={consensus} />
 
-
-            {/* Leaderboard */}
-            {activeTab === 'whales' && (
-              <div className="grid lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  <div className="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
-                    <div className="p-4 border-b border-slate-800 bg-gradient-to-r from-yellow-500/10 to-transparent">
-                      <h2 className="font-bold flex items-center gap-2">
-                        🏆 Top Weekly Performers
-                        <span className="text-xs font-normal text-slate-400">Updates every 5 min</span>
-                      </h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-800/50">
-                          <tr>
-                            <th className="py-2 px-3 text-left text-slate-300">#</th>
-                            <th className="py-2 px-3 text-left text-slate-300">Trader</th>
-                            <th className="py-2 px-3 text-right text-slate-300">Account</th>
-                            <th className="py-2 px-3 text-right text-slate-300">Week PNL</th>
-                            <th className="py-2 px-3 text-right text-slate-300">Week %</th>
-                            <th className="py-2 px-3 text-right text-slate-300">Month %</th>
-                            <th className="py-2 px-3 text-right text-slate-300">All-Time %</th>
-                            <th className="py-2 px-3 text-center text-slate-300">Pos</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {traders.slice(0, 20).map((trader, i) => (
-                            <TraderRow key={trader.address} trader={trader} rank={i + 1}
-                              isSelected={selectedTrader?.address === trader.address}
-                              onClick={() => setSelectedTrader(trader)} />
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-1">
-                  <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-4 sticky top-4">
-                    <h3 className="font-bold mb-4">📊 Trader Positions</h3>
-                    {!selectedTrader ? (
-                      <div className="text-center py-8 text-slate-300">Click a trader to view positions</div>
-                    ) : (
-                      <div>
-                        <div className="mb-4 pb-4 border-b border-slate-800">
-                          <a href={getProfileUrl(selectedTrader.address)} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-mono text-sm">
-                            {formatAddress(selectedTrader.address)} ↗
-                          </a>
-                          <div className="text-slate-300 text-sm mt-1">Account: {formatUSD(selectedTrader.accountValue)}</div>
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            <span className={`text-xs px-2 py-1 rounded ${selectedTrader.weekRoi >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                              Week: {formatPercent(selectedTrader.weekRoi)}
-                            </span>
-                            <span className={`text-xs px-2 py-1 rounded ${selectedTrader.monthRoi >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                              Month: {formatPercent(selectedTrader.monthRoi)}
-                            </span>
+                {/* Top 10 Leaderboard */}
+                {EXCHANGES[activeExchange]?.features.includes('leaderboard') && (
+                  <div id="top10-section" className="pt-6 border-t border-slate-800">
+                    <div className="grid lg:grid-cols-3 gap-6">
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+                          <div className="p-4 border-b border-slate-800 bg-gradient-to-r from-yellow-500/10 to-transparent">
+                            <h2 className="font-bold flex items-center gap-2">
+                              🏆 Top Weekly Performers
+                              <span className="text-xs font-normal text-slate-400">Updates every 5 min</span>
+                            </h2>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-slate-800/50">
+                                <tr>
+                                  <th className="py-2 px-3 text-left text-slate-300">#</th>
+                                  <th className="py-2 px-3 text-left text-slate-300">Trader</th>
+                                  <th className="py-2 px-3 text-right text-slate-300">Account</th>
+                                  <th className="py-2 px-3 text-right text-slate-300">Week PNL</th>
+                                  <th className="py-2 px-3 text-right text-slate-300">Week %</th>
+                                  <th className="py-2 px-3 text-right text-slate-300">Month %</th>
+                                  <th className="py-2 px-3 text-right text-slate-300">All-Time %</th>
+                                  <th className="py-2 px-3 text-center text-slate-300">Pos</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {traders.slice(0, 20).map((trader, i) => (
+                                  <TraderRow key={trader.address} trader={trader} rank={i + 1}
+                                    isSelected={selectedTrader?.address === trader.address}
+                                    onClick={() => setSelectedTrader(trader)} />
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
-                        {traderPositions.length === 0 ? (
-                          <div className="text-center py-6 text-slate-300">No open positions</div>
-                        ) : (
-                          <div className="space-y-3 max-h-80 overflow-y-auto">
-                            {traderPositions.map((pos, i) => (
-                              <PositionCard key={i} position={pos} marketData={priceData} />
-                            ))}
-                          </div>
-                        )}
                       </div>
-                    )}
+
+                      <div className="lg:col-span-1">
+                        <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-4 sticky top-4">
+                          <h3 className="font-bold mb-4">📊 Trader Positions</h3>
+                          {!selectedTrader ? (
+                            <div className="text-center py-8 text-slate-300">Click a trader to view positions</div>
+                          ) : (
+                            <div>
+                              <div className="mb-4 pb-4 border-b border-slate-800">
+                                <a href={getProfileUrl(selectedTrader.address)} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-mono text-sm">
+                                  {formatAddress(selectedTrader.address)} ↗
+                                </a>
+                                <div className="text-slate-300 text-sm mt-1">Account: {formatUSD(selectedTrader.accountValue)}</div>
+                                <div className="flex gap-2 mt-2 flex-wrap">
+                                  <span className={`text-xs px-2 py-1 rounded ${selectedTrader.weekRoi >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                    Week: {formatPercent(selectedTrader.weekRoi)}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded ${selectedTrader.monthRoi >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                    Month: {formatPercent(selectedTrader.monthRoi)}
+                                  </span>
+                                </div>
+                              </div>
+                              {traderPositions.length === 0 ? (
+                                <div className="text-center py-6 text-slate-300">No open positions</div>
+                              ) : (
+                                <div className="space-y-3 max-h-80 overflow-y-auto">
+                                  {traderPositions.map((pos, i) => (
+                                    <PositionCard key={i} position={pos} marketData={priceData} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* Platform Improvements */}
-            {activeTab === 'improvements' && (
-              <div className="space-y-6">
+            {/* Platform Improvements - DEV only */}
+            {import.meta.env.DEV && (
+              <div id="dev-improvements" className="mt-8 space-y-6">
                 <PlatformImprovementsPanel agentReport={agentReport} />
               </div>
             )}
 
+            {/* Large Orders - Moved to bottom */}
+            <MegaWhaleFeed
+              trades={megaWhaleTrades}
+              isConnected={whaleWsConnected}
+              connectionStatus={whaleConnectionStatus}
+              threshold={whaleThreshold}
+              onThresholdChange={handleThresholdChange}
+              notificationEnabled={notificationEnabled}
+              notificationPermission={notificationPermission}
+              notificationSupported={notificationSupported}
+              onNotificationToggle={toggleNotifications}
+            />
+
             {/* Footer */}
             <div className="mt-8 pt-6 border-t border-slate-800">
+              {/* Trading Quote - Moved to footer */}
+              <div className="mb-6">
+                <TradingQuote />
+              </div>
+
               <div className="text-center text-slate-400 text-xs space-y-2">
                 <p className="text-slate-500">
                   ⚠️ <strong>Not Financial Advice</strong> • For informational purposes only •

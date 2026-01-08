@@ -14,13 +14,32 @@ const NADO_API = 'https://archive.prod.nado.xyz/v1';
 const ASTERDEX_API = 'https://fapi.asterdex.com';
 
 const COINS = ['BTC', 'ETH', 'SOL'];
+const FETCH_TIMEOUT_MS = 15000; // 15 second timeout
+
+/**
+ * Fetch with timeout wrapper to prevent hung requests
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // ============== HYPERLIQUID WORKER ==============
 
 async function fetchHyperliquidData() {
   try {
     // Fetch prices
-    const midsRes = await fetch(HYPERLIQUID_API, {
+    const midsRes = await fetchWithTimeout(HYPERLIQUID_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'allMids' })
@@ -28,7 +47,7 @@ async function fetchHyperliquidData() {
     const mids = await midsRes.json();
 
     // Fetch OI and funding
-    const metaRes = await fetch(HYPERLIQUID_API, {
+    const metaRes = await fetchWithTimeout(HYPERLIQUID_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'metaAndAssetCtxs' })
@@ -57,7 +76,7 @@ async function fetchHyperliquidData() {
 
     // Fetch orderbooks
     for (const coin of COINS) {
-      const obRes = await fetch(HYPERLIQUID_API, {
+      const obRes = await fetchWithTimeout(HYPERLIQUID_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'l2Book', coin })
@@ -76,7 +95,7 @@ async function fetchHyperliquidData() {
 
     // Fetch CVD (recent trades)
     for (const coin of COINS) {
-      const tradesRes = await fetch(HYPERLIQUID_API, {
+      const tradesRes = await fetchWithTimeout(HYPERLIQUID_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'recentTrades', coin })
@@ -96,7 +115,8 @@ async function fetchHyperliquidData() {
 
     console.log('[Hyperliquid] Data fetched successfully');
   } catch (error) {
-    console.error('[Hyperliquid] Fetch error:', error.message);
+    const errorType = error.name === 'AbortError' ? 'TIMEOUT' : error.name || 'ERROR';
+    console.error(`[Hyperliquid] Fetch ${errorType}:`, error.message);
   }
 }
 
@@ -110,7 +130,7 @@ async function fetchBinanceData() {
       const symbol = symbolMap[coin];
 
       // Fetch ticker (price)
-      const tickerRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/ticker/24hr?symbol=${symbol}`);
+      const tickerRes = await fetchWithTimeout(`${BINANCE_API_BASE}/fapi/v1/ticker/24hr?symbol=${symbol}`);
       const ticker = await tickerRes.json();
       const price = parseFloat(ticker.lastPrice);
 
@@ -119,13 +139,13 @@ async function fetchBinanceData() {
       }
 
       // Fetch funding
-      const fundingRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/premiumIndex?symbol=${symbol}`);
+      const fundingRes = await fetchWithTimeout(`${BINANCE_API_BASE}/fapi/v1/premiumIndex?symbol=${symbol}`);
       const fundingInfo = await fundingRes.json();
       const rate = parseFloat(fundingInfo.lastFundingRate);
       dataStore.addFunding('binance', coin, rate);
 
       // Fetch OI
-      const oiRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/openInterest?symbol=${symbol}`);
+      const oiRes = await fetchWithTimeout(`${BINANCE_API_BASE}/fapi/v1/openInterest?symbol=${symbol}`);
       const oiInfo = await oiRes.json();
       const oiValue = parseFloat(oiInfo.openInterest) * price;
       if (oiValue > 0) {
@@ -133,7 +153,7 @@ async function fetchBinanceData() {
       }
 
       // Fetch orderbook
-      const depthRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/depth?symbol=${symbol}&limit=10`);
+      const depthRes = await fetchWithTimeout(`${BINANCE_API_BASE}/fapi/v1/depth?symbol=${symbol}&limit=10`);
       const depth = await depthRes.json();
 
       let bidVol = 0, askVol = 0;
@@ -147,7 +167,7 @@ async function fetchBinanceData() {
       dataStore.addOrderbook('binance', coin, imbalance, bidVol, askVol);
 
       // Fetch recent trades for CVD
-      const tradesRes = await fetch(`${BINANCE_API_BASE}/fapi/v1/trades?symbol=${symbol}&limit=100`);
+      const tradesRes = await fetchWithTimeout(`${BINANCE_API_BASE}/fapi/v1/trades?symbol=${symbol}&limit=100`);
       const trades = await tradesRes.json();
 
       let buyVol = 0, sellVol = 0;
@@ -168,7 +188,8 @@ async function fetchBinanceData() {
 
     console.log('[Binance] Data fetched successfully');
   } catch (error) {
-    console.error('[Binance] Fetch error:', error.message);
+    const errorType = error.name === 'AbortError' ? 'TIMEOUT' : error.name || 'ERROR';
+    console.error(`[Binance] Fetch ${errorType}:`, error.message);
   }
 }
 
@@ -182,7 +203,7 @@ async function fetchBybitData() {
       const symbol = symbolMap[coin];
 
       // Fetch ticker
-      const tickerRes = await fetch(`${BYBIT_API_BASE}/v5/market/tickers?category=linear&symbol=${symbol}`);
+      const tickerRes = await fetchWithTimeout(`${BYBIT_API_BASE}/v5/market/tickers?category=linear&symbol=${symbol}`);
       const tickerData = await tickerRes.json();
 
       if (tickerData.retCode === 0 && tickerData.result?.list?.[0]) {
@@ -201,7 +222,7 @@ async function fetchBybitData() {
       }
 
       // Fetch orderbook
-      const depthRes = await fetch(`${BYBIT_API_BASE}/v5/market/orderbook?category=linear&symbol=${symbol}&limit=10`);
+      const depthRes = await fetchWithTimeout(`${BYBIT_API_BASE}/v5/market/orderbook?category=linear&symbol=${symbol}&limit=10`);
       const depthData = await depthRes.json();
 
       if (depthData.retCode === 0 && depthData.result) {
@@ -216,7 +237,7 @@ async function fetchBybitData() {
       }
 
       // Fetch recent trades for CVD
-      const tradesRes = await fetch(`${BYBIT_API_BASE}/v5/market/recent-trade?category=linear&symbol=${symbol}&limit=100`);
+      const tradesRes = await fetchWithTimeout(`${BYBIT_API_BASE}/v5/market/recent-trade?category=linear&symbol=${symbol}&limit=100`);
       const tradesData = await tradesRes.json();
 
       let buyVol = 0, sellVol = 0;
@@ -236,7 +257,8 @@ async function fetchBybitData() {
 
     console.log('[Bybit] Data fetched successfully');
   } catch (error) {
-    console.error('[Bybit] Fetch error:', error.message);
+    const errorType = error.name === 'AbortError' ? 'TIMEOUT' : error.name || 'ERROR';
+    console.error(`[Bybit] Fetch ${errorType}:`, error.message);
   }
 }
 
@@ -247,7 +269,7 @@ async function fetchNadoData() {
     const productMap = { 'BTC': 2, 'ETH': 4, 'SOL': 8 };
 
     // Fetch prices
-    const priceRes = await fetch(NADO_API, {
+    const priceRes = await fetchWithTimeout(NADO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ perp_prices: { product_ids: Object.values(productMap) } })
@@ -255,7 +277,7 @@ async function fetchNadoData() {
     const priceData = await priceRes.json();
 
     // Fetch funding
-    const fundingRes = await fetch(NADO_API, {
+    const fundingRes = await fetchWithTimeout(NADO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ funding_rates: { product_ids: Object.values(productMap) } })
@@ -263,7 +285,7 @@ async function fetchNadoData() {
     const fundingData = await fundingRes.json();
 
     // Fetch OI (market snapshots)
-    const snapshotRes = await fetch(NADO_API, {
+    const snapshotRes = await fetchWithTimeout(NADO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ market_snapshots: { interval: { count: 1, granularity: 3600 }, product_ids: Object.values(productMap) } })
@@ -306,7 +328,8 @@ async function fetchNadoData() {
 
     console.log('[Nado] Data fetched successfully');
   } catch (error) {
-    console.error('[Nado] Fetch error:', error.message);
+    const errorType = error.name === 'AbortError' ? 'TIMEOUT' : error.name || 'ERROR';
+    console.error(`[Nado] Fetch ${errorType}:`, error.message);
   }
 }
 
@@ -320,19 +343,19 @@ async function fetchAsterDexData() {
       const symbol = symbolMap[coin];
 
       // Fetch ticker
-      const tickerRes = await fetch(`${ASTERDEX_API}/fapi/v1/ticker/24hr?symbol=${symbol}`);
+      const tickerRes = await fetchWithTimeout(`${ASTERDEX_API}/fapi/v1/ticker/24hr?symbol=${symbol}`);
       const ticker = await tickerRes.json();
 
       // Fetch funding
-      const fundingRes = await fetch(`${ASTERDEX_API}/fapi/v1/premiumIndex?symbol=${symbol}`);
+      const fundingRes = await fetchWithTimeout(`${ASTERDEX_API}/fapi/v1/premiumIndex?symbol=${symbol}`);
       const fundingInfo = await fundingRes.json();
 
       // Fetch OI
-      const oiRes = await fetch(`${ASTERDEX_API}/fapi/v1/openInterest?symbol=${symbol}`);
+      const oiRes = await fetchWithTimeout(`${ASTERDEX_API}/fapi/v1/openInterest?symbol=${symbol}`);
       const oiInfo = await oiRes.json();
 
       // Fetch orderbook
-      const depthRes = await fetch(`${ASTERDEX_API}/fapi/v1/depth?symbol=${symbol}&limit=10`);
+      const depthRes = await fetchWithTimeout(`${ASTERDEX_API}/fapi/v1/depth?symbol=${symbol}&limit=10`);
       const depth = await depthRes.json();
 
       const price = parseFloat(ticker.lastPrice);
@@ -359,7 +382,7 @@ async function fetchAsterDexData() {
       }
 
       // Fetch recent trades for CVD
-      const tradesRes = await fetch(`${ASTERDEX_API}/fapi/v1/trades?symbol=${symbol}&limit=100`);
+      const tradesRes = await fetchWithTimeout(`${ASTERDEX_API}/fapi/v1/trades?symbol=${symbol}&limit=100`);
       const trades = await tradesRes.json();
 
       let buyVol = 0, sellVol = 0;
@@ -379,7 +402,8 @@ async function fetchAsterDexData() {
 
     console.log('[AsterDex] Data fetched successfully');
   } catch (error) {
-    console.error('[AsterDex] Fetch error:', error.message);
+    const errorType = error.name === 'AbortError' ? 'TIMEOUT' : error.name || 'ERROR';
+    console.error(`[AsterDex] Fetch ${errorType}:`, error.message);
   }
 }
 

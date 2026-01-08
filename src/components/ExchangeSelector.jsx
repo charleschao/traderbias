@@ -1,10 +1,11 @@
 import React from 'react';
 import { EXCHANGE_LIST } from '../config/exchanges';
 
-const ExchangeSelector = ({ activeExchange, onExchangeChange }) => (
+const ExchangeSelector = ({ activeExchange, onExchangeChange, onTop10Click, showTop10 = false }) => (
     <div className="flex items-center gap-1 bg-slate-800/50 rounded-xl p-1">
         {EXCHANGE_LIST.map(exchange => {
             const isActive = activeExchange === exchange.id;
+            const isHyperliquid = exchange.id === 'hyperliquid';
             const colorClasses = {
                 cyan: isActive ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-400 hover:text-cyan-400',
                 purple: isActive ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'text-slate-400 hover:text-purple-400',
@@ -13,6 +14,34 @@ const ExchangeSelector = ({ activeExchange, onExchangeChange }) => (
                 orange: isActive ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-400 hover:text-orange-400',
                 amber: isActive ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-400 hover:text-amber-400',
             };
+
+            // Special layout for Hyperliquid with Top10 underneath
+            if (isHyperliquid) {
+                return (
+                    <div key={exchange.id} className="flex flex-col">
+                        <button
+                            onClick={() => { onExchangeChange(exchange.id); if (showTop10 && onTop10Click) onTop10Click(); }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg font-bold text-sm transition-all ${colorClasses[exchange.color] || colorClasses.cyan} ${isActive && !showTop10 ? '' : isActive ? 'bg-cyan-600/50' : ''}`}
+                            title={exchange.description}
+                        >
+                            <span className="text-lg">{exchange.icon}</span>
+                            <span className="hidden sm:inline">{exchange.name}</span>
+                            <span className="sm:hidden">{exchange.shortName}</span>
+                        </button>
+                        {isActive && (
+                            <button
+                                onClick={onTop10Click}
+                                className={`text-[10px] font-bold px-3 py-1 rounded-b-lg transition-all ${showTop10
+                                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+                                        : 'bg-slate-700/50 text-yellow-400 hover:bg-slate-700'
+                                    }`}
+                            >
+                                🏆 Top 10 Traders
+                            </button>
+                        )}
+                    </div>
+                );
+            }
 
             return (
                 <button
