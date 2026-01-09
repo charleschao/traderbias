@@ -149,27 +149,23 @@ export default function BiasProjection({ projection, loading = false }) {
                             {/* Factors */}
                             <div className="space-y-2 text-xs">
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">📊 RSI (20%)</span>
-                                    <div className="text-slate-400 mt-1">14-period Relative Strength Index. Overbought (&gt;70) = contrarian bearish. Oversold (&lt;30) = contrarian bullish. Uses Wilder's smoothing for accuracy.</div>
-                                </div>
-                                <div className="bg-slate-800/50 rounded p-2">
                                     <span className="text-yellow-400 font-bold">⚡ RSI Divergence (+20% bonus)</span>
                                     <div className="text-slate-400 mt-1">Powerful reversal signal. Bullish: price makes lower low but RSI makes higher low. Bearish: price makes higher high but RSI makes lower high.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">💰 Funding Z-Score (15%)</span>
+                                    <span className="text-cyan-400 font-bold">💰 Funding Z-Score (20%)</span>
                                     <div className="text-slate-400 mt-1">Statistical measure of funding extremity. Z &gt; 2 = extremely long-biased → contrarian bearish. Z &lt; -2 = extremely short-biased → contrarian bullish.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">📈 OI Rate of Change (15%)</span>
+                                    <span className="text-cyan-400 font-bold">📈 OI Rate of Change (20%)</span>
                                     <div className="text-slate-400 mt-1">4-hour leverage dynamics. Rising OI + price up = strong trend. OI drop &gt;5% with price drop = capitulation/bounce potential.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">🌊 CVD Flow (15%)</span>
+                                    <span className="text-cyan-400 font-bold">🌊 CVD Flow (20%)</span>
                                     <div className="text-slate-400 mt-1">2-hour cumulative buy vs sell delta. Measures sustained buying/selling pressure from market makers and takers.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">⚖️ Market Regime (15%)</span>
+                                    <span className="text-cyan-400 font-bold">⚖️ Market Regime (20%)</span>
                                     <div className="text-slate-400 mt-1">Detects overcrowding via OI + funding. Long crowded = bearish caution. Short squeezed = bullish potential.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">

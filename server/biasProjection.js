@@ -12,13 +12,12 @@
  * - Cross-exchange confluence
  */
 
-// New weights distribution (removing momentum, adding RSI/funding-zscore/OI-roc)
+// Weights distribution (RSI divergence is bonus only, not weighted)
 const WEIGHTS = {
-    rsi: 0.20,           // RSI with overbought/oversold (contrarian)
-    fundingZScore: 0.15, // Z-score for extreme funding detection
-    oiRoC: 0.15,         // OI rate of change (leverage dynamics)
-    cvdPersistence: 0.15,// Sustained buying/selling pressure
-    regime: 0.15,        // OI + Funding regime detection
+    fundingZScore: 0.20, // Z-score for extreme funding detection
+    oiRoC: 0.20,         // OI rate of change (leverage dynamics)
+    cvdPersistence: 0.20,// Sustained buying/selling pressure
+    regime: 0.20,        // OI + Funding regime detection
     whales: 0.10,        // Whale positioning (Hyperliquid only)
     confluence: 0.10     // Cross-exchange agreement
 };
@@ -580,11 +579,10 @@ function generateProjection(coin, dataStore, consensus = null) {
     const volatility = calculateVolatility(hlData.price.BTC);
     const session = detectSession();
 
-    // Calculate weighted score
-    let totalWeight = WEIGHTS.rsi + WEIGHTS.fundingZScore + WEIGHTS.oiRoC +
+    // Calculate weighted score (RSI divergence is bonus only, not in main weights)
+    let totalWeight = WEIGHTS.fundingZScore + WEIGHTS.oiRoC +
         WEIGHTS.cvdPersistence + WEIGHTS.regime + WEIGHTS.confluence;
     let weightedScore = (
-        (rsi.score * WEIGHTS.rsi) +
         (fundingZScore.score * WEIGHTS.fundingZScore) +
         (oiRoC.score * WEIGHTS.oiRoC) +
         (cvdPersistence.score * WEIGHTS.cvdPersistence) +
