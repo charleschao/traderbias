@@ -3,9 +3,15 @@
  *
  * Stores 24 hours of historical data for all exchanges
  * Memory-optimized with circular buffers and automatic cleanup
+ * Now with JSON file persistence for Docker restarts
  */
 
-const MAX_HISTORY_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours - supports predictive bias calculations
+const fs = require('fs');
+const path = require('path');
+
+const MAX_HISTORY_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DATA_FILE = path.join(__dirname, 'data', 'datastore.json');
+const SAVE_INTERVAL_MS = 60 * 1000; // Save every 1 minute
 
 class DataStore {
   constructor() {
@@ -26,8 +32,20 @@ class DataStore {
       asterdex: null
     };
 
+    this.isDirty = false; // Track if data has changed since last save
+
+    // Try to load persisted data
+    this.loadFromFile();
+
     // Start cleanup interval (every 10 minutes)
     setInterval(() => this.cleanup(), 10 * 60 * 1000);
+
+    // Start save interval (every 1 minute)
+    setInterval(() => this.saveToFile(), SAVE_INTERVAL_MS);
+
+    // Save on process exit
+    process.on('SIGTERM', () => this.saveToFile(true));
+    process.on('SIGINT', () => this.saveToFile(true));
   }
 
   createEmptyExchangeData() {
@@ -49,6 +67,131 @@ class DataStore {
   }
 
   /**
+   * Load data from JSON file
+   */
+  loadFromFile() {
+    try {
+      if (!fs.existsSync(DATA_FILE)) {
+        console.log('[DataStore] No persisted data found, starting fresh');
+        return;
+      }
+
+      const raw = fs.readFileSync(DATA_FILE, 'utf8');
+      const saved = JSON.parse(raw);
+
+      if (!saved || !saved.data) {
+        console.log('[DataStore] Invalid persisted data format, starting fresh');
+        return;
+      }
+
+      // Restore data
+      const now = Date.now();
+      const cutoff = now - MAX_HISTORY_AGE_MS;
+      let restoredPoints = 0;
+      let expiredPoints = 0;
+
+      // Merge saved data, filtering out expired entries
+      Object.keys(saved.data).forEach(exchange => {
+        if (exchange === 'whaleTrades') {
+          // Restore whale trades (keep last 100)
+          this.data.whaleTrades = (saved.data.whaleTrades || []).slice(0, 100);
+          return;
+        }
+
+        if (!this.data[exchange]) return;
+
+        ['BTC', 'ETH', 'SOL'].forEach(coin => {
+          // Restore price data
+          if (saved.data[exchange]?.price?.[coin]) {
+            const fresh = saved.data[exchange].price[coin].filter(e => e.timestamp >= cutoff);
+            expiredPoints += saved.data[exchange].price[coin].length - fresh.length;
+            this.data[exchange].price[coin] = fresh;
+            restoredPoints += fresh.length;
+          }
+
+          // Restore OI data
+          if (saved.data[exchange]?.oi?.[coin]) {
+            const fresh = saved.data[exchange].oi[coin].filter(e => e.timestamp >= cutoff);
+            expiredPoints += saved.data[exchange].oi[coin].length - fresh.length;
+            this.data[exchange].oi[coin] = fresh;
+            restoredPoints += fresh.length;
+          }
+
+          // Restore CVD data
+          if (saved.data[exchange]?.cvd?.[coin]) {
+            const fresh = saved.data[exchange].cvd[coin].filter(e => e.time >= cutoff);
+            expiredPoints += saved.data[exchange].cvd[coin].length - fresh.length;
+            this.data[exchange].cvd[coin] = fresh;
+            restoredPoints += fresh.length;
+          }
+
+          // Restore funding data
+          if (saved.data[exchange]?.funding?.[coin]) {
+            const fresh = saved.data[exchange].funding[coin].filter(e => e.timestamp >= cutoff);
+            expiredPoints += saved.data[exchange].funding[coin].length - fresh.length;
+            this.data[exchange].funding[coin] = fresh;
+            restoredPoints += fresh.length;
+          }
+
+          // Restore orderbook data
+          if (saved.data[exchange]?.orderbook?.[coin]) {
+            const fresh = saved.data[exchange].orderbook[coin].filter(e => e.timestamp >= cutoff);
+            expiredPoints += saved.data[exchange].orderbook[coin].length - fresh.length;
+            this.data[exchange].orderbook[coin] = fresh;
+            restoredPoints += fresh.length;
+          }
+
+          // Restore current values if available
+          if (saved.data[exchange]?.current) {
+            this.data[exchange].current = saved.data[exchange].current;
+          }
+        });
+      });
+
+      // Restore lastUpdate timestamps
+      if (saved.lastUpdate) {
+        this.lastUpdate = { ...this.lastUpdate, ...saved.lastUpdate };
+      }
+
+      const savedAt = saved.savedAt ? new Date(saved.savedAt).toISOString() : 'unknown';
+      console.log(`[DataStore] ✓ Restored ${restoredPoints} data points (${expiredPoints} expired) from ${savedAt}`);
+
+    } catch (error) {
+      console.error('[DataStore] Error loading persisted data:', error.message);
+    }
+  }
+
+  /**
+   * Save data to JSON file
+   */
+  saveToFile(force = false) {
+    if (!this.isDirty && !force) return;
+
+    try {
+      // Ensure data directory exists
+      const dataDir = path.dirname(DATA_FILE);
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      const saveData = {
+        savedAt: Date.now(),
+        data: this.data,
+        lastUpdate: this.lastUpdate
+      };
+
+      fs.writeFileSync(DATA_FILE, JSON.stringify(saveData), 'utf8');
+      this.isDirty = false;
+
+      const stats = this.getStats();
+      console.log(`[DataStore] ✓ Saved ${stats.totalDataPoints} data points to disk`);
+
+    } catch (error) {
+      console.error('[DataStore] Error saving data:', error.message);
+    }
+  }
+
+  /**
    * Add price data point
    */
   addPrice(exchange, coin, value) {
@@ -56,6 +199,7 @@ class DataStore {
     this.data[exchange].price[coin].push({ timestamp, value: parseFloat(value) });
     this.data[exchange].current.price[coin] = parseFloat(value);
     this.lastUpdate[exchange] = timestamp;
+    this.isDirty = true;
   }
 
   /**
@@ -66,6 +210,7 @@ class DataStore {
     this.data[exchange].oi[coin].push({ timestamp, value: parseFloat(value) });
     this.data[exchange].current.oi[coin] = parseFloat(value);
     this.lastUpdate[exchange] = timestamp;
+    this.isDirty = true;
   }
 
   /**
@@ -76,6 +221,7 @@ class DataStore {
     this.data[exchange].funding[coin].push({ timestamp, rate: parseFloat(rate) });
     this.data[exchange].current.funding[coin] = parseFloat(rate);
     this.lastUpdate[exchange] = timestamp;
+    this.isDirty = true;
   }
 
   /**
@@ -95,6 +241,7 @@ class DataStore {
       askDepth: parseFloat(askDepth)
     };
     this.lastUpdate[exchange] = timestamp;
+    this.isDirty = true;
   }
 
   /**
@@ -105,7 +252,7 @@ class DataStore {
     this.data[exchange].cvd[coin].push({ time: timestamp, delta: parseFloat(delta) });
     this.data[exchange].current.cvd[coin] = parseFloat(delta);
     this.lastUpdate[exchange] = timestamp;
-    this.lastUpdate[exchange] = timestamp;
+    this.isDirty = true;
   }
 
   /**
@@ -127,6 +274,8 @@ class DataStore {
     if (this.data.whaleTrades.length > 500) {
       this.data.whaleTrades = this.data.whaleTrades.slice(0, 500);
     }
+
+    this.isDirty = true;
   }
 
   /**
@@ -137,7 +286,7 @@ class DataStore {
   }
 
   /**
-   * Add CVD data point
+   * Get exchange data
    */
   getExchangeData(exchange) {
     if (!this.data[exchange]) {
@@ -163,7 +312,7 @@ class DataStore {
   }
 
   /**
-   * Cleanup old data points (older than 4 hours)
+   * Cleanup old data points (older than 24 hours)
    */
   cleanup() {
     const now = Date.now();
@@ -203,6 +352,7 @@ class DataStore {
 
     if (totalRemoved > 0) {
       console.log(`[DataStore] Cleanup: Removed ${totalRemoved} old data points`);
+      this.isDirty = true;
     }
   }
 
@@ -229,6 +379,7 @@ class DataStore {
     return {
       totalDataPoints,
       memoryUsageMB,
+      persistenceFile: DATA_FILE,
       exchanges: Object.keys(this.data)
         .filter(ex => ex !== 'whaleTrades')
         .map(ex => ({
