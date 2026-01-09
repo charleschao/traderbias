@@ -691,13 +691,6 @@ function generateProjection(coin, dataStore, consensus = null) {
     // Build key factors for display
     const keyFactors = [
         {
-            name: 'RSI (14)',
-            direction: rsi.score > 0.1 ? 'bullish' : rsi.score < -0.1 ? 'bearish' : 'neutral',
-            score: Math.abs(rsi.score),
-            impact: Math.abs(rsi.score) > 0.5 ? 'high' : Math.abs(rsi.score) > 0.2 ? 'medium' : 'low',
-            detail: `${rsi.value.toFixed(1)} (${rsi.zone.replace('_', ' ')})`
-        },
-        {
             name: 'Funding Z-Score',
             direction: fundingZScore.score > 0.1 ? 'bullish' : fundingZScore.score < -0.1 ? 'bearish' : 'neutral',
             score: Math.abs(fundingZScore.score),
@@ -727,10 +720,10 @@ function generateProjection(coin, dataStore, consensus = null) {
         }
     ];
 
-    // Add divergence if detected
+    // Add RSI Divergence if detected (bonus signal)
     if (divergence.detected) {
         keyFactors.unshift({
-            name: '⚡ RSI Divergence',
+            name: '⚡ RSI Div',
             direction: divergence.type === 'bullish_divergence' ? 'bullish' : 'bearish',
             score: 1.0,
             impact: 'high',
