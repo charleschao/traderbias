@@ -26,7 +26,12 @@ const WEIGHTS = {
 const BONUSES = {
     bullishDivergence: 0.20,
     bearishDivergence: -0.20,
-    allFactorsAligned: 0.10
+    allFactorsAligned: 0.10,
+    // Spot vs Perp divergence bonuses
+    spotAccumulation: 0.25,     // Spot buying while perp flat = strong bullish
+    fakePump: -0.25,            // Perp buying while spot selling = fake rally
+    capitulationBottom: 0.20,   // Spot absorbing perp panic = reversal
+    distribution: -0.20         // Spot selling while perp flat = distribution
 };
 
 // Timeframes in milliseconds
@@ -743,6 +748,65 @@ function generateProjection(coin, dataStore, consensus = null) {
         normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
     }
 
+    // Spot vs Perp CVD divergence bonus
+    let spotPerpDivergence = null;
+    const spotCvd = dataStore.getSpotCvd('BTC');
+    if (spotCvd && spotCvd.rolling5mDelta !== undefined) {
+        const perpCvdDelta = cvdPersistence.twoHourDelta || 0;
+        const spotDelta = spotCvd.rolling5mDelta;
+
+        const spotTrend = spotDelta > 50000 ? 'up' : spotDelta < -50000 ? 'down' : 'flat';
+        const perpTrend = perpCvdDelta > 100000 ? 'up' : perpCvdDelta < -100000 ? 'down' : 'flat';
+
+        // BULLISH: Spot rising, Perp flat/falling = Real accumulation
+        if (spotTrend === 'up' && perpTrend !== 'up') {
+            spotPerpDivergence = {
+                signal: 'SPOT_ACCUMULATION',
+                bias: 'bullish',
+                strength: 'strong',
+                description: 'Spot buyers leading - real accumulation',
+                spotDelta, perpCvdDelta, spotTrend, perpTrend
+            };
+            normalizedScore += BONUSES.spotAccumulation;
+        }
+        // BULLISH: Spot rising into perp selling = Capitulation bottom
+        else if (spotTrend === 'up' && perpTrend === 'down') {
+            spotPerpDivergence = {
+                signal: 'CAPITULATION_BOTTOM',
+                bias: 'bullish',
+                strength: 'strong',
+                description: 'Spot absorbing perp panic selling',
+                spotDelta, perpCvdDelta, spotTrend, perpTrend
+            };
+            normalizedScore += BONUSES.capitulationBottom;
+        }
+        // BEARISH: Perp rising, Spot falling = Fake pump
+        else if (perpTrend === 'up' && spotTrend === 'down') {
+            spotPerpDivergence = {
+                signal: 'FAKE_PUMP',
+                bias: 'bearish',
+                strength: 'strong',
+                description: 'Leverage-driven rally, spot selling',
+                spotDelta, perpCvdDelta, spotTrend, perpTrend
+            };
+            normalizedScore += BONUSES.fakePump;
+        }
+        // BEARISH: Spot falling, Perp flat = Distribution
+        else if (spotTrend === 'down' && perpTrend !== 'down') {
+            spotPerpDivergence = {
+                signal: 'DISTRIBUTION',
+                bias: 'bearish',
+                strength: 'moderate',
+                description: 'Smart money distributing',
+                spotDelta, perpCvdDelta, spotTrend, perpTrend
+            };
+            normalizedScore += BONUSES.distribution;
+        }
+
+        // Clamp score
+        normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
+    }
+
     // Determine bias label
     let bias, strength;
     const absScore = Math.abs(normalizedScore);
@@ -917,7 +981,8 @@ function generateProjection(coin, dataStore, consensus = null) {
             regime,
             whales,
             confluence,
-            volatility
+            volatility,
+            spotPerpDivergence
         },
         generatedAt: now,
         validUntil: now + (4 * 60 * 60 * 1000),

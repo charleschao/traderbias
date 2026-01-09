@@ -21,7 +21,13 @@ class DataStore {
       bybit: this.createEmptyExchangeData(),
       nado: this.createEmptyExchangeData(),
       asterdex: this.createEmptyExchangeData(),
-      whaleTrades: []
+      whaleTrades: [],
+      // Spot CVD from Binance (separate from perp data)
+      spotCvd: {
+        BTC: { current: null, history: [] },
+        ETH: { current: null, history: [] },
+        SOL: { current: null, history: [] }
+      }
     };
 
     this.lastUpdate = {
@@ -308,6 +314,50 @@ class DataStore {
     return {
       current: this.data[exchange].current,
       lastUpdate: this.lastUpdate[exchange]
+    };
+  }
+
+  /**
+   * Update spot CVD data (from Binance spot trades)
+   */
+  updateSpotCvd(coin, cvdData) {
+    if (!this.data.spotCvd[coin]) {
+      console.warn(`[DataStore] Unknown coin for spot CVD: ${coin}`);
+      return;
+    }
+
+    this.data.spotCvd[coin].current = cvdData;
+    this.data.spotCvd[coin].history.push({
+      ...cvdData,
+      timestamp: Date.now()
+    });
+
+    // Keep history bounded (1 hour of 5-second samples = 720 entries)
+    if (this.data.spotCvd[coin].history.length > 800) {
+      this.data.spotCvd[coin].history = this.data.spotCvd[coin].history.slice(-720);
+    }
+
+    this.isDirty = true;
+  }
+
+  /**
+   * Get spot CVD data for a coin
+   */
+  getSpotCvd(coin) {
+    if (!this.data.spotCvd[coin]) {
+      return null;
+    }
+    return this.data.spotCvd[coin].current;
+  }
+
+  /**
+   * Get all spot CVD data
+   */
+  getAllSpotCvd() {
+    return {
+      BTC: this.data.spotCvd.BTC.current,
+      ETH: this.data.spotCvd.ETH.current,
+      SOL: this.data.spotCvd.SOL.current
     };
   }
 

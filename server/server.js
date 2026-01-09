@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const dataStore = require('./dataStore');
 const { startDataCollection } = require('./dataCollector');
+const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
 
@@ -171,11 +172,57 @@ app.get('/', (req, res) => {
       data: 'GET /api/data/:exchange',
       snapshot: 'GET /api/snapshot/:exchange',
       whaleTrades: 'GET /api/whale-trades',
+      spotCvd: 'GET /api/spot-cvd/:coin?',
       all: 'GET /api/data/all',
       stats: 'GET /api/stats'
     },
     exchanges: ['hyperliquid', 'binance', 'bybit', 'nado', 'asterdex']
   });
+});
+
+/**
+ * Get spot CVD data (from Binance spot trades)
+ * GET /api/spot-cvd/:coin?
+ * 
+ * Returns spot CVD data for comparison with perp CVD
+ */
+app.get('/api/spot-cvd/:coin?', (req, res) => {
+  const { coin } = req.params;
+
+  if (coin) {
+    const validCoins = ['BTC', 'ETH', 'SOL'];
+    const upperCoin = coin.toUpperCase();
+    if (!validCoins.includes(upperCoin)) {
+      return res.status(400).json({
+        error: 'Invalid coin',
+        validCoins
+      });
+    }
+
+    const spotCvd = getSpotCvd(upperCoin);
+    if (!spotCvd) {
+      return res.json({
+        coin: upperCoin,
+        status: 'collecting',
+        message: 'Spot CVD data is being collected, please wait...'
+      });
+    }
+
+    // Get perp CVD for comparison
+    const perpCvd = dataStore.getExchangeData('hyperliquid')?.current?.cvd?.[upperCoin];
+    const divergence = detectSpotPerpDivergence(upperCoin, perpCvd?.cvdDelta || 0);
+
+    return res.json({
+      coin: upperCoin,
+      spotCvd,
+      perpCvd: perpCvd || null,
+      divergence
+    });
+  }
+
+  // Return all coins
+  const allSpotCvd = getAllSpotCvd();
+  res.json(allSpotCvd);
 });
 
 // ============== ERROR HANDLING ==============
@@ -215,6 +262,9 @@ function startServer() {
   // Start whale watcher
   whaleWatcher.start();
 
+  // Start spot CVD collector (Binance spot trades)
+  startSpotDataCollection();
+
   // Start Express server
   app.listen(PORT, () => {
     console.log('');
@@ -228,6 +278,7 @@ function startServer() {
     console.log(`    Health:   GET http://localhost:${PORT}/api/health`);
     console.log(`    Data:     GET http://localhost:${PORT}/api/data/:exchange`);
     console.log(`    Snapshot: GET http://localhost:${PORT}/api/snapshot/:exchange`);
+    console.log(`    SpotCVD:  GET http://localhost:${PORT}/api/spot-cvd/:coin`);
     console.log(`    Stats:    GET http://localhost:${PORT}/api/stats`);
     console.log('');
     console.log('  Exchanges: hyperliquid, binance, bybit, nado, asterdex');
