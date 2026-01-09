@@ -1,11 +1,11 @@
 /**
  * In-Memory Data Store for Trader Bias
  *
- * Stores 4 hours of historical data for all exchanges
+ * Stores 24 hours of historical data for all exchanges
  * Memory-optimized with circular buffers and automatic cleanup
  */
 
-const MAX_HISTORY_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours
+const MAX_HISTORY_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours - supports predictive bias calculations
 
 class DataStore {
   constructor() {

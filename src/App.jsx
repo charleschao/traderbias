@@ -40,7 +40,7 @@ import { isBackendEnabled, getExchangeData, getAllExchangesData } from './servic
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
 const BIAS_HISTORY_KEY = 'traderBias_biasHistory';
-const MAX_HISTORY_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours - ensures robust historical data for all timeframes
+const MAX_HISTORY_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours - supports predictive bias calculations
 const MAX_BIAS_HISTORY_AGE_MS = 15 * 60 * 1000; // 15 minutes
 
 const getEmptyExchangeData = () => ({
@@ -1167,8 +1167,18 @@ export default function App({ focusCoin = null }) {
     // Check if backend is enabled
     const backendEnabled = isBackendEnabled();
 
+    // Clear whale/consensus data when switching to exchanges that don't have whale tracking
+    if (!EXCHANGES[activeExchange]?.features.includes('whales')) {
+      setConsensus({});
+      setWhaleTrades([]);
+      setPositionChanges([]);
+      setTraderPositions([]);
+      setAllPositions([]);
+    }
+
     if (backendEnabled) {
       console.log('[App] Backend mode enabled, loading data from backend...');
+
 
       // Check if we have cached data for this exchange (from preload)
       const cachedData = allExchangeDataRef.current[activeExchange];
@@ -1622,7 +1632,8 @@ export default function App({ focusCoin = null }) {
                     cvdHistory={getSparklineData(coin, 'cvd')}
                     biasHistory={biasHistory[coin] || []}
                     timeframe={dashboardTimeframe}
-                    timeframeMinutes={timeframeMinutes} />
+                    timeframeMinutes={timeframeMinutes}
+                    hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')} />
                 ))}
               </div>
             )}
