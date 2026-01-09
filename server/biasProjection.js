@@ -1,17 +1,33 @@
 /**
- * Bias Projection Module
+ * Bias Projection Module (v2 - Refined Algorithm)
  * 
  * Calculates 8-12 hour forward-looking bias predictions for BTC
- * using multi-factor analysis across all available data sources.
+ * using proven quantitative indicators:
+ * - RSI with divergence detection
+ * - Funding rate Z-score (extreme positioning)
+ * - OI rate of change (leverage dynamics)
+ * - CVD persistence (buying/selling pressure)
+ * - Market regime detection
+ * - Whale consensus
+ * - Cross-exchange confluence
  */
 
-// Weights for each factor in the final score
+// New weights distribution (removing momentum, adding RSI/funding-zscore/OI-roc)
 const WEIGHTS = {
-    momentum: 0.30,      // Time-weighted price momentum
-    regime: 0.25,        // OI + Funding regime detection
-    cvdPersistence: 0.20, // Sustained buying/selling pressure
-    whales: 0.15,        // Whale positioning (Hyperliquid only)
+    rsi: 0.20,           // RSI with overbought/oversold (contrarian)
+    fundingZScore: 0.15, // Z-score for extreme funding detection
+    oiRoC: 0.15,         // OI rate of change (leverage dynamics)
+    cvdPersistence: 0.15,// Sustained buying/selling pressure
+    regime: 0.15,        // OI + Funding regime detection
+    whales: 0.10,        // Whale positioning (Hyperliquid only)
     confluence: 0.10     // Cross-exchange agreement
+};
+
+// Bonus multipliers (additive after weighted sum)
+const BONUSES = {
+    bullishDivergence: 0.20,
+    bearishDivergence: -0.20,
+    allFactorsAligned: 0.10
 };
 
 // Timeframes in milliseconds
@@ -25,56 +41,283 @@ const TIMEFRAMES = {
 };
 
 /**
- * Calculate time-weighted momentum score
- * Weights recent timeframes less, longer timeframes more
- * @returns {number} -1 to +1 normalized score
+ * Calculate RSI (Relative Strength Index) with Wilder's smoothing
+ * Standard 14-period RSI with contrarian scoring
+ * @returns {object} { score, value, zone, avgGain, avgLoss }
  */
-function calculateMomentumScore(priceHistory) {
-    if (!priceHistory || priceHistory.length < 2) {
-        return { score: 0, details: { fiveMin: 0, thirtyMin: 0, fourHour: 0 } };
+function calculateRSI(priceHistory, period = 14) {
+    if (!priceHistory || priceHistory.length < period + 1) {
+        return { score: 0, value: 50, zone: 'insufficient_data', avgGain: 0, avgLoss: 0 };
+    }
+
+    // Calculate price changes
+    const changes = [];
+    for (let i = 1; i < priceHistory.length; i++) {
+        if (priceHistory[i]?.value && priceHistory[i - 1]?.value) {
+            changes.push(priceHistory[i].value - priceHistory[i - 1].value);
+        }
+    }
+
+    if (changes.length < period) {
+        return { score: 0, value: 50, zone: 'insufficient_data', avgGain: 0, avgLoss: 0 };
+    }
+
+    // First period: simple average
+    let avgGain = 0, avgLoss = 0;
+    for (let i = 0; i < period; i++) {
+        if (changes[i] > 0) avgGain += changes[i];
+        else avgLoss += Math.abs(changes[i]);
+    }
+    avgGain /= period;
+    avgLoss /= period;
+
+    // Subsequent periods: Wilder's smoothing
+    for (let i = period; i < changes.length; i++) {
+        avgGain = (avgGain * (period - 1) + (changes[i] > 0 ? changes[i] : 0)) / period;
+        avgLoss = (avgLoss * (period - 1) + (changes[i] < 0 ? Math.abs(changes[i]) : 0)) / period;
+    }
+
+    // Calculate RSI
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    const rsi = 100 - (100 / (1 + rs));
+
+    // Contrarian scoring (overbought = bearish, oversold = bullish)
+    let score = 0;
+    let zone = 'neutral';
+
+    if (rsi >= 80) { score = -0.9; zone = 'extreme_overbought'; }
+    else if (rsi >= 70) { score = -0.5; zone = 'overbought'; }
+    else if (rsi >= 60) { score = -0.2; zone = 'bullish_momentum'; }
+    else if (rsi <= 20) { score = 0.9; zone = 'extreme_oversold'; }
+    else if (rsi <= 30) { score = 0.5; zone = 'oversold'; }
+    else if (rsi <= 40) { score = 0.2; zone = 'bearish_momentum'; }
+    else { score = 0; zone = 'neutral'; }
+
+    return { score, value: rsi, zone, avgGain, avgLoss };
+}
+
+/**
+ * Detect RSI Divergence (powerful reversal signal)
+ * Bullish: Price lower lows, RSI higher lows
+ * Bearish: Price higher highs, RSI lower highs
+ */
+function detectRSIDivergence(priceHistory, period = 14) {
+    if (!priceHistory || priceHistory.length < 30) {
+        return { score: 0, type: 'none', detected: false };
+    }
+
+    // Calculate RSI for each point in recent history
+    const rsiHistory = [];
+    for (let i = period + 1; i <= priceHistory.length; i++) {
+        const slice = priceHistory.slice(0, i);
+        const rsi = calculateRSI(slice, period);
+        if (rsi.value !== 50 || rsi.zone !== 'insufficient_data') {
+            rsiHistory.push({
+                timestamp: priceHistory[i - 1]?.timestamp,
+                value: rsi.value,
+                price: priceHistory[i - 1]?.value
+            });
+        }
+    }
+
+    if (rsiHistory.length < 20) {
+        return { score: 0, type: 'none', detected: false };
+    }
+
+    // Look at last 20 points
+    const recentData = rsiHistory.slice(-20);
+
+    // Find local minima and maxima
+    const findLocalExtrema = (data, isMin) => {
+        const extrema = [];
+        for (let i = 2; i < data.length - 2; i++) {
+            const val = data[i].value;
+            const prev1 = data[i - 1].value;
+            const prev2 = data[i - 2].value;
+            const next1 = data[i + 1].value;
+            const next2 = data[i + 2].value;
+
+            if (isMin) {
+                if (val < prev1 && val < prev2 && val < next1 && val < next2) {
+                    extrema.push({ idx: i, ...data[i] });
+                }
+            } else {
+                if (val > prev1 && val > prev2 && val > next1 && val > next2) {
+                    extrema.push({ idx: i, ...data[i] });
+                }
+            }
+        }
+        return extrema;
+    };
+
+    const priceLows = findLocalExtrema(recentData.map(d => ({ ...d, value: d.price })), true);
+    const priceHighs = findLocalExtrema(recentData.map(d => ({ ...d, value: d.price })), false);
+    const rsiLows = findLocalExtrema(recentData, true);
+    const rsiHighs = findLocalExtrema(recentData, false);
+
+    // Check for bullish divergence (price lower low, RSI higher low)
+    if (priceLows.length >= 2 && rsiLows.length >= 2) {
+        const lastPriceLows = priceLows.slice(-2);
+        const lastRsiLows = rsiLows.slice(-2);
+
+        if (lastPriceLows[1].value < lastPriceLows[0].value &&
+            lastRsiLows[1].value > lastRsiLows[0].value) {
+            return {
+                score: BONUSES.bullishDivergence,
+                type: 'bullish_divergence',
+                detected: true,
+                description: 'Price made lower low but RSI made higher low - bullish reversal signal'
+            };
+        }
+    }
+
+    // Check for bearish divergence (price higher high, RSI lower high)
+    if (priceHighs.length >= 2 && rsiHighs.length >= 2) {
+        const lastPriceHighs = priceHighs.slice(-2);
+        const lastRsiHighs = rsiHighs.slice(-2);
+
+        if (lastPriceHighs[1].value > lastPriceHighs[0].value &&
+            lastRsiHighs[1].value < lastRsiHighs[0].value) {
+            return {
+                score: BONUSES.bearishDivergence,
+                type: 'bearish_divergence',
+                detected: true,
+                description: 'Price made higher high but RSI made lower high - bearish reversal signal'
+            };
+        }
+    }
+
+    return { score: 0, type: 'none', detected: false };
+}
+
+/**
+ * Calculate Funding Rate Z-Score
+ * Identifies extreme funding relative to historical norm
+ * Z > 2 = extremely long-biased → contrarian bearish
+ * Z < -2 = extremely short-biased → contrarian bullish
+ */
+function calculateFundingZScore(fundingHistory) {
+    if (!fundingHistory || fundingHistory.length < 10) {
+        return { score: 0, zScore: 0, mean: 0, stddev: 0, current: 0 };
+    }
+
+    const rates = fundingHistory.map(f => f.rate).filter(r => r !== undefined && !isNaN(r));
+    if (rates.length < 5) {
+        return { score: 0, zScore: 0, mean: 0, stddev: 0, current: 0 };
+    }
+
+    const mean = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const variance = rates.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / rates.length;
+    const stddev = Math.sqrt(variance);
+
+    if (stddev === 0) {
+        return { score: 0, zScore: 0, mean, stddev: 0, current: rates[rates.length - 1] };
+    }
+
+    const currentRate = rates[rates.length - 1];
+    const zScore = (currentRate - mean) / stddev;
+
+    // Contrarian scoring based on Z-score
+    let score = 0;
+    let zone = 'normal';
+
+    if (zScore >= 3) { score = -0.9; zone = 'extreme_long_bias'; }
+    else if (zScore >= 2) { score = -0.6; zone = 'high_long_bias'; }
+    else if (zScore >= 1.5) { score = -0.3; zone = 'moderate_long_bias'; }
+    else if (zScore <= -3) { score = 0.9; zone = 'extreme_short_bias'; }
+    else if (zScore <= -2) { score = 0.6; zone = 'high_short_bias'; }
+    else if (zScore <= -1.5) { score = 0.3; zone = 'moderate_short_bias'; }
+
+    return {
+        score,
+        zScore,
+        mean,
+        stddev,
+        current: currentRate,
+        annualized: currentRate * 3 * 365 * 100,
+        zone
+    };
+}
+
+/**
+ * Calculate OI Rate of Change
+ * Measures leverage buildup or unwind dynamics
+ */
+function calculateOIRoC(oiHistory, priceHistory) {
+    if (!oiHistory || oiHistory.length < 10) {
+        return { score: 0, hourlyRoC: 0, fourHourRoC: 0, trend: 'insufficient_data' };
     }
 
     const now = Date.now();
+    const oneHourAgo = now - TIMEFRAMES.ONE_HOUR;
+    const fourHoursAgo = now - TIMEFRAMES.FOUR_HOURS;
 
-    const getChange = (minutes) => {
-        const targetTime = now - (minutes * 60 * 1000);
-        const relevantEntries = priceHistory.filter(e => e && e.timestamp >= targetTime);
-        if (relevantEntries.length < 2) return 0;
+    // 1-hour RoC
+    const recentOI = oiHistory.filter(o => o && o.timestamp >= oneHourAgo);
+    let hourlyRoC = 0;
+    if (recentOI.length >= 2 && recentOI[0].value > 0) {
+        hourlyRoC = ((recentOI[recentOI.length - 1].value - recentOI[0].value) / recentOI[0].value) * 100;
+    }
 
-        const oldest = relevantEntries.reduce((o, e) => e.timestamp < o.timestamp ? e : o, relevantEntries[0]);
-        const newest = priceHistory[priceHistory.length - 1];
+    // 4-hour RoC
+    const longerOI = oiHistory.filter(o => o && o.timestamp >= fourHoursAgo);
+    let fourHourRoC = 0;
+    if (longerOI.length >= 2 && longerOI[0].value > 0) {
+        fourHourRoC = ((longerOI[longerOI.length - 1].value - longerOI[0].value) / longerOI[0].value) * 100;
+    }
 
-        if (!oldest?.value || oldest.value === 0) return 0;
-        return ((newest.value - oldest.value) / oldest.value) * 100;
-    };
+    // Get price direction to contextualize OI change
+    let priceChange = 0;
+    if (priceHistory && priceHistory.length >= 2) {
+        const recentPrices = priceHistory.filter(p => p && p.timestamp >= fourHoursAgo);
+        if (recentPrices.length >= 2 && recentPrices[0].value > 0) {
+            priceChange = ((recentPrices[recentPrices.length - 1].value - recentPrices[0].value) / recentPrices[0].value) * 100;
+        }
+    }
 
-    const fiveMinChange = getChange(5);
-    const thirtyMinChange = getChange(30);
-    const fourHourChange = getChange(240);
+    // Scoring logic
+    let score = 0;
+    let trend = 'neutral';
 
-    // Weighted combination (longer timeframes weighted more)
-    const rawScore = (
-        (0.1 * fiveMinChange) +
-        (0.3 * thirtyMinChange) +
-        (0.6 * fourHourChange)
-    );
+    // Rising OI + Rising Price = Strong bullish trend (follow)
+    // Rising OI + Falling Price = Strong bearish trend (follow)
+    // Falling OI = Deleveraging (potential reversal)
 
-    // Normalize to -1 to +1 (assume ±5% as max expected move)
-    const normalizedScore = Math.max(-1, Math.min(1, rawScore / 5));
+    if (fourHourRoC > 5 && priceChange > 1) {
+        score = 0.4; // Strong bullish leverage
+        trend = 'bullish_leverage';
+    } else if (fourHourRoC > 5 && priceChange < -1) {
+        score = -0.4; // Strong bearish leverage
+        trend = 'bearish_leverage';
+    } else if (fourHourRoC > 5) {
+        score = -0.2; // Overheating risk
+        trend = 'overheating';
+    } else if (fourHourRoC < -5 && priceChange < -2) {
+        score = 0.5; // Long capitulation - bounce potential
+        trend = 'long_capitulation';
+    } else if (fourHourRoC < -5 && priceChange > 2) {
+        score = -0.5; // Short squeeze exhaustion
+        trend = 'short_squeeze_exhaustion';
+    } else if (fourHourRoC < -3) {
+        score = 0.2; // General deleveraging
+        trend = 'deleveraging';
+    } else if (fourHourRoC > 2) {
+        score = priceChange > 0 ? 0.15 : -0.15; // Moderate buildup
+        trend = 'building';
+    }
 
     return {
-        score: normalizedScore,
-        details: {
-            fiveMin: fiveMinChange,
-            thirtyMin: thirtyMinChange,
-            fourHour: fourHourChange
-        }
+        score,
+        hourlyRoC,
+        fourHourRoC,
+        trend,
+        priceChange,
+        oiDelta: longerOI.length >= 2 ? longerOI[longerOI.length - 1].value - longerOI[0].value : 0
     };
 }
 
 /**
  * Detect market regime based on OI and funding
- * @returns {object} { score, regime, description }
  */
 function detectRegime(oiHistory, fundingHistory, priceHistory) {
     if (!oiHistory || oiHistory.length < 2 || !fundingHistory || fundingHistory.length < 1) {
@@ -87,10 +330,8 @@ function detectRegime(oiHistory, fundingHistory, priceHistory) {
     // Calculate OI change over last hour
     const recentOI = oiHistory.filter(e => e && e.timestamp >= oneHourAgo);
     let oiChange = 0;
-    if (recentOI.length >= 2) {
-        const oldestOI = recentOI[0].value;
-        const newestOI = recentOI[recentOI.length - 1].value;
-        oiChange = oldestOI > 0 ? ((newestOI - oldestOI) / oldestOI) * 100 : 0;
+    if (recentOI.length >= 2 && recentOI[0].value > 0) {
+        oiChange = ((recentOI[recentOI.length - 1].value - recentOI[0].value) / recentOI[0].value) * 100;
     }
 
     // Get current funding rate
@@ -119,23 +360,22 @@ function detectRegime(oiHistory, fundingHistory, priceHistory) {
         description = 'Shorts overcrowded - squeeze potential';
     } else if (oiRising && moderatePositiveFunding) {
         regime = 'HEALTHY_LONG';
-        score = 0.4;
+        score = 0.3;
         description = 'Healthy long trend building';
     } else if (oiRising && moderateNegativeFunding) {
         regime = 'HEALTHY_SHORT';
-        score = -0.4;
+        score = -0.3;
         description = 'Healthy short trend building';
     } else if (oiFalling && Math.abs(oiChange) > 3) {
         regime = 'CAPITULATION';
-        // Check price direction to determine if it's longs or shorts capitulating
         const recentPrice = priceHistory?.filter(e => e && e.timestamp >= oneHourAgo) || [];
-        if (recentPrice.length >= 2) {
+        if (recentPrice.length >= 2 && recentPrice[0].value > 0) {
             const priceChange = ((recentPrice[recentPrice.length - 1].value - recentPrice[0].value) / recentPrice[0].value) * 100;
             if (priceChange < -1) {
-                score = 0.3; // Longs capitulating = potential bottom
+                score = 0.4; // Longs capitulating = potential bottom
                 description = 'Long capitulation - potential bottom';
             } else if (priceChange > 1) {
-                score = -0.3; // Shorts capitulating = potential top
+                score = -0.4; // Shorts capitulating = potential top
                 description = 'Short squeeze exhaustion';
             }
         }
@@ -145,18 +385,11 @@ function detectRegime(oiHistory, fundingHistory, priceHistory) {
         description = 'No clear regime';
     }
 
-    return {
-        score,
-        regime,
-        description,
-        oiChange,
-        annualizedFunding
-    };
+    return { score, regime, description, oiChange, annualizedFunding };
 }
 
 /**
  * Calculate CVD persistence (sustained buying/selling)
- * @returns {object} { score, thirtyMinDelta, twoHourDelta }
  */
 function calculateCVDPersistence(cvdHistory) {
     if (!cvdHistory || cvdHistory.length < 2) {
@@ -164,8 +397,6 @@ function calculateCVDPersistence(cvdHistory) {
     }
 
     const now = Date.now();
-
-    // Sum CVD deltas over timeframes
     const thirtyMinAgo = now - TIMEFRAMES.THIRTY_MIN;
     const twoHoursAgo = now - TIMEFRAMES.TWO_HOURS;
 
@@ -181,16 +412,11 @@ function calculateCVDPersistence(cvdHistory) {
     // Normalize to -1 to +1 (assume ±$10M as significant)
     const normalizedScore = Math.max(-1, Math.min(1, weightedDelta / 10000000));
 
-    return {
-        score: normalizedScore,
-        thirtyMinDelta,
-        twoHourDelta
-    };
+    return { score: normalizedScore, thirtyMinDelta, twoHourDelta };
 }
 
 /**
  * Calculate whale alignment score (Hyperliquid only)
- * @returns {object} { score, longPct, hasData }
  */
 function calculateWhaleAlignment(consensus) {
     if (!consensus || !consensus.BTC) {
@@ -205,8 +431,6 @@ function calculateWhaleAlignment(consensus) {
     }
 
     const longPct = btcData.longs.length / totalPositions;
-
-    // Convert to -1 to +1 score
     const score = (longPct - 0.5) * 2;
 
     // Weight consistent winners more heavily
@@ -225,7 +449,6 @@ function calculateWhaleAlignment(consensus) {
 
 /**
  * Calculate cross-exchange confluence
- * @returns {object} { score, agreement, exchangeCount }
  */
 function calculateCrossExchangeConfluence(dataStore) {
     const exchanges = ['hyperliquid', 'binance', 'bybit'];
@@ -240,11 +463,8 @@ function calculateCrossExchangeConfluence(dataStore) {
         const oneHourAgo = now - TIMEFRAMES.ONE_HOUR;
         const recentPrices = priceHistory.filter(e => e && e.timestamp >= oneHourAgo);
 
-        if (recentPrices.length >= 2) {
-            const oldest = recentPrices[0].value;
-            const newest = recentPrices[recentPrices.length - 1].value;
-            const change = oldest > 0 ? ((newest - oldest) / oldest) * 100 : 0;
-
+        if (recentPrices.length >= 2 && recentPrices[0].value > 0) {
+            const change = ((recentPrices[recentPrices.length - 1].value - recentPrices[0].value) / recentPrices[0].value) * 100;
             biases.push({
                 exchange,
                 bias: change > 0.3 ? 'bullish' : change < -0.3 ? 'bearish' : 'neutral',
@@ -257,16 +477,12 @@ function calculateCrossExchangeConfluence(dataStore) {
         return { score: 0, agreement: 0, exchangeCount: biases.length, details: biases };
     }
 
-    // Count dominant bias
     const bullishCount = biases.filter(b => b.bias === 'bullish').length;
     const bearishCount = biases.filter(b => b.bias === 'bearish').length;
-
-    const dominantBias = bullishCount > bearishCount ? 'bullish' :
-        bearishCount > bullishCount ? 'bearish' : 'neutral';
+    const dominantBias = bullishCount > bearishCount ? 'bullish' : bearishCount > bullishCount ? 'bearish' : 'neutral';
     const maxCount = Math.max(bullishCount, bearishCount);
     const agreement = maxCount / biases.length;
 
-    // Score based on agreement and direction
     let score = 0;
     if (agreement >= 0.8) {
         score = dominantBias === 'bullish' ? 0.8 : dominantBias === 'bearish' ? -0.8 : 0;
@@ -274,13 +490,7 @@ function calculateCrossExchangeConfluence(dataStore) {
         score = dominantBias === 'bullish' ? 0.4 : dominantBias === 'bearish' ? -0.4 : 0;
     }
 
-    return {
-        score,
-        agreement,
-        exchangeCount: biases.length,
-        dominantBias,
-        details: biases
-    };
+    return { score, agreement, exchangeCount: biases.length, dominantBias, details: biases };
 }
 
 /**
@@ -299,18 +509,17 @@ function calculateVolatility(priceHistory) {
         return { atr: 0, isHigh: false };
     }
 
-    // Simple volatility: max range / average price
-    const prices = recentPrices.map(e => e.value);
+    const prices = recentPrices.map(e => e.value).filter(v => v > 0);
+    if (prices.length < 5) {
+        return { atr: 0, isHigh: false };
+    }
+
     const maxPrice = Math.max(...prices);
     const minPrice = Math.min(...prices);
     const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-
     const range = ((maxPrice - minPrice) / avgPrice) * 100;
 
-    return {
-        atr: range,
-        isHigh: range > 3 // More than 3% range in 4 hours is high
-    };
+    return { atr: range, isHigh: range > 3 };
 }
 
 /**
@@ -319,10 +528,6 @@ function calculateVolatility(priceHistory) {
 function detectSession() {
     const now = new Date();
     const utcHour = now.getUTCHours();
-
-    // Asia: 00:00-08:00 UTC
-    // London: 08:00-16:00 UTC
-    // New York: 13:00-21:00 UTC (overlap 13-16)
 
     if (utcHour >= 0 && utcHour < 8) {
         return { name: '🌙 Asia', volatilityMultiplier: 0.9 };
@@ -338,11 +543,7 @@ function detectSession() {
 }
 
 /**
- * Main projection generator
- * @param {string} coin - Currently only 'BTC' supported
- * @param {object} dataStore - Reference to the data store
- * @param {object} consensus - Whale consensus data (optional)
- * @returns {object} Complete projection object
+ * Main projection generator (v2 - Refined Algorithm)
  */
 function generateProjection(coin, dataStore, consensus = null) {
     if (coin !== 'BTC') {
@@ -354,11 +555,9 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     const now = Date.now();
-
-    // Get Hyperliquid data (primary source)
     const hlData = dataStore.getExchangeData('hyperliquid');
 
-    if (!hlData || !hlData.price?.BTC || hlData.price.BTC.length < 10) {
+    if (!hlData || !hlData.price?.BTC || hlData.price.BTC.length < 20) {
         return {
             coin: 'BTC',
             horizon: '8-12H',
@@ -370,20 +569,26 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     // Calculate all factors
-    const momentum = calculateMomentumScore(hlData.price.BTC);
-    const regime = detectRegime(hlData.oi.BTC, hlData.funding.BTC, hlData.price.BTC);
+    const rsi = calculateRSI(hlData.price.BTC);
+    const divergence = detectRSIDivergence(hlData.price.BTC);
+    const fundingZScore = calculateFundingZScore(hlData.funding.BTC);
+    const oiRoC = calculateOIRoC(hlData.oi.BTC, hlData.price.BTC);
     const cvdPersistence = calculateCVDPersistence(hlData.cvd.BTC);
+    const regime = detectRegime(hlData.oi.BTC, hlData.funding.BTC, hlData.price.BTC);
     const whales = calculateWhaleAlignment(consensus);
     const confluence = calculateCrossExchangeConfluence(dataStore);
     const volatility = calculateVolatility(hlData.price.BTC);
     const session = detectSession();
 
     // Calculate weighted score
-    let totalWeight = WEIGHTS.momentum + WEIGHTS.regime + WEIGHTS.cvdPersistence + WEIGHTS.confluence;
+    let totalWeight = WEIGHTS.rsi + WEIGHTS.fundingZScore + WEIGHTS.oiRoC +
+        WEIGHTS.cvdPersistence + WEIGHTS.regime + WEIGHTS.confluence;
     let weightedScore = (
-        (momentum.score * WEIGHTS.momentum) +
-        (regime.score * WEIGHTS.regime) +
+        (rsi.score * WEIGHTS.rsi) +
+        (fundingZScore.score * WEIGHTS.fundingZScore) +
+        (oiRoC.score * WEIGHTS.oiRoC) +
         (cvdPersistence.score * WEIGHTS.cvdPersistence) +
+        (regime.score * WEIGHTS.regime) +
         (confluence.score * WEIGHTS.confluence)
     );
 
@@ -394,7 +599,21 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     // Normalize
-    const normalizedScore = weightedScore / totalWeight;
+    let normalizedScore = weightedScore / totalWeight;
+
+    // Add divergence bonus
+    if (divergence.detected) {
+        normalizedScore += divergence.score;
+        normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
+    }
+
+    // Check for all factors aligned bonus
+    const allBullish = rsi.score > 0 && fundingZScore.score > 0 && oiRoC.score > 0 && regime.score > 0;
+    const allBearish = rsi.score < 0 && fundingZScore.score < 0 && oiRoC.score < 0 && regime.score < 0;
+    if (allBullish || allBearish) {
+        normalizedScore += allBullish ? BONUSES.allFactorsAligned : -BONUSES.allFactorsAligned;
+        normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
+    }
 
     // Determine bias label
     let bias, strength;
@@ -416,15 +635,15 @@ function generateProjection(coin, dataStore, consensus = null) {
 
     // Calculate grade
     let grade;
-    if (absScore >= 0.7) grade = normalizedScore > 0 ? 'A+' : 'A+';
-    else if (absScore >= 0.5) grade = normalizedScore > 0 ? 'A' : 'A';
-    else if (absScore >= 0.3) grade = normalizedScore > 0 ? 'B+' : 'B+';
+    if (absScore >= 0.7) grade = 'A+';
+    else if (absScore >= 0.5) grade = 'A';
+    else if (absScore >= 0.3) grade = 'B+';
     else if (absScore >= 0.15) grade = 'B';
     else grade = 'C';
 
     // Calculate confidence
     const confidenceFactors = [];
-    let confidenceScore = 0.5; // Base confidence
+    let confidenceScore = 0.5;
 
     if (confluence.agreement >= 0.8) {
         confidenceFactors.push('Strong cross-exchange alignment');
@@ -438,9 +657,13 @@ function generateProjection(coin, dataStore, consensus = null) {
         confidenceFactors.push('Whale data available');
         confidenceScore += 0.1;
     }
-    if (Math.abs(regime.score) >= 0.4) {
-        confidenceFactors.push(`Clear ${regime.regime.replace('_', ' ').toLowerCase()} regime`);
+    if (Math.abs(fundingZScore.zScore) >= 2) {
+        confidenceFactors.push('Extreme funding detected');
         confidenceScore += 0.1;
+    }
+    if (divergence.detected) {
+        confidenceFactors.push(`${divergence.type.replace('_', ' ')} detected`);
+        confidenceScore += 0.15;
     }
 
     confidenceScore = Math.min(1, confidenceScore);
@@ -457,25 +680,38 @@ function generateProjection(coin, dataStore, consensus = null) {
     if (regime.regime === 'SHORT_CROWDED') {
         warnings.push('Shorts overcrowded - squeeze risk elevated');
     }
-    if (Math.abs(regime.annualizedFunding) > 50) {
-        warnings.push(`Extreme funding (${regime.annualizedFunding.toFixed(0)}% APR) - mean reversion likely`);
+    if (Math.abs(fundingZScore.zScore) >= 3) {
+        warnings.push(`Extreme funding (Z=${fundingZScore.zScore.toFixed(1)}) - mean reversion likely`);
+    }
+    if (rsi.zone === 'extreme_overbought') {
+        warnings.push('RSI extremely overbought (>80) - reversal risk');
+    }
+    if (rsi.zone === 'extreme_oversold') {
+        warnings.push('RSI extremely oversold (<20) - bounce potential');
     }
 
     // Build key factors for display
     const keyFactors = [
         {
-            name: '4H Momentum',
-            direction: momentum.score > 0.1 ? 'bullish' : momentum.score < -0.1 ? 'bearish' : 'neutral',
-            score: Math.abs(momentum.score),
-            impact: Math.abs(momentum.score) > 0.5 ? 'high' : Math.abs(momentum.score) > 0.2 ? 'medium' : 'low',
-            detail: `${momentum.details.fourHour > 0 ? '+' : ''}${momentum.details.fourHour.toFixed(2)}%`
+            name: 'RSI (14)',
+            direction: rsi.score > 0.1 ? 'bullish' : rsi.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(rsi.score),
+            impact: Math.abs(rsi.score) > 0.5 ? 'high' : Math.abs(rsi.score) > 0.2 ? 'medium' : 'low',
+            detail: `${rsi.value.toFixed(1)} (${rsi.zone.replace('_', ' ')})`
         },
         {
-            name: 'Market Regime',
-            direction: regime.score > 0 ? 'bullish' : regime.score < 0 ? 'bearish' : 'neutral',
-            score: Math.abs(regime.score),
-            impact: Math.abs(regime.score) > 0.4 ? 'high' : Math.abs(regime.score) > 0.2 ? 'medium' : 'low',
-            detail: regime.description
+            name: 'Funding Z-Score',
+            direction: fundingZScore.score > 0.1 ? 'bullish' : fundingZScore.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(fundingZScore.score),
+            impact: Math.abs(fundingZScore.zScore) > 2 ? 'high' : Math.abs(fundingZScore.zScore) > 1 ? 'medium' : 'low',
+            detail: `Z=${fundingZScore.zScore.toFixed(2)} (${fundingZScore.zone.replace(/_/g, ' ')})`
+        },
+        {
+            name: 'OI Rate of Change',
+            direction: oiRoC.score > 0.1 ? 'bullish' : oiRoC.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(oiRoC.score),
+            impact: Math.abs(oiRoC.fourHourRoC) > 5 ? 'high' : Math.abs(oiRoC.fourHourRoC) > 2 ? 'medium' : 'low',
+            detail: `${oiRoC.fourHourRoC > 0 ? '+' : ''}${oiRoC.fourHourRoC.toFixed(2)}% (4hr)`
         },
         {
             name: 'CVD Flow',
@@ -485,13 +721,33 @@ function generateProjection(coin, dataStore, consensus = null) {
             detail: `$${(cvdPersistence.twoHourDelta / 1000000).toFixed(1)}M (2hr)`
         },
         {
-            name: 'Exchange Confluence',
-            direction: confluence.dominantBias || 'neutral',
-            score: confluence.agreement,
-            impact: confluence.agreement > 0.8 ? 'high' : confluence.agreement > 0.6 ? 'medium' : 'low',
-            detail: `${confluence.exchangeCount} exchanges, ${(confluence.agreement * 100).toFixed(0)}% aligned`
+            name: 'Market Regime',
+            direction: regime.score > 0 ? 'bullish' : regime.score < 0 ? 'bearish' : 'neutral',
+            score: Math.abs(regime.score),
+            impact: Math.abs(regime.score) > 0.4 ? 'high' : Math.abs(regime.score) > 0.2 ? 'medium' : 'low',
+            detail: regime.description
         }
     ];
+
+    // Add divergence if detected
+    if (divergence.detected) {
+        keyFactors.unshift({
+            name: '⚡ RSI Divergence',
+            direction: divergence.type === 'bullish_divergence' ? 'bullish' : 'bearish',
+            score: 1.0,
+            impact: 'high',
+            detail: divergence.description
+        });
+    }
+
+    // Add confluence
+    keyFactors.push({
+        name: 'Exchange Confluence',
+        direction: confluence.dominantBias || 'neutral',
+        score: confluence.agreement,
+        impact: confluence.agreement > 0.8 ? 'high' : confluence.agreement > 0.6 ? 'medium' : 'low',
+        detail: `${confluence.exchangeCount} exchanges, ${(confluence.agreement * 100).toFixed(0)}% aligned`
+    });
 
     if (whales.hasData) {
         keyFactors.push({
@@ -507,6 +763,7 @@ function generateProjection(coin, dataStore, consensus = null) {
         coin: 'BTC',
         horizon: '8-12H',
         status: 'ACTIVE',
+        algorithmVersion: 'v2',
         prediction: {
             bias,
             strength,
@@ -522,23 +779,29 @@ function generateProjection(coin, dataStore, consensus = null) {
         keyFactors,
         warnings,
         session: session.name,
+        divergence: divergence.detected ? divergence : null,
         components: {
-            momentum,
-            regime,
+            rsi,
+            fundingZScore,
+            oiRoC,
             cvdPersistence,
+            regime,
             whales,
             confluence,
             volatility
         },
         generatedAt: now,
-        validUntil: now + (4 * 60 * 60 * 1000), // 4 hours
+        validUntil: now + (4 * 60 * 60 * 1000),
         dataPointCount: hlData.price.BTC.length
     };
 }
 
 module.exports = {
     generateProjection,
-    calculateMomentumScore,
+    calculateRSI,
+    detectRSIDivergence,
+    calculateFundingZScore,
+    calculateOIRoC,
     detectRegime,
     calculateCVDPersistence,
     calculateWhaleAlignment,

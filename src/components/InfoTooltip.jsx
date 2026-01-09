@@ -31,7 +31,8 @@ const InfoTooltip = ({ children, position = 'bottom-left' }) => {
 
             {isVisible && (
                 <div
-                    className={`absolute z-50 ${positionClasses[position]} w-72 p-3 bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-xl animate-fadeIn`}
+                    className={`absolute z-[100] ${positionClasses[position]} w-96 p-4 bg-slate-900/98 backdrop-blur-md border border-slate-600 rounded-xl shadow-2xl animate-fadeIn`}
+                    style={{ maxWidth: '90vw' }}
                     onMouseEnter={() => setIsVisible(true)}
                     onMouseLeave={() => setIsVisible(false)}
                 >

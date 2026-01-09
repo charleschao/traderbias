@@ -132,7 +132,7 @@ export default function BiasProjection({ projection, loading = false }) {
 
     return (
         <div
-            className={`bg-gradient-to-br ${styles.gradient} rounded-xl border ${styles.border} overflow-hidden shadow-lg ${styles.glow} p-4`}
+            className={`bg-gradient-to-br ${styles.gradient} rounded-xl border ${styles.border} shadow-lg ${styles.glow} p-4`}
         >
             {/* Header Row */}
             <div className="flex items-center justify-between mb-4">
@@ -141,34 +141,61 @@ export default function BiasProjection({ projection, loading = false }) {
                     <span className="text-sm font-bold text-white">8-12H OUTLOOK</span>
                     <InfoTooltip position="bottom-right">
                         <div className="space-y-3">
-                            <div className="font-bold text-white text-sm">8-12 Hour Bias Prediction</div>
+                            <div className="font-bold text-white text-sm">8-12 Hour Bias Prediction (v2)</div>
                             <div className="text-slate-300 text-xs">
-                                Forward-looking directional bias based on multi-factor analysis:
+                                Forward-looking directional bias using proven quantitative indicators:
                             </div>
+
+                            {/* Factors */}
                             <div className="space-y-2 text-xs">
-                                <div>
-                                    <span className="text-cyan-400 font-bold">4H Momentum (30%)</span>
-                                    <div className="text-slate-400">Price change over 4 hours. Longer timeframe = more reliable signal.</div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-cyan-400 font-bold">📊 RSI (20%)</span>
+                                    <div className="text-slate-400 mt-1">14-period Relative Strength Index. Overbought (&gt;70) = contrarian bearish. Oversold (&lt;30) = contrarian bullish. Uses Wilder's smoothing for accuracy.</div>
                                 </div>
-                                <div>
-                                    <span className="text-cyan-400 font-bold">Market Regime (25%)</span>
-                                    <div className="text-slate-400">Detects crowding via OI + funding. Overcrowded = contrarian signal.</div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-yellow-400 font-bold">⚡ RSI Divergence (+20% bonus)</span>
+                                    <div className="text-slate-400 mt-1">Powerful reversal signal. Bullish: price makes lower low but RSI makes higher low. Bearish: price makes higher high but RSI makes lower high.</div>
                                 </div>
-                                <div>
-                                    <span className="text-cyan-400 font-bold">CVD Flow (20%)</span>
-                                    <div className="text-slate-400">Sustained buying/selling pressure over 2 hours.</div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-cyan-400 font-bold">💰 Funding Z-Score (15%)</span>
+                                    <div className="text-slate-400 mt-1">Statistical measure of funding extremity. Z &gt; 2 = extremely long-biased → contrarian bearish. Z &lt; -2 = extremely short-biased → contrarian bullish.</div>
                                 </div>
-                                <div>
-                                    <span className="text-cyan-400 font-bold">Whale Consensus (15%)</span>
-                                    <div className="text-slate-400">Top trader positioning from Hyperliquid leaderboard.</div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-cyan-400 font-bold">📈 OI Rate of Change (15%)</span>
+                                    <div className="text-slate-400 mt-1">4-hour leverage dynamics. Rising OI + price up = strong trend. OI drop &gt;5% with price drop = capitulation/bounce potential.</div>
                                 </div>
-                                <div>
-                                    <span className="text-cyan-400 font-bold">Exchange Confluence (10%)</span>
-                                    <div className="text-slate-400">Agreement across Hyperliquid, Binance, Bybit.</div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-cyan-400 font-bold">🌊 CVD Flow (15%)</span>
+                                    <div className="text-slate-400 mt-1">2-hour cumulative buy vs sell delta. Measures sustained buying/selling pressure from market makers and takers.</div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-cyan-400 font-bold">⚖️ Market Regime (15%)</span>
+                                    <div className="text-slate-400 mt-1">Detects overcrowding via OI + funding. Long crowded = bearish caution. Short squeezed = bullish potential.</div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                    <span className="text-cyan-400 font-bold">🐋 Whales + Confluence (10%+10%)</span>
+                                    <div className="text-slate-400 mt-1">Top trader positioning (Hyperliquid) + cross-exchange agreement (Binance, Bybit).</div>
                                 </div>
                             </div>
+
+                            {/* Scoring */}
+                            <div className="pt-2 border-t border-slate-700">
+                                <div className="text-cyan-400 font-bold text-xs mb-1">How Scoring Works</div>
+                                <div className="text-slate-400 text-[10px]">
+                                    Each factor generates -1 to +1 score. Weighted sum + divergence bonus = final score.
+                                </div>
+                                <div className="text-slate-400 text-[10px] mt-1">
+                                    • Score ≥0.6 → <span className="text-green-400">STRONG BULLISH</span> (A+)<br />
+                                    • Score 0.3-0.6 → <span className="text-green-400">BULLISH</span> (A/B+)<br />
+                                    • Score 0.1-0.3 → <span className="text-green-300">LEAN BULLISH</span> (B)<br />
+                                    • Score -0.1 to 0.1 → <span className="text-slate-400">NEUTRAL</span> (C)<br />
+                                    • Negative scores = bearish equivalents
+                                </div>
+                            </div>
+
+                            {/* Update frequency */}
                             <div className="pt-2 border-t border-slate-700 text-[10px] text-slate-500">
-                                Updates every 30 minutes. Stable signal for position planning.
+                                Updates every 30 minutes. Bias only changes if score differs by &gt;0.15 (prevents flip-flopping).
                             </div>
                         </div>
                     </InfoTooltip>
