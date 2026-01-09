@@ -495,13 +495,15 @@ export const calculateCompositeBias = (coin, allData) => {
     const obBias = calculateOrderbookBias(coin, allData.orderbookData?.[coin]);
     const whaleBias = calculateWhaleBias(coin, allData.consensus);
 
-    // Weighted scoring - flow confluence replaces OI + CVD
-    const weights = {
-        flow: 5,     // Flow confluence (was OI:3 + CVD:2) - most important
-        whale: 3,    // What winners are doing
-        ob: 1,       // Orderbook (noisy)
-        funding: 1   // Funding (can be contrarian)
-    };
+    // Check if we have actual whale data (not just "No whale data" placeholder)
+    const hasWhaleData = whaleBias.reason !== 'No whale data' && whaleBias.reason !== 'Insufficient data';
+
+    // Weighted scoring - dynamically adjust based on available data
+    // With whale data: Flow 50%, Whale 30%, Orderbook 10%, Funding 10%
+    // Without whale data: Flow ~71%, Orderbook ~14%, Funding ~14%
+    const weights = hasWhaleData
+        ? { flow: 5, whale: 3, ob: 1, funding: 1 }
+        : { flow: 5, whale: 0, ob: 1, funding: 1 };
 
     const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
     const weightedScore = (
@@ -529,7 +531,9 @@ export const calculateCompositeBias = (coin, allData) => {
         score: weightedScore,
         normalizedScore,
         grade,
+        hasWhaleData,
         ...indicator,
         components: { flowConfluence, fundingBias, obBias, whaleBias }
     };
 };
+

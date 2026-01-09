@@ -20,6 +20,7 @@ import PositionCard from './components/PositionCard';
 import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
 import TraderRow from './components/TraderRow';
 import WhaleActivityFeed from './components/WhaleActivityFeed';
+import BiasProjection from './components/BiasProjection';
 
 // Hook imports
 import { useWhaleWebSockets } from './hooks/useWhaleWebSockets';
@@ -35,7 +36,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getBTCProjection } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -221,6 +222,10 @@ export default function App({ focusCoin = null }) {
 
   // Research agent state
   const [agentReport, setAgentReport] = useState(null);
+
+  // BTC Projection state
+  const [btcProjection, setBtcProjection] = useState(null);
+  const [projectionLoading, setProjectionLoading] = useState(false);
 
   // Refs
   const sessionStartRef = useRef({ time: new Date(), price: {}, oi: {} });
@@ -1312,6 +1317,33 @@ export default function App({ focusCoin = null }) {
     updateFromMarketData(priceData, oiData, cvdData, fundingData);
   }, [priceData, oiData, cvdData, fundingData, updateFromMarketData]);
 
+  // Fetch BTC projection (8-12 hour outlook)
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+
+    const fetchProjection = async () => {
+      setProjectionLoading(true);
+      try {
+        const projection = await getBTCProjection();
+        if (projection) {
+          setBtcProjection(projection);
+        }
+      } catch (error) {
+        console.error('[Projection] Failed to fetch:', error);
+      } finally {
+        setProjectionLoading(false);
+      }
+    };
+
+    // Initial fetch
+    fetchProjection();
+
+    // Refresh every 5 minutes
+    const projectionInterval = setInterval(fetchProjection, 5 * 60 * 1000);
+
+    return () => clearInterval(projectionInterval);
+  }, []);
+
   // Notify on new whale trades
   useEffect(() => {
     if (megaWhaleTrades.length > prevTradeCountRef.current) {
@@ -1617,6 +1649,16 @@ export default function App({ focusCoin = null }) {
                 >
                   ← Back to All Coins
                 </a>
+              </div>
+            )}
+
+            {/* BTC 8-12 Hour Projection - Show when backend enabled, not in Top10, and BTC is visible */}
+            {!showTop10 && isBackendEnabled() && (!focusCoin || focusCoin === 'BTC') && (
+              <div className="mb-6">
+                <BiasProjection
+                  projection={btcProjection}
+                  loading={projectionLoading}
+                />
               </div>
             )}
 

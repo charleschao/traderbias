@@ -12,7 +12,7 @@ export const EXCHANGES = {
         color: 'cyan',
         status: 'active',
         description: 'Top perps DEX on Arbitrum',
-        profileUrl: (addr) => `https://hyperscreener.asxn.xyz/profile/${addr}`,
+        profileUrl: (addr) => `https://app.coinmarketman.com/hypertracker/wallet/${addr}`,
         features: ['market', 'orderbook', 'funding', 'leaderboard', 'whales', 'cvd'],
         apiBase: HYPERLIQUID_API,
         coins: ['BTC', 'ETH', 'SOL']

@@ -8,6 +8,7 @@ import {
 import { detectEdgeSignals, getPrioritySignal } from '../utils/flowSignals';
 import Sparkline from './Sparkline';
 import BiasHistoryBar from './BiasHistoryBar';
+import InfoTooltip from './InfoTooltip';
 
 // Load expanded state from localStorage
 const loadExpandedState = () => {
@@ -36,8 +37,12 @@ const BiasCard = ({
     biasHistory = [],
     // Timeframe information
     timeframe = '5m',
-    timeframeMinutes = 5
+    timeframeMinutes = 5,
+    // Whether whale data is available (fallback, prefer biasData.hasWhaleData)
+    hasWhaleData: hasWhaleDataProp = true
 }) => {
+    // Use biasData.hasWhaleData if available (from calculation), otherwise use prop
+    const hasWhaleData = biasData?.hasWhaleData ?? hasWhaleDataProp;
     const [isExpanded, setIsExpanded] = useState(() => loadExpandedState()[coin] || false);
 
     // Save to localStorage when expanded state changes
@@ -105,17 +110,84 @@ const BiasCard = ({
             className={`${biasData.bg} border border-slate-700/50 rounded-2xl p-5 transition-all`}
         >
             {/* Header with Price + Bias Badge - Always visible */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 relative">
+                {/* Coin name on left */}
+                <span className="text-2xl font-black text-white">{coin}</span>
+                {/* Centered price */}
+                {priceData && <span className="text-slate-400 font-mono text-sm absolute left-1/2 -translate-x-1/2">${formatPrice(priceData.markPx)}</span>}
+                {/* Bias badge on right */}
                 <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-white">{coin}</span>
-                    {priceData && <span className="text-slate-400 font-mono text-sm">${formatPrice(priceData.markPx)}</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                    <BiasHistoryBar history={biasHistory} label="15m" />
                     <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-xs whitespace-nowrap ${biasData.bg}`}>
                         <span>{biasData.icon}</span>
                         <span className={biasData.color}>{biasData.label}</span>
                     </div>
+                    <InfoTooltip position="bottom-left">
+                        <div className="space-y-2">
+                            <div className="font-bold text-white text-sm">Composite Bias Score</div>
+                            <div className="text-slate-300">
+                                Bias measures market directional conviction by combining:
+                            </div>
+                            <ul className="space-y-1 text-slate-300">
+                                <li className="flex items-start gap-2">
+                                    <span className="text-cyan-400 font-mono">{hasWhaleData ? '50%' : '71%'}</span>
+                                    <span><strong className="text-white">Flow Confluence</strong> = OI + CVD + Price alignment</span>
+                                </li>
+                                {hasWhaleData && (
+                                    <li className="flex items-start gap-2">
+                                        <span className="text-cyan-400 font-mono">30%</span>
+                                        <span><strong className="text-white">Whale Consensus</strong> = Top 10 trader positions</span>
+                                    </li>
+                                )}
+                                <li className="flex items-start gap-2">
+                                    <span className="text-cyan-400 font-mono">{hasWhaleData ? '10%' : '14%'}</span>
+                                    <span><strong className="text-white">Orderbook</strong> = Bid/ask imbalance</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-cyan-400 font-mono">{hasWhaleData ? '10%' : '14%'}</span>
+                                    <span><strong className="text-white">Funding</strong> = Crowding signal (contrarian)</span>
+                                </li>
+                            </ul>
+                            {biasData.components && (
+                                <div className="pt-2 mt-2 border-t border-slate-700 space-y-1">
+                                    <div className="text-white font-semibold">Current Readings:</div>
+                                    <div className="flex justify-between">
+                                        <span>Flow:</span>
+                                        <span className={biasData.components.flowConfluence?.signal === 'bullish' ? 'text-green-400' : biasData.components.flowConfluence?.signal === 'bearish' ? 'text-red-400' : 'text-slate-400'}>
+                                            {biasData.components.flowConfluence?.confluenceType?.replace('_', ' ') || 'Loading...'}
+                                        </span>
+                                    </div>
+                                    {hasWhaleData && (
+                                        <div className="flex justify-between">
+                                            <span>Whales:</span>
+                                            <span className={biasData.components.whaleBias?.score > 0 ? 'text-green-400' : biasData.components.whaleBias?.score < 0 ? 'text-red-400' : 'text-slate-400'}>
+                                                {biasData.components.whaleBias?.reason || 'Loading...'}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between">
+                                        <span>Book:</span>
+                                        <span className={biasData.components.obBias?.score > 0 ? 'text-green-400' : biasData.components.obBias?.score < 0 ? 'text-red-400' : 'text-slate-400'}>
+                                            {biasData.components.obBias?.reason || 'Loading...'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Funding:</span>
+                                        <span className={biasData.components.fundingBias?.score > 0 ? 'text-green-400' : biasData.components.fundingBias?.score < 0 ? 'text-red-400' : 'text-slate-400'}>
+                                            {biasData.components.fundingBias?.reason || 'Loading...'}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            {!hasWhaleData && (
+                                <div className="pt-2 mt-2 border-t border-slate-700 text-[10px] text-amber-400">
+                                    ⚠️ Whale data only available on Hyperliquid
+                                </div>
+                            )}
+                            <div className="pt-2 mt-2 border-t border-slate-700 text-[10px] text-slate-500">
+                                Score range: STRONG BEAR → STRONG BULL
+                            </div>
+                        </div>
+                    </InfoTooltip>
                 </div>
             </div>
 
@@ -233,13 +305,15 @@ const BiasCard = ({
                         <span className={`font-bold ${funding.color}`}>{funding.text}</span>
                     </div>
 
-                    <div className="mt-2 pt-2 border-t border-slate-700/50">
-                        <span className="text-xs text-white">Consensus: {biasData.components?.whaleBias?.reason || 'Loading...'}</span>
-                    </div>
+                    {hasWhaleData && (
+                        <div className="mt-2 pt-2 border-t border-slate-700/50">
+                            <span className="text-xs text-white">Consensus: {biasData.components?.whaleBias?.reason || 'Loading...'}</span>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Toggle Button */}
+            {/* Toggle Button + Bias History */}
             <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
                 <button
                     onClick={handleToggleExpand}
@@ -247,6 +321,7 @@ const BiasCard = ({
                 >
                     {isExpanded ? '▲ Hide Details' : '▼ Show Details'}
                 </button>
+                <BiasHistoryBar history={biasHistory} label="15m" />
                 <button
                     onClick={(e) => { e.stopPropagation(); onExpand(coin); }}
                     className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"

@@ -10,6 +10,7 @@ const cors = require('cors');
 const dataStore = require('./dataStore');
 const { startDataCollection } = require('./dataCollector');
 const whaleWatcher = require('./whaleWatcher');
+const biasProjection = require('./biasProjection');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -137,6 +138,25 @@ app.get('/api/stats', (req, res) => {
     },
     dataStore: stats
   });
+});
+
+/**
+ * Get BTC 8-12 hour bias projection
+ * GET /api/btc/projection
+ *
+ * Returns predictive bias analysis for BTC
+ */
+app.get('/api/btc/projection', (req, res) => {
+  try {
+    const projection = biasProjection.generateProjection('BTC', dataStore);
+    res.json(projection);
+  } catch (error) {
+    console.error('[Projection Error]', error);
+    res.status(500).json({
+      error: 'Failed to generate projection',
+      message: error.message
+    });
+  }
 });
 
 /**
