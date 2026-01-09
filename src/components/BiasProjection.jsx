@@ -58,7 +58,8 @@ export default function BiasProjection({ projection, loading = false }) {
         );
     }
 
-    const { prediction, confidence, keyFactors, warnings, session, generatedAt, invalidation, currentPrice } = projection;
+    const { prediction, confidence, keyFactors, warnings, session, generatedAt, invalidation, currentPrice, components } = projection;
+    const spotPerpDivergence = components?.spotPerpDivergence;
 
     // Determine colors and styling based on bias
     const getBiasStyles = () => {
@@ -275,6 +276,44 @@ export default function BiasProjection({ projection, loading = false }) {
                     <span className="text-xs px-3 py-1.5 rounded bg-slate-700/50 text-slate-400 border border-slate-600">
                         📊 Range: ${invalidation.rangeLow?.toLocaleString()} - ${invalidation.rangeHigh?.toLocaleString()}
                     </span>
+                </div>
+            )}
+
+            {/* Spot vs Perp CVD Divergence */}
+            {spotPerpDivergence && (
+                <div className={`mt-3 p-2 rounded-lg border ${spotPerpDivergence.bias === 'bullish'
+                        ? 'bg-green-500/10 border-green-500/30'
+                        : spotPerpDivergence.bias === 'bearish'
+                            ? 'bg-red-500/10 border-red-500/30'
+                            : 'bg-slate-700/30 border-slate-600'
+                    }`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className={`text-sm font-bold ${spotPerpDivergence.bias === 'bullish' ? 'text-green-400' :
+                                    spotPerpDivergence.bias === 'bearish' ? 'text-red-400' : 'text-slate-400'
+                                }`}>
+                                {spotPerpDivergence.signal === 'SPOT_ACCUMULATION' && '🟢 SPOT ACCUMULATION'}
+                                {spotPerpDivergence.signal === 'CAPITULATION_BOTTOM' && '🟢 CAPITULATION BOTTOM'}
+                                {spotPerpDivergence.signal === 'FAKE_PUMP' && '🔴 FAKE PUMP'}
+                                {spotPerpDivergence.signal === 'DISTRIBUTION' && '🔴 DISTRIBUTION'}
+                            </span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${spotPerpDivergence.strength === 'strong' ? 'bg-white/10 text-white' : 'bg-slate-600/50 text-slate-400'
+                                }`}>
+                                {spotPerpDivergence.strength}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px]">
+                            <span className={spotPerpDivergence.spotTrend === 'up' ? 'text-green-400' : spotPerpDivergence.spotTrend === 'down' ? 'text-red-400' : 'text-slate-400'}>
+                                SPOT: {spotPerpDivergence.spotTrend === 'up' ? '↗' : spotPerpDivergence.spotTrend === 'down' ? '↘' : '↔'}
+                            </span>
+                            <span className={spotPerpDivergence.perpTrend === 'up' ? 'text-green-400' : spotPerpDivergence.perpTrend === 'down' ? 'text-red-400' : 'text-slate-400'}>
+                                PERP: {spotPerpDivergence.perpTrend === 'up' ? '↗' : spotPerpDivergence.perpTrend === 'down' ? '↘' : '↔'}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                        {spotPerpDivergence.description}
+                    </div>
                 </div>
             )}
 
