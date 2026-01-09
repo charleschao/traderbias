@@ -1640,49 +1640,71 @@ export default function App({ focusCoin = null }) {
           <ExchangeComingSoon exchange={EXCHANGES[activeExchange]} />
         ) : (
           <>
-            {/* Focus Mode Back Button */}
-            {focusCoin && (
-              <div className="mb-4">
-                <a
-                  href="/"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all"
-                >
-                  ← Back to All Coins
-                </a>
-              </div>
-            )}
 
-            {/* BTC 8-12 Hour Projection - Show when backend enabled, not in Top10, and BTC is visible */}
-            {!showTop10 && isBackendEnabled() && (!focusCoin || focusCoin === 'BTC') && (
-              <div className="mb-6">
-                <BiasProjection
-                  projection={btcProjection}
-                  loading={projectionLoading}
-                />
-              </div>
-            )}
+            {/* BTC Layout */}
+            {!showTop10 && focusCoin === 'BTC' && (
+              <div className="space-y-6">
+                {/* 8-12 Hour Projection - Full Width at Top */}
+                {isBackendEnabled() && (
+                  <BiasProjection
+                    projection={btcProjection}
+                    loading={projectionLoading}
+                  />
+                )}
 
-            {/* Bias Cards - Show single or all based on focusCoin, hide when Top10 active */}
-            {!showTop10 && (
-              <div className={`grid gap-4 mb-6 ${focusCoin ? 'grid-cols-1 max-w-2xl mx-auto' : 'grid-cols-1 md:grid-cols-3'}`}>
-                {(focusCoin ? [focusCoin] : ['BTC', 'ETH', 'SOL']).map(coin => (
-                  <BiasCard key={coin} coin={coin} biasData={biasScores[coin]} priceData={timeframePriceData[coin]}
-                    oiData={timeframeOiData[coin]} orderbookData={timeframeOrderbookData[coin]} cvdData={timeframeCvdData[coin]}
-                    fundingData={fundingData[coin]} onExpand={setExpandedCoin}
-                    priceHistory={getSparklineData(coin, 'price')}
-                    oiHistory={getSparklineData(coin, 'oi')}
-                    cvdHistory={getSparklineData(coin, 'cvd')}
-                    biasHistory={biasHistory[coin] || []}
+                {/* BiasCard (left) + Flow Confluence (right) - 2 column grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <BiasCard
+                    coin="BTC"
+                    biasData={biasScores.BTC}
+                    priceData={timeframePriceData.BTC}
+                    oiData={timeframeOiData.BTC}
+                    orderbookData={timeframeOrderbookData.BTC}
+                    cvdData={timeframeCvdData.BTC}
+                    fundingData={fundingData.BTC}
+                    onExpand={setExpandedCoin}
+                    priceHistory={getSparklineData('BTC', 'price')}
+                    oiHistory={getSparklineData('BTC', 'oi')}
+                    cvdHistory={getSparklineData('BTC', 'cvd')}
+                    biasHistory={biasHistory.BTC || []}
                     timeframe={dashboardTimeframe}
                     timeframeMinutes={timeframeMinutes}
-                    hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')} />
-                ))}
+                    hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
+                  />
+                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} />
+                </div>
+              </div>
+            )}
+
+            {/* ETH/SOL Layout - BiasCard + Flow side by side */}
+            {!showTop10 && focusCoin && focusCoin !== 'BTC' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <BiasCard
+                    coin={focusCoin}
+                    biasData={biasScores[focusCoin]}
+                    priceData={timeframePriceData[focusCoin]}
+                    oiData={timeframeOiData[focusCoin]}
+                    orderbookData={timeframeOrderbookData[focusCoin]}
+                    cvdData={timeframeCvdData[focusCoin]}
+                    fundingData={fundingData[focusCoin]}
+                    onExpand={setExpandedCoin}
+                    priceHistory={getSparklineData(focusCoin, 'price')}
+                    oiHistory={getSparklineData(focusCoin, 'oi')}
+                    cvdHistory={getSparklineData(focusCoin, 'cvd')}
+                    biasHistory={biasHistory[focusCoin] || []}
+                    timeframe={dashboardTimeframe}
+                    timeframeMinutes={timeframeMinutes}
+                    hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
+                  />
+                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} />
+                </div>
               </div>
             )}
 
             {/* DEV only: Platform Improvements button */}
             {import.meta.env.DEV && !showTop10 && (
-              <div className="mb-6">
+              <div className="mb-6 mt-6">
                 <button
                   onClick={() => document.getElementById('dev-improvements')?.scrollIntoView({ behavior: 'smooth' })}
                   className="px-4 py-2 rounded-xl font-bold transition-all bg-slate-800/50 text-slate-300 hover:bg-slate-700"
@@ -1694,14 +1716,6 @@ export default function App({ focusCoin = null }) {
                     </span>
                   )}
                 </button>
-              </div>
-            )}
-
-            {/* Flow Confluence & Orderbook - hide when Top10 active */}
-            {!showTop10 && (
-              <div className="space-y-6">
-                <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
-                <OrderbookSection orderbookData={orderbookData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} />
               </div>
             )}
 
@@ -1796,18 +1810,29 @@ export default function App({ focusCoin = null }) {
               </div>
             )}
 
-            {/* Large Orders - Moved to bottom */}
-            <MegaWhaleFeed
-              trades={megaWhaleTrades}
-              isConnected={whaleWsConnected}
-              connectionStatus={whaleConnectionStatus}
-              threshold={whaleThreshold}
-              onThresholdChange={handleThresholdChange}
-              notificationEnabled={notificationEnabled}
-              notificationPermission={notificationPermission}
-              notificationSupported={notificationSupported}
-              onNotificationToggle={toggleNotifications}
-            />
+            {/* Orderbook + Large Orders - Side by side */}
+            {!showTop10 && focusCoin && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+                {/* Orderbook - Left (1/3) */}
+                <div className="lg:col-span-1">
+                  <OrderbookSection orderbookData={orderbookData} coins={[focusCoin]} />
+                </div>
+                {/* MegaWhaleFeed - Right (2/3) */}
+                <div className="lg:col-span-2">
+                  <MegaWhaleFeed
+                    trades={megaWhaleTrades}
+                    isConnected={whaleWsConnected}
+                    connectionStatus={whaleConnectionStatus}
+                    threshold={whaleThreshold}
+                    onThresholdChange={handleThresholdChange}
+                    notificationEnabled={notificationEnabled}
+                    notificationPermission={notificationPermission}
+                    notificationSupported={notificationSupported}
+                    onNotificationToggle={toggleNotifications}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="mt-8 pt-6 border-t border-slate-800">

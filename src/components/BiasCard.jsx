@@ -224,8 +224,8 @@ const BiasCard = ({
                         <span className="text-white">OI</span>
                         <Sparkline data={oiHistory} width={40} height={14} strokeWidth={1} />
                     </div>
-                    <div className={`font-mono font-bold ${(oiData?.timeframeChange || oiData?.sessionChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {(oiData?.timeframeChange || oiData?.sessionChange || 0) >= 0 ? '+' : ''}{(oiData?.timeframeChange || oiData?.sessionChange || 0).toFixed(2)}%
+                    <div className={`font-mono font-bold ${(oiData?.oiDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatUSD(oiData?.oiDelta || 0)}
                     </div>
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-2">

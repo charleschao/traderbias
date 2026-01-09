@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
+import InfoTooltip from './InfoTooltip';
 
 /**
  * BiasProjection Component
  * 
  * Displays 8-12 hour forward-looking bias prediction for BTC
- * Premium UI with factor breakdown and confidence indicators
+ * Horizontal layout with factors on the right side
  */
 export default function BiasProjection({ projection, loading = false }) {
-    const [expanded, setExpanded] = useState(false);
-
     // Loading state
     if (loading) {
         return (
@@ -17,7 +16,7 @@ export default function BiasProjection({ projection, loading = false }) {
                     <div className="w-6 h-6 bg-slate-700 rounded"></div>
                     <div className="h-5 bg-slate-700 rounded w-32"></div>
                 </div>
-                <div className="h-20 bg-slate-700/50 rounded-lg"></div>
+                <div className="h-16 bg-slate-700/50 rounded-lg"></div>
             </div>
         );
     }
@@ -117,134 +116,113 @@ export default function BiasProjection({ projection, loading = false }) {
         return 'text-slate-400';
     };
 
-    const getImpactBar = (score, direction) => {
-        const width = Math.min(100, Math.max(0, score * 100));
-        const bgColor = direction === 'bullish' ? 'bg-green-500' :
-            direction === 'bearish' ? 'bg-red-500' : 'bg-slate-500';
-        return (
-            <div className="w-20 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div
-                    className={`h-full ${bgColor} rounded-full transition-all duration-500`}
-                    style={{ width: `${width}%` }}
-                />
-            </div>
-        );
-    };
-
     const formatBias = (bias) => {
         return bias?.replace('_', ' ').replace('BULL', 'BULLISH').replace('BEAR', 'BEARISH') || 'NEUTRAL';
     };
 
     return (
         <div
-            className={`bg-gradient-to-br ${styles.gradient} rounded-xl border ${styles.border} overflow-hidden shadow-lg ${styles.glow}`}
+            className={`bg-gradient-to-br ${styles.gradient} rounded-xl border ${styles.border} overflow-hidden shadow-lg ${styles.glow} p-4`}
         >
-            {/* Header */}
-            <div
-                className="p-4 cursor-pointer hover:bg-white/5 transition-colors"
-                onClick={() => setExpanded(!expanded)}
-            >
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-lg">📊</span>
-                        <span className="text-sm font-bold text-white">8-12H OUTLOOK</span>
-                        <span className="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-400">
-                            {session}
-                        </span>
-                    </div>
-                    <span className="text-xs text-slate-500">
-                        {formatTimeAgo(generatedAt)}
+            {/* Header Row */}
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <span className="text-lg">📊</span>
+                    <span className="text-sm font-bold text-white">8-12H OUTLOOK</span>
+                    <InfoTooltip position="bottom-right">
+                        <div className="space-y-3">
+                            <div className="font-bold text-white text-sm">8-12 Hour Bias Prediction</div>
+                            <div className="text-slate-300 text-xs">
+                                Forward-looking directional bias based on multi-factor analysis:
+                            </div>
+                            <div className="space-y-2 text-xs">
+                                <div>
+                                    <span className="text-cyan-400 font-bold">4H Momentum (30%)</span>
+                                    <div className="text-slate-400">Price change over 4 hours. Longer timeframe = more reliable signal.</div>
+                                </div>
+                                <div>
+                                    <span className="text-cyan-400 font-bold">Market Regime (25%)</span>
+                                    <div className="text-slate-400">Detects crowding via OI + funding. Overcrowded = contrarian signal.</div>
+                                </div>
+                                <div>
+                                    <span className="text-cyan-400 font-bold">CVD Flow (20%)</span>
+                                    <div className="text-slate-400">Sustained buying/selling pressure over 2 hours.</div>
+                                </div>
+                                <div>
+                                    <span className="text-cyan-400 font-bold">Whale Consensus (15%)</span>
+                                    <div className="text-slate-400">Top trader positioning from Hyperliquid leaderboard.</div>
+                                </div>
+                                <div>
+                                    <span className="text-cyan-400 font-bold">Exchange Confluence (10%)</span>
+                                    <div className="text-slate-400">Agreement across Hyperliquid, Binance, Bybit.</div>
+                                </div>
+                            </div>
+                            <div className="pt-2 border-t border-slate-700 text-[10px] text-slate-500">
+                                Updates every 5 minutes. Best used with other confluence.
+                            </div>
+                        </div>
+                    </InfoTooltip>
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-400">
+                        {session}
                     </span>
                 </div>
+                <span className="text-xs text-slate-500">
+                    {formatTimeAgo(generatedAt)}
+                </span>
+            </div>
 
-                {/* Main Prediction Display */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {/* Bias Icon & Label */}
-                        <div className={`text-3xl font-bold ${styles.text} flex items-center gap-2`}>
-                            <span className="text-2xl">{styles.icon}</span>
-                            <span>{formatBias(prediction?.bias)}</span>
-                        </div>
+            {/* Main Content - Horizontal Layout */}
+            <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                {/* Left: Bias + Confidence */}
+                <div className="flex items-center gap-4 lg:min-w-[280px]">
+                    {/* Bias Icon & Label */}
+                    <div className={`text-2xl font-bold ${styles.text} flex items-center gap-2`}>
+                        <span className="text-xl">{styles.icon}</span>
+                        <span>{formatBias(prediction?.bias)}</span>
+                    </div>
 
-                        {/* Grade Badge */}
-                        <div className={`px-3 py-1 rounded-lg ${styles.bg}/20 ${styles.text} font-bold text-lg`}>
-                            {prediction?.grade}
-                        </div>
+                    {/* Grade Badge */}
+                    <div className={`px-3 py-1 rounded-lg ${styles.bg}/20 ${styles.text} font-bold text-lg`}>
+                        {prediction?.grade}
                     </div>
 
                     {/* Confidence */}
-                    <div className="text-right">
+                    <div className="text-center">
                         <div className={`text-sm font-semibold ${getConfidenceColor()}`}>
-                            {Math.round((confidence?.score || 0) * 100)}% Confidence
+                            {Math.round((confidence?.score || 0) * 100)}%
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-[10px] text-slate-500">
                             {confidence?.level}
                         </div>
                     </div>
                 </div>
 
-                {/* Warnings (if any) */}
-                {warnings && warnings.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                        {warnings.slice(0, 2).map((warning, i) => (
-                            <span key={i} className="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                                ⚠️ {warning}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {/* Expand indicator */}
-                <div className="flex justify-center mt-2">
-                    <span className={`text-xs text-slate-500 transition-transform ${expanded ? 'rotate-180' : ''}`}>
-                        ▼
-                    </span>
+                {/* Right: Key Factors (compact) */}
+                <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    {keyFactors?.slice(0, 4).map((factor, i) => (
+                        <div key={i} className="bg-slate-800/40 rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-1 mb-1">
+                                <span className={`text-xs ${getFactorColor(factor.direction)}`}>
+                                    {factor.direction === 'bullish' ? '▲' : factor.direction === 'bearish' ? '▼' : '─'}
+                                </span>
+                                <span className="text-xs text-slate-400 truncate">{factor.name}</span>
+                            </div>
+                            <div className={`text-sm font-mono font-bold ${getFactorColor(factor.direction)}`}>
+                                {factor.detail}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Expanded Details */}
-            {expanded && (
-                <div className="px-4 pb-4 border-t border-slate-700/50">
-                    {/* Key Factors */}
-                    <div className="mt-4">
-                        <h4 className="text-xs font-semibold text-slate-400 uppercase mb-3">Key Factors</h4>
-                        <div className="space-y-2">
-                            {keyFactors?.map((factor, i) => (
-                                <div key={i} className="flex items-center justify-between py-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-sm ${getFactorColor(factor.direction)}`}>
-                                            {factor.direction === 'bullish' ? '✓' : factor.direction === 'bearish' ? '✗' : '○'}
-                                        </span>
-                                        <span className="text-sm text-slate-300">{factor.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        {getImpactBar(factor.score, factor.direction)}
-                                        <span className="text-xs text-slate-500 w-24 text-right">{factor.detail}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Confidence Factors */}
-                    {confidence?.factors && confidence.factors.length > 0 && (
-                        <div className="mt-4">
-                            <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Confidence Boosters</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {confidence.factors.map((factor, i) => (
-                                    <span key={i} className="text-xs px-2 py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20">
-                                        ✓ {factor}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Raw Score */}
-                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
-                        <span>Raw Score: {((prediction?.score || 0) * 100).toFixed(1)}</span>
-                        <span>{projection.dataPointCount || 0} data points</span>
-                    </div>
+            {/* Warnings (if any) - compact */}
+            {warnings && warnings.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {warnings.slice(0, 2).map((warning, i) => (
+                        <span key={i} className="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                            ⚠️ {warning}
+                        </span>
+                    ))}
                 </div>
             )}
         </div>

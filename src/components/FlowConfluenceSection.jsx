@@ -3,8 +3,8 @@ import SectionBiasHeader from './SectionBiasHeader';
 import { calculateFlowConfluence } from '../utils/biasCalculations';
 import { formatUSD } from '../utils/formatters';
 
-const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', hasEnoughData = true }) => {
-    const coins = ['BTC', 'ETH', 'SOL'];
+const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', hasEnoughData = true, coins = ['BTC', 'ETH', 'SOL'] }) => {
+
 
     // Check if individual coins have timeframe data
     const getCoinDataStatus = (coin) => {
@@ -102,7 +102,7 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
                                         {confluence.oiDir}
                                     </div>
                                     <div className={`text-[10px] font-mono ${(confluence.oiChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {(confluence.oiChange || 0) >= 0 ? '+' : ''}{(confluence.oiChange || 0).toFixed(1)}%
+                                        {formatUSD(oiData?.[coin]?.oiDelta || 0)}
                                     </div>
                                 </div>
                                 <div className={`${!dataStatus.hasCvdData ? 'opacity-40' : ''}`}>

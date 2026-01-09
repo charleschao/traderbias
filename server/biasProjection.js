@@ -325,15 +325,15 @@ function detectSession() {
     // New York: 13:00-21:00 UTC (overlap 13-16)
 
     if (utcHour >= 0 && utcHour < 8) {
-        return { name: 'ASIA', volatilityMultiplier: 0.9 };
+        return { name: '🌙 Asia', volatilityMultiplier: 0.9 };
     } else if (utcHour >= 8 && utcHour < 13) {
-        return { name: 'LONDON', volatilityMultiplier: 1.0 };
+        return { name: '🇬🇧 London', volatilityMultiplier: 1.0 };
     } else if (utcHour >= 13 && utcHour < 16) {
-        return { name: 'LONDON_NY_OVERLAP', volatilityMultiplier: 1.1 };
+        return { name: '🔥 Peak Hours', volatilityMultiplier: 1.1 };
     } else if (utcHour >= 16 && utcHour < 21) {
-        return { name: 'NEW_YORK', volatilityMultiplier: 1.0 };
+        return { name: '🇺🇸 New York', volatilityMultiplier: 1.0 };
     } else {
-        return { name: 'LATE_NY', volatilityMultiplier: 0.85 };
+        return { name: '🌙 Off-Hours', volatilityMultiplier: 0.85 };
     }
 }
 

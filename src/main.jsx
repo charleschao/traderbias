@@ -6,10 +6,10 @@ import App from './App.jsx'
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <Routes>
-      <Route path="/" element={<App />} />
-      <Route path="/btc" element={<App focusCoin="BTC" />} />
+      <Route path="/" element={<App focusCoin="BTC" />} />
       <Route path="/eth" element={<App focusCoin="ETH" />} />
       <Route path="/sol" element={<App focusCoin="SOL" />} />
     </Routes>
   </BrowserRouter>
 )
+
