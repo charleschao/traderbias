@@ -21,6 +21,7 @@ import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
 import TraderRow from './components/TraderRow';
 import WhaleActivityFeed from './components/WhaleActivityFeed';
 import BiasProjection from './components/BiasProjection';
+import { BacktestControlPanel, BacktestResults } from './components/BacktestPanel';
 
 // Hook imports
 import { useWhaleWebSockets } from './hooks/useWhaleWebSockets';
@@ -226,6 +227,11 @@ export default function App({ focusCoin = null }) {
   // BTC Projection state
   const [btcProjection, setBtcProjection] = useState(null);
   const [projectionLoading, setProjectionLoading] = useState(false);
+
+  // Backtesting state
+  const [backtestResults, setBacktestResults] = useState(null);
+  const [isBacktestRunning, setIsBacktestRunning] = useState(false);
+  const [showBacktest, setShowBacktest] = useState(false);
 
   // Refs
   const sessionStartRef = useRef({ time: new Date(), price: {}, oi: {} });
@@ -1718,6 +1724,23 @@ export default function App({ focusCoin = null }) {
               </div>
             )}
 
+            {/* Backtesting Button - DEV only */}
+            {import.meta.env.DEV && !showTop10 && (
+              <div className="mb-6 mt-6">
+                <button
+                  onClick={() => setShowBacktest(!showBacktest)}
+                  className="px-4 py-2 rounded-xl font-bold transition-all bg-purple-800/50 text-purple-300 hover:bg-purple-700"
+                >
+                  📊 Backtesting
+                  {backtestResults && (
+                    <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-green-500 text-white">
+                      Results
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+
             {/* DEV only: Platform Improvements button */}
             {import.meta.env.DEV && !showTop10 && (
               <div className="mb-6 mt-6">
@@ -1815,6 +1838,24 @@ export default function App({ focusCoin = null }) {
                       </div>
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Backtesting Panel - DEV only */}
+            {import.meta.env.DEV && showBacktest && (
+              <div className="mt-8 space-y-6">
+                <BacktestControlPanel
+                  onBacktestStart={() => setIsBacktestRunning(true)}
+                  onBacktestComplete={(results) => {
+                    setBacktestResults(results);
+                    setIsBacktestRunning(false);
+                  }}
+                  isRunning={isBacktestRunning}
+                />
+
+                {backtestResults && (
+                  <BacktestResults results={backtestResults} />
                 )}
               </div>
             )}
