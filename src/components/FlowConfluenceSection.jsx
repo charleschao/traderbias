@@ -125,7 +125,7 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
                     </div>
                 </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`grid gap-4 ${coins.length === 1 ? 'grid-cols-1' : coins.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3'}`}>
                 {coins.map(coin => {
                     const oi = oiData?.[coin];
                     const cvd = cvdData?.[coin];
