@@ -522,6 +522,136 @@ function calculateVolatility(priceHistory) {
 }
 
 /**
+ * Calculate proper ATR (Average True Range) in dollar terms
+ * Used for invalidation level buffer
+ */
+function calculateATR(priceHistory, periodHours = 4) {
+    if (!priceHistory || priceHistory.length < 10) {
+        return 0;
+    }
+
+    const now = Date.now();
+    const lookbackMs = periodHours * 60 * 60 * 1000;
+    const relevantPrices = priceHistory.filter(p => p && p.timestamp >= now - lookbackMs);
+
+    if (relevantPrices.length < 5) {
+        return 0;
+    }
+
+    // Calculate true ranges (price changes between consecutive points)
+    const trueRanges = [];
+    for (let i = 1; i < relevantPrices.length; i++) {
+        const curr = relevantPrices[i].value;
+        const prev = relevantPrices[i - 1].value;
+        if (curr > 0 && prev > 0) {
+            trueRanges.push(Math.abs(curr - prev));
+        }
+    }
+
+    if (trueRanges.length === 0) {
+        return 0;
+    }
+
+    // Average true range
+    const atr = trueRanges.reduce((a, b) => a + b, 0) / trueRanges.length;
+
+    // Scale ATR by time interval (normalize to hourly equivalent)
+    const avgIntervalMs = (relevantPrices[relevantPrices.length - 1].timestamp - relevantPrices[0].timestamp) / relevantPrices.length;
+    const hourlyScaleFactor = 60 * 60 * 1000 / avgIntervalMs;
+
+    return atr * Math.sqrt(hourlyScaleFactor); // Volatility scales with sqrt of time
+}
+
+/**
+ * Find swing high and low over a timeframe
+ */
+function findSwingLevels(priceHistory, lookbackMs) {
+    if (!priceHistory || priceHistory.length < 5) {
+        return { swingLow: 0, swingHigh: 0, currentPrice: 0 };
+    }
+
+    const now = Date.now();
+    const relevantPrices = priceHistory.filter(p => p && p.timestamp >= now - lookbackMs);
+
+    if (relevantPrices.length < 3) {
+        return { swingLow: 0, swingHigh: 0, currentPrice: 0 };
+    }
+
+    const prices = relevantPrices.map(p => p.value).filter(v => v > 0);
+    if (prices.length < 3) {
+        return { swingLow: 0, swingHigh: 0, currentPrice: 0 };
+    }
+
+    const swingLow = Math.min(...prices);
+    const swingHigh = Math.max(...prices);
+    const currentPrice = priceHistory[priceHistory.length - 1]?.value || 0;
+
+    return { swingLow, swingHigh, currentPrice };
+}
+
+/**
+ * Calculate invalidation level where bias flips
+ * For BULLISH: break below swing low - ATR buffer = invalid
+ * For BEARISH: break above swing high + ATR buffer = invalid
+ */
+function calculateInvalidation(priceHistory, bias) {
+    const ATR_MULTIPLIER = 0.5; // Half-ATR buffer
+    const LOOKBACK_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+    const { swingLow, swingHigh, currentPrice } = findSwingLevels(priceHistory, LOOKBACK_MS);
+    const atr = calculateATR(priceHistory, 4);
+
+    if (currentPrice === 0 || swingLow === 0 || swingHigh === 0) {
+        return null;
+    }
+
+    const biasUpper = bias?.toUpperCase() || '';
+
+    if (biasUpper.includes('BULL')) {
+        // Bullish bias invalidated if price breaks below swing low - buffer
+        const invalidationPrice = swingLow - (atr * ATR_MULTIPLIER);
+        const distance = ((currentPrice - invalidationPrice) / currentPrice) * 100;
+
+        return {
+            price: Math.round(invalidationPrice),
+            type: 'below',
+            direction: 'bearish',
+            distance: distance,
+            swingLevel: Math.round(swingLow),
+            atrBuffer: Math.round(atr * ATR_MULTIPLIER),
+            description: `Bias flips if BTC breaks below $${invalidationPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        };
+    } else if (biasUpper.includes('BEAR')) {
+        // Bearish bias invalidated if price breaks above swing high + buffer
+        const invalidationPrice = swingHigh + (atr * ATR_MULTIPLIER);
+        const distance = ((invalidationPrice - currentPrice) / currentPrice) * 100;
+
+        return {
+            price: Math.round(invalidationPrice),
+            type: 'above',
+            direction: 'bullish',
+            distance: distance,
+            swingLevel: Math.round(swingHigh),
+            atrBuffer: Math.round(atr * ATR_MULTIPLIER),
+            description: `Bias flips if BTC breaks above $${invalidationPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        };
+    } else {
+        // Neutral - show range
+        const rangeLow = swingLow - (atr * 0.3);
+        const rangeHigh = swingHigh + (atr * 0.3);
+
+        return {
+            type: 'range',
+            rangeLow: Math.round(rangeLow),
+            rangeHigh: Math.round(rangeHigh),
+            distance: 0,
+            description: `Watch for breakout from $${rangeLow.toLocaleString('en-US', { maximumFractionDigits: 0 })} - $${rangeHigh.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        };
+    }
+}
+
+
+/**
  * Determine trading session
  */
 function detectSession() {
@@ -750,11 +880,18 @@ function generateProjection(coin, dataStore, consensus = null) {
         });
     }
 
+    // Calculate invalidation level
+    const invalidation = calculateInvalidation(hlData.price.BTC, bias);
+
+    // Get current price
+    const currentPrice = hlData.price.BTC[hlData.price.BTC.length - 1]?.value || 0;
+
     return {
         coin: 'BTC',
         horizon: '8-12H',
         status: 'ACTIVE',
         algorithmVersion: 'v2',
+        currentPrice,
         prediction: {
             bias,
             strength,
@@ -762,6 +899,7 @@ function generateProjection(coin, dataStore, consensus = null) {
             grade,
             direction: normalizedScore > 0 ? 'BULLISH' : normalizedScore < 0 ? 'BEARISH' : 'NEUTRAL'
         },
+        invalidation,
         confidence: {
             level: confidenceLevel,
             score: confidenceScore,
@@ -798,5 +936,8 @@ module.exports = {
     calculateWhaleAlignment,
     calculateCrossExchangeConfluence,
     calculateVolatility,
+    calculateATR,
+    findSwingLevels,
+    calculateInvalidation,
     detectSession
 };

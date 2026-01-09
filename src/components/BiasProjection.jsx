@@ -58,7 +58,7 @@ export default function BiasProjection({ projection, loading = false }) {
         );
     }
 
-    const { prediction, confidence, keyFactors, warnings, session, generatedAt } = projection;
+    const { prediction, confidence, keyFactors, warnings, session, generatedAt, invalidation, currentPrice } = projection;
 
     // Determine colors and styling based on bias
     const getBiasStyles = () => {
@@ -199,9 +199,20 @@ export default function BiasProjection({ projection, loading = false }) {
                         {session}
                     </span>
                 </div>
-                <span className="text-xs text-slate-500">
-                    {projection.validUntil ? `Valid until ${new Date(projection.validUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : formatTimeAgo(generatedAt)}
-                </span>
+                <div className="flex items-center gap-3">
+                    {/* Current Price Display */}
+                    {currentPrice > 0 && (
+                        <div className="text-right">
+                            <div className="text-lg font-bold text-white font-mono">
+                                ${currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            </div>
+                            <div className="text-[10px] text-slate-500">BTC Price</div>
+                        </div>
+                    )}
+                    <span className="text-xs text-slate-500">
+                        {projection.validUntil ? `Valid until ${new Date(projection.validUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : formatTimeAgo(generatedAt)}
+                    </span>
+                </div>
             </div>
 
             {/* Main Content - Horizontal Layout */}
@@ -247,6 +258,25 @@ export default function BiasProjection({ projection, loading = false }) {
                     ))}
                 </div>
             </div>
+
+            {/* Invalidation Level */}
+            {invalidation && invalidation.price && (
+                <div className="mt-3 flex items-center gap-2">
+                    <span className={`text-xs px-3 py-1.5 rounded font-bold ${invalidation.type === 'below' ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 'bg-green-500/10 text-green-400 border border-green-500/30'}`}>
+                        ⚠️ Invalidation: {invalidation.type === 'below' ? 'Below' : 'Above'} ${invalidation.price.toLocaleString()} ({invalidation.distance > 0 ? '-' : '+'}{Math.abs(invalidation.distance).toFixed(1)}%)
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                        Bias flips {invalidation.type === 'below' ? 'bearish' : 'bullish'} if breached
+                    </span>
+                </div>
+            )}
+            {invalidation && invalidation.type === 'range' && (
+                <div className="mt-3">
+                    <span className="text-xs px-3 py-1.5 rounded bg-slate-700/50 text-slate-400 border border-slate-600">
+                        📊 Range: ${invalidation.rangeLow?.toLocaleString()} - ${invalidation.rangeHigh?.toLocaleString()}
+                    </span>
+                </div>
+            )}
 
             {/* Warnings (if any) - compact */}
             {warnings && warnings.length > 0 && (
