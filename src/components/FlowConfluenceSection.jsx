@@ -3,7 +3,7 @@ import SectionBiasHeader from './SectionBiasHeader';
 import { calculateFlowConfluence } from '../utils/biasCalculations';
 import { formatUSD } from '../utils/formatters';
 
-const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', hasEnoughData = true, coins = ['BTC', 'ETH', 'SOL'] }) => {
+const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', onTimeframeChange, hasEnoughData = true, coins = ['BTC', 'ETH', 'SOL'] }) => {
 
 
     // Check if individual coins have timeframe data
@@ -37,11 +37,25 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', h
 
     return (
         <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
-            <SectionBiasHeader
-                title={`FLOW CONFLUENCE (${timeframe.toUpperCase()})`}
-                icon="📊"
-                updateInterval={hasEnoughData ? `${timeframe.toUpperCase()} rolling` : `⚠️ Collecting data...`}
-            />
+            {/* Header with Timeframe Toggle */}
+            <div className="flex items-center justify-between mb-4">
+                <SectionBiasHeader
+                    title={`FLOW CONFLUENCE`}
+                    icon="📊"
+                    updateInterval={hasEnoughData ? `${timeframe.toUpperCase()} rolling` : `⚠️ Collecting data...`}
+                />
+                {/* Timeframe Toggle */}
+                {onTimeframeChange && (
+                    <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
+                        {['5m', '15m', '1h'].map(tf => (
+                            <button key={tf} onClick={() => onTimeframeChange(tf)}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${timeframe === tf ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}>
+                                {tf.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Data Collection Warning */}
             {!hasEnoughData && (

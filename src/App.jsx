@@ -1642,18 +1642,6 @@ export default function App({ focusCoin = null }) {
                 <>Session: {sessionDuration}min{lastUpdate && <span className="ml-2">• Updated {lastUpdate.toLocaleTimeString()}</span>}</>
               ) : EXCHANGES[activeExchange]?.description}
             </p>
-            {/* Timeframe Toggle - in header, hide when Top10 active */}
-            {EXCHANGES[activeExchange]?.status === 'active' && !showTop10 && (
-              <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1 mt-2">
-                <span className="text-xs text-slate-400 px-2">Timeframe:</span>
-                {['5m', '15m', '1h'].map(tf => (
-                  <button key={tf} onClick={() => setDashboardTimeframe(tf)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dashboardTimeframe === tf ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}>
-                    {tf.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
           <ExchangeSelector
             activeExchange={activeExchange}
@@ -1699,7 +1687,7 @@ export default function App({ focusCoin = null }) {
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
                   />
-                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} />
+                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} onTimeframeChange={setDashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} />
                 </div>
               </div>
             )}
@@ -1725,7 +1713,7 @@ export default function App({ focusCoin = null }) {
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
                   />
-                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} />
+                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} onTimeframeChange={setDashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} />
                 </div>
               </div>
             )}
