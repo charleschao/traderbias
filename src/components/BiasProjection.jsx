@@ -147,12 +147,8 @@ export default function BiasProjection({ projection, loading = false }) {
                                 Forward-looking directional bias using proven quantitative indicators:
                             </div>
 
-                            {/* Factors */}
+                            {/* Weighted Factors */}
                             <div className="space-y-2 text-xs">
-                                <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-yellow-400 font-bold">⚡ RSI Divergence (+20% bonus)</span>
-                                    <div className="text-slate-400 mt-1">Powerful reversal signal. Bullish: price makes lower low but RSI makes higher low. Bearish: price makes higher high but RSI makes lower high.</div>
-                                </div>
                                 <div className="bg-slate-800/50 rounded p-2">
                                     <span className="text-cyan-400 font-bold">💰 Funding Z-Score (20%)</span>
                                     <div className="text-slate-400 mt-1">Statistical measure of funding extremity. Z &gt; 2 = extremely long-biased → contrarian bearish. Z &lt; -2 = extremely short-biased → contrarian bullish.</div>
@@ -175,11 +171,23 @@ export default function BiasProjection({ projection, loading = false }) {
                                 </div>
                             </div>
 
+                            {/* Bonus Signals */}
+                            <div className="pt-2 border-t border-slate-700">
+                                <div className="text-yellow-400 font-bold text-xs mb-1">⚡ Bonus Signals (additive)</div>
+                                <div className="space-y-1 text-[10px]">
+                                    <div className="text-slate-400">• <span className="text-yellow-400">RSI Divergence</span>: ±20% (price/RSI divergence)</div>
+                                    <div className="text-slate-400">• <span className="text-green-400">Spot Accumulation</span>: +25% (spot buying, perp flat)</div>
+                                    <div className="text-slate-400">• <span className="text-green-400">Capitulation Bottom</span>: +20% (spot absorbing panic)</div>
+                                    <div className="text-slate-400">• <span className="text-red-400">Fake Pump</span>: -25% (perp rally, spot selling)</div>
+                                    <div className="text-slate-400">• <span className="text-red-400">Distribution</span>: -20% (spot distribution)</div>
+                                </div>
+                            </div>
+
                             {/* Scoring */}
                             <div className="pt-2 border-t border-slate-700">
                                 <div className="text-cyan-400 font-bold text-xs mb-1">How Scoring Works</div>
                                 <div className="text-slate-400 text-[10px]">
-                                    Each factor generates -1 to +1 score. Weighted sum + divergence bonus = final score.
+                                    Each factor generates -1 to +1 score. Weighted sum + bonuses = final score.
                                 </div>
                                 <div className="text-slate-400 text-[10px] mt-1">
                                     • Score ≥0.6 → <span className="text-green-400">STRONG BULLISH</span> (A+)<br />
@@ -282,15 +290,15 @@ export default function BiasProjection({ projection, loading = false }) {
             {/* Spot vs Perp CVD Divergence */}
             {spotPerpDivergence && (
                 <div className={`mt-3 p-2 rounded-lg border ${spotPerpDivergence.bias === 'bullish'
-                        ? 'bg-green-500/10 border-green-500/30'
-                        : spotPerpDivergence.bias === 'bearish'
-                            ? 'bg-red-500/10 border-red-500/30'
-                            : 'bg-slate-700/30 border-slate-600'
+                    ? 'bg-green-500/10 border-green-500/30'
+                    : spotPerpDivergence.bias === 'bearish'
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : 'bg-slate-700/30 border-slate-600'
                     }`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <span className={`text-sm font-bold ${spotPerpDivergence.bias === 'bullish' ? 'text-green-400' :
-                                    spotPerpDivergence.bias === 'bearish' ? 'text-red-400' : 'text-slate-400'
+                                spotPerpDivergence.bias === 'bearish' ? 'text-red-400' : 'text-slate-400'
                                 }`}>
                                 {spotPerpDivergence.signal === 'SPOT_ACCUMULATION' && '🟢 SPOT ACCUMULATION'}
                                 {spotPerpDivergence.signal === 'CAPITULATION_BOTTOM' && '🟢 CAPITULATION BOTTOM'}
