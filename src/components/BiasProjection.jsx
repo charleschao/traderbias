@@ -117,7 +117,17 @@ export default function BiasProjection({ projection, loading = false }) {
     };
 
     const formatBias = (bias) => {
-        return bias?.replace('_', ' ').replace('BULL', 'BULLISH').replace('BEAR', 'BEARISH') || 'NEUTRAL';
+        if (!bias) return 'NEUTRAL';
+        // Replace underscores, then format the labels properly
+        const formatted = bias.replace('_', ' ')
+            .replace('STRONG_BULL', 'STRONG BULLISH')
+            .replace('STRONG_BEAR', 'STRONG BEARISH')
+            .replace('LEAN_BULL', 'LEAN BULLISH')
+            .replace('LEAN_BEAR', 'LEAN BEARISH');
+        // Only add ISH if not already present
+        if (formatted === 'BULL' || formatted === 'BULLISH') return 'BULLISH';
+        if (formatted === 'BEAR' || formatted === 'BEARISH') return 'BEARISH';
+        return formatted;
     };
 
     return (
