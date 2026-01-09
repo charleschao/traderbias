@@ -1318,6 +1318,10 @@ export default function App({ focusCoin = null }) {
   }, [priceData, oiData, cvdData, fundingData, updateFromMarketData]);
 
   // Fetch BTC projection (8-12 hour outlook)
+  // Update every 30 minutes, only change displayed bias if score shifts by >0.15
+  const lockedProjectionRef = useRef(null);
+  const PROJECTION_CHANGE_THRESHOLD = 0.15; // Minimum score change to update displayed bias
+
   useEffect(() => {
     if (!isBackendEnabled()) return;
 
@@ -1325,7 +1329,31 @@ export default function App({ focusCoin = null }) {
       setProjectionLoading(true);
       try {
         const projection = await getBTCProjection();
-        if (projection) {
+        if (projection && projection.prediction) {
+          // Check if this is first projection or if score changed significantly
+          const currentScore = projection.prediction.score || 0;
+          const lockedScore = lockedProjectionRef.current?.prediction?.score || 0;
+          const scoreDiff = Math.abs(currentScore - lockedScore);
+
+          if (!lockedProjectionRef.current || scoreDiff >= PROJECTION_CHANGE_THRESHOLD) {
+            // Significant change - lock in new projection
+            lockedProjectionRef.current = projection;
+            setBtcProjection(projection);
+            console.log(`[Projection] Updated: ${projection.prediction.bias} (score: ${currentScore.toFixed(2)}, diff: ${scoreDiff.toFixed(2)})`);
+          } else {
+            // Minor change - keep locked projection but update timestamp/factors
+            const updatedProjection = {
+              ...lockedProjectionRef.current,
+              generatedAt: projection.generatedAt,
+              validUntil: projection.validUntil,
+              keyFactors: projection.keyFactors, // Update factors display
+              session: projection.session // Update session
+            };
+            setBtcProjection(updatedProjection);
+            console.log(`[Projection] Minor update (score diff: ${scoreDiff.toFixed(2)}, threshold: ${PROJECTION_CHANGE_THRESHOLD})`);
+          }
+        } else if (projection) {
+          // COLLECTING or error state
           setBtcProjection(projection);
         }
       } catch (error) {
@@ -1338,8 +1366,8 @@ export default function App({ focusCoin = null }) {
     // Initial fetch
     fetchProjection();
 
-    // Refresh every 5 minutes
-    const projectionInterval = setInterval(fetchProjection, 5 * 60 * 1000);
+    // Refresh every 30 minutes (stable, actionable signal)
+    const projectionInterval = setInterval(fetchProjection, 30 * 60 * 1000);
 
     return () => clearInterval(projectionInterval);
   }, []);

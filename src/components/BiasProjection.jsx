@@ -158,7 +158,7 @@ export default function BiasProjection({ projection, loading = false }) {
                                 </div>
                             </div>
                             <div className="pt-2 border-t border-slate-700 text-[10px] text-slate-500">
-                                Updates every 5 minutes. Best used with other confluence.
+                                Updates every 30 minutes. Stable signal for position planning.
                             </div>
                         </div>
                     </InfoTooltip>
@@ -167,7 +167,7 @@ export default function BiasProjection({ projection, loading = false }) {
                     </span>
                 </div>
                 <span className="text-xs text-slate-500">
-                    {formatTimeAgo(generatedAt)}
+                    {projection.validUntil ? `Valid until ${new Date(projection.validUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : formatTimeAgo(generatedAt)}
                 </span>
             </div>
 
