@@ -946,13 +946,13 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     // Calculate invalidation level
-    const invalidation = calculateInvalidation(hlData.price.BTC, bias);
+    const invalidation = calculateInvalidation(hlData.price[coin], bias);
 
     // Get current price
-    const currentPrice = hlData.price.BTC[hlData.price.BTC.length - 1]?.value || 0;
+    const currentPrice = hlData.price[coin][hlData.price[coin].length - 1]?.value || 0;
 
     return {
-        coin: 'BTC',
+        coin,
         horizon: '8-12H',
         status: 'ACTIVE',
         algorithmVersion: 'v2',
@@ -975,7 +975,6 @@ function generateProjection(coin, dataStore, consensus = null) {
         session: session.name,
         divergence: divergence.detected ? divergence : null,
         components: {
-            rsi,
             fundingZScore,
             oiRoC,
             cvdPersistence,
@@ -987,7 +986,7 @@ function generateProjection(coin, dataStore, consensus = null) {
         },
         generatedAt: now,
         validUntil: now + (4 * 60 * 60 * 1000),
-        dataPointCount: hlData.price.BTC.length
+        dataPointCount: hlData.price[coin].length
     };
 }
 
