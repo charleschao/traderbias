@@ -12,6 +12,7 @@ const { startDataCollection } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
+const winRateTracker = require('./winRateTracker');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -146,6 +147,7 @@ app.get('/api/stats', (req, res) => {
  * GET /api/:coin/projection
  *
  * Returns predictive bias analysis for BTC, ETH, or SOL
+ * Now tracks predictions for win rate calculation
  */
 app.get('/api/:coin/projection', (req, res) => {
   const { coin } = req.params;
@@ -160,6 +162,15 @@ app.get('/api/:coin/projection', (req, res) => {
 
   try {
     const projection = biasProjection.generateProjection(coin.toUpperCase(), dataStore);
+
+    // Record prediction for win rate tracking (only if status is ACTIVE)
+    if (projection.status === 'ACTIVE') {
+      winRateTracker.recordPrediction(coin.toUpperCase(), projection);
+    }
+
+    // Add win rate stats to response
+    projection.historicalPerformance = winRateTracker.getStats(coin.toUpperCase());
+
     res.json(projection);
   } catch (error) {
     console.error('[Projection Error]', error);
@@ -168,6 +179,52 @@ app.get('/api/:coin/projection', (req, res) => {
       message: error.message
     });
   }
+});
+
+/**
+ * Get win rate statistics for predictions
+ * GET /api/win-rates/:coin?
+ *
+ * Returns historical prediction accuracy stats
+ */
+app.get('/api/win-rates/:coin?', (req, res) => {
+  const { coin } = req.params;
+
+  if (coin) {
+    const validCoins = ['BTC', 'ETH', 'SOL'];
+    const upperCoin = coin.toUpperCase();
+    if (!validCoins.includes(upperCoin)) {
+      return res.status(400).json({
+        error: 'Invalid coin',
+        validCoins
+      });
+    }
+    res.json(winRateTracker.getStats(upperCoin));
+  } else {
+    // Return all coin stats
+    res.json(winRateTracker.getStats());
+  }
+});
+
+/**
+ * Get recent predictions with outcomes
+ * GET /api/predictions/:coin?
+ *
+ * Returns list of recent predictions and their outcomes
+ */
+app.get('/api/predictions/:coin?', (req, res) => {
+  const { coin } = req.params;
+  const limit = parseInt(req.query.limit) || 20;
+
+  const predictions = winRateTracker.getRecentPredictions(
+    coin ? coin.toUpperCase() : null,
+    limit
+  );
+
+  res.json({
+    count: predictions.length,
+    predictions
+  });
 });
 
 /**
@@ -183,6 +240,9 @@ app.get('/', (req, res) => {
       snapshot: 'GET /api/snapshot/:exchange',
       whaleTrades: 'GET /api/whale-trades',
       spotCvd: 'GET /api/spot-cvd/:coin?',
+      projection: 'GET /api/:coin/projection',
+      winRates: 'GET /api/win-rates/:coin?',
+      predictions: 'GET /api/predictions/:coin?',
       all: 'GET /api/data/all',
       stats: 'GET /api/stats'
     },

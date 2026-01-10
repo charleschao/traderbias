@@ -12,14 +12,33 @@
  * - Cross-exchange confluence
  */
 
-// Weights distribution (RSI divergence is bonus only, not weighted)
+// Weights distribution (Flow Confluence is now primary signal)
 const WEIGHTS = {
-    fundingZScore: 0.20, // Z-score for extreme funding detection
-    oiRoC: 0.20,         // OI rate of change (leverage dynamics)
-    cvdPersistence: 0.20,// Sustained buying/selling pressure
-    regime: 0.20,        // OI + Funding regime detection
-    whales: 0.10,        // Whale positioning (Hyperliquid only)
-    confluence: 0.10     // Cross-exchange agreement
+    flowConfluence: 0.35, // Price + OI + CVD alignment (PRIMARY SIGNAL)
+    fundingZScore: 0.15,  // Z-score for extreme funding detection
+    oiRoC: 0.15,          // OI rate of change (leverage dynamics)
+    regime: 0.15,         // OI + Funding regime detection
+    whales: 0.10,         // Whale positioning (Hyperliquid only)
+    confluence: 0.10      // Cross-exchange agreement
+};
+
+// Coin-specific CVD thresholds (realistic institutional levels)
+const CVD_THRESHOLDS = {
+    BTC: {
+        strong: 50000,    // $50k for strong signal
+        moderate: 20000,  // $20k for moderate
+        weak: 5000        // $5k for weak
+    },
+    ETH: {
+        strong: 20000,    // $20k for strong signal
+        moderate: 8000,   // $8k for moderate
+        weak: 2000        // $2k for weak
+    },
+    SOL: {
+        strong: 5000,     // $5k for strong signal
+        moderate: 2000,   // $2k for moderate
+        weak: 500         // $500 for weak
+    }
 };
 
 // Bonus multipliers (additive after weighted sum)
@@ -195,19 +214,18 @@ function detectRSIDivergence(priceHistory, period = 14) {
 }
 
 /**
- * Calculate Funding Rate Z-Score
- * Identifies extreme funding relative to historical norm
- * Z > 2 = extremely long-biased → contrarian bearish
- * Z < -2 = extremely short-biased → contrarian bullish
+ * Calculate Funding Rate Z-Score with Momentum Mode
+ * CONTRARIAN MODE: Z > 2 = extremely long-biased → contrarian bearish
+ * MOMENTUM MODE: Rising funding + Rising price = bullish trend continuation
  */
-function calculateFundingZScore(fundingHistory) {
+function calculateFundingZScore(fundingHistory, priceHistory) {
     if (!fundingHistory || fundingHistory.length < 10) {
-        return { score: 0, zScore: 0, mean: 0, stddev: 0, current: 0 };
+        return { score: 0, zScore: 0, mean: 0, stddev: 0, current: 0, mode: 'insufficient_data' };
     }
 
     const rates = fundingHistory.map(f => f.rate).filter(r => r !== undefined && !isNaN(r));
     if (rates.length < 5) {
-        return { score: 0, zScore: 0, mean: 0, stddev: 0, current: 0 };
+        return { score: 0, zScore: 0, mean: 0, stddev: 0, current: 0, mode: 'insufficient_data' };
     }
 
     const mean = rates.reduce((a, b) => a + b, 0) / rates.length;
@@ -215,22 +233,78 @@ function calculateFundingZScore(fundingHistory) {
     const stddev = Math.sqrt(variance);
 
     if (stddev === 0) {
-        return { score: 0, zScore: 0, mean, stddev: 0, current: rates[rates.length - 1] };
+        return { score: 0, zScore: 0, mean, stddev: 0, current: rates[rates.length - 1], mode: 'stable' };
     }
 
     const currentRate = rates[rates.length - 1];
     const zScore = (currentRate - mean) / stddev;
+    const annualized = currentRate * 3 * 365 * 100;
 
-    // Contrarian scoring based on Z-score
+    // Detect funding trend
+    let fundingTrend = 'stable';
+    if (fundingHistory.length >= 3) {
+        const recent3 = fundingHistory.slice(-3).map(f => f.rate);
+        const isRising = recent3[2] > recent3[1] && recent3[1] > recent3[0];
+        const isFalling = recent3[2] < recent3[1] && recent3[1] < recent3[0];
+        if (isRising) fundingTrend = 'rising';
+        else if (isFalling) fundingTrend = 'falling';
+    }
+
+    // Detect price trend if available
+    let priceTrend = 'neutral';
+    if (priceHistory && priceHistory.length >= 10) {
+        const now = Date.now();
+        const fourHoursAgo = now - (4 * 60 * 60 * 1000);
+        const recentPrices = priceHistory.filter(p => p && p.timestamp >= fourHoursAgo);
+        if (recentPrices.length >= 2 && recentPrices[0].value > 0) {
+            const priceChange = ((recentPrices[recentPrices.length - 1].value - recentPrices[0].value) / recentPrices[0].value) * 100;
+            if (priceChange > 2) priceTrend = 'up';
+            else if (priceChange < -2) priceTrend = 'down';
+        }
+    }
+
     let score = 0;
     let zone = 'normal';
+    let mode = 'contrarian'; // Default to contrarian
 
-    if (zScore >= 3) { score = -0.9; zone = 'extreme_long_bias'; }
-    else if (zScore >= 2) { score = -0.6; zone = 'high_long_bias'; }
-    else if (zScore >= 1.5) { score = -0.3; zone = 'moderate_long_bias'; }
-    else if (zScore <= -3) { score = 0.9; zone = 'extreme_short_bias'; }
-    else if (zScore <= -2) { score = 0.6; zone = 'high_short_bias'; }
-    else if (zScore <= -1.5) { score = 0.3; zone = 'moderate_short_bias'; }
+    // MOMENTUM MODE: If price trending strongly, use momentum logic
+    if (priceTrend === 'up' && fundingTrend === 'rising' && annualized < 100) {
+        // Bullish momentum - healthy funding rise with price
+        mode = 'momentum';
+        zone = 'bullish_momentum';
+        score = 0.3; // Mild bullish
+    } else if (priceTrend === 'down' && fundingTrend === 'falling' && annualized > -100) {
+        // Bearish momentum - healthy funding fall with price
+        mode = 'momentum';
+        zone = 'bearish_momentum';
+        score = -0.3; // Mild bearish
+    }
+    // CONTRARIAN MODE: Extreme funding = mean reversion
+    else if (zScore >= 3) {
+        mode = 'contrarian';
+        score = -0.9;
+        zone = 'extreme_long_bias';
+    } else if (zScore >= 2) {
+        mode = 'contrarian';
+        score = -0.6;
+        zone = 'high_long_bias';
+    } else if (zScore >= 1.5) {
+        mode = 'contrarian';
+        score = -0.3;
+        zone = 'moderate_long_bias';
+    } else if (zScore <= -3) {
+        mode = 'contrarian';
+        score = 0.9;
+        zone = 'extreme_short_bias';
+    } else if (zScore <= -2) {
+        mode = 'contrarian';
+        score = 0.6;
+        zone = 'high_short_bias';
+    } else if (zScore <= -1.5) {
+        mode = 'contrarian';
+        score = 0.3;
+        zone = 'moderate_short_bias';
+    }
 
     return {
         score,
@@ -238,8 +312,11 @@ function calculateFundingZScore(fundingHistory) {
         mean,
         stddev,
         current: currentRate,
-        annualized: currentRate * 3 * 365 * 100,
-        zone
+        annualized,
+        zone,
+        mode,
+        fundingTrend,
+        priceTrend
     };
 }
 
@@ -393,11 +470,11 @@ function detectRegime(oiHistory, fundingHistory, priceHistory) {
 }
 
 /**
- * Calculate CVD persistence (sustained buying/selling)
+ * Calculate CVD persistence (sustained buying/selling) with coin-specific thresholds
  */
-function calculateCVDPersistence(cvdHistory) {
+function calculateCVDPersistence(cvdHistory, coin = 'BTC') {
     if (!cvdHistory || cvdHistory.length < 2) {
-        return { score: 0, thirtyMinDelta: 0, twoHourDelta: 0 };
+        return { score: 0, thirtyMinDelta: 0, twoHourDelta: 0, strength: 'none' };
     }
 
     const now = Date.now();
@@ -410,13 +487,150 @@ function calculateCVDPersistence(cvdHistory) {
     const thirtyMinDelta = thirtyMinHistory.reduce((sum, e) => sum + (e.delta || 0), 0);
     const twoHourDelta = twoHourHistory.reduce((sum, e) => sum + (e.delta || 0), 0);
 
-    // Weighted combination
+    // Weighted combination (recent data more important)
     const weightedDelta = (thirtyMinDelta * 0.4) + (twoHourDelta * 0.6);
 
-    // Normalize to -1 to +1 (assume ±$10M as significant)
-    const normalizedScore = Math.max(-1, Math.min(1, weightedDelta / 10000000));
+    // Get coin-specific thresholds
+    const thresholds = CVD_THRESHOLDS[coin] || CVD_THRESHOLDS.BTC;
 
-    return { score: normalizedScore, thirtyMinDelta, twoHourDelta };
+    // Normalize to -1 to +1 using coin-specific "strong" threshold
+    const normalizedScore = Math.max(-1, Math.min(1, weightedDelta / thresholds.strong));
+
+    // Determine strength level
+    const absDelta = Math.abs(weightedDelta);
+    let strength = 'none';
+    if (absDelta >= thresholds.strong) strength = 'strong';
+    else if (absDelta >= thresholds.moderate) strength = 'moderate';
+    else if (absDelta >= thresholds.weak) strength = 'weak';
+
+    return {
+        score: normalizedScore,
+        thirtyMinDelta,
+        twoHourDelta,
+        weightedDelta,
+        strength,
+        thresholds
+    };
+}
+
+/**
+ * Calculate Flow Confluence (PRIMARY SIGNAL)
+ * Checks if Price, OI, and CVD are all aligned in the same direction
+ * STRONG signal when all 3 agree, WEAK when mixed
+ */
+function calculateFlowConfluence(priceHistory, oiHistory, cvdHistory, coin = 'BTC') {
+    if (!priceHistory || priceHistory.length < 10 || !oiHistory || oiHistory.length < 5 || !cvdHistory || cvdHistory.length < 5) {
+        return {
+            score: 0,
+            signal: 'INSUFFICIENT_DATA',
+            aligned: false,
+            priceDirection: 'unknown',
+            oiDirection: 'unknown',
+            cvdDirection: 'unknown',
+            strength: 'none'
+        };
+    }
+
+    const now = Date.now();
+    const oneHourAgo = now - TIMEFRAMES.ONE_HOUR;
+
+    // Price direction (1H)
+    const recentPrices = priceHistory.filter(e => e && e.timestamp >= oneHourAgo);
+    let priceDirection = 'neutral';
+    let priceChange = 0;
+    if (recentPrices.length >= 2 && recentPrices[0].value > 0) {
+        priceChange = ((recentPrices[recentPrices.length - 1].value - recentPrices[0].value) / recentPrices[0].value) * 100;
+        if (priceChange > 0.5) priceDirection = 'up';
+        else if (priceChange < -0.5) priceDirection = 'down';
+    }
+
+    // OI direction (1H)
+    const recentOI = oiHistory.filter(e => e && e.timestamp >= oneHourAgo);
+    let oiDirection = 'neutral';
+    let oiChange = 0;
+    if (recentOI.length >= 2 && recentOI[0].value > 0) {
+        oiChange = ((recentOI[recentOI.length - 1].value - recentOI[0].value) / recentOI[0].value) * 100;
+        if (oiChange > 1) oiDirection = 'up';
+        else if (oiChange < -1) oiDirection = 'down';
+    }
+
+    // CVD direction (1H)
+    const recentCVD = cvdHistory.filter(e => e && e.time >= oneHourAgo);
+    let cvdDirection = 'neutral';
+    let cvdDelta = recentCVD.reduce((sum, e) => sum + (e.delta || 0), 0);
+    const thresholds = CVD_THRESHOLDS[coin] || CVD_THRESHOLDS.BTC;
+    if (cvdDelta > thresholds.weak) cvdDirection = 'up';
+    else if (cvdDelta < -thresholds.weak) cvdDirection = 'down';
+
+    // Check for confluence
+    let signal = 'NEUTRAL';
+    let score = 0;
+    let aligned = false;
+    let strength = 'none';
+
+    // All 3 bullish = STRONG BULL
+    if (priceDirection === 'up' && oiDirection === 'up' && cvdDirection === 'up') {
+        signal = 'STRONG_BULL';
+        score = 0.9;
+        aligned = true;
+        strength = 'strong';
+    }
+    // All 3 bearish = STRONG BEAR
+    else if (priceDirection === 'down' && oiDirection === 'down' && cvdDirection === 'down') {
+        signal = 'STRONG_BEAR';
+        score = -0.9;
+        aligned = true;
+        strength = 'strong';
+    }
+    // 2 of 3 bullish = MODERATE BULL
+    else if ([priceDirection, oiDirection, cvdDirection].filter(d => d === 'up').length === 2) {
+        signal = 'MODERATE_BULL';
+        score = 0.5;
+        aligned = false;
+        strength = 'moderate';
+    }
+    // 2 of 3 bearish = MODERATE BEAR
+    else if ([priceDirection, oiDirection, cvdDirection].filter(d => d === 'down').length === 2) {
+        signal = 'MODERATE_BEAR';
+        score = -0.5;
+        aligned = false;
+        strength = 'moderate';
+    }
+    // Price vs CVD divergence (bearish signal)
+    else if (priceDirection === 'up' && cvdDirection === 'down') {
+        signal = 'DIVERGENCE_BEAR';
+        score = -0.4;
+        aligned = false;
+        strength = 'moderate';
+    }
+    // Price vs CVD divergence (bullish signal)
+    else if (priceDirection === 'down' && cvdDirection === 'up') {
+        signal = 'DIVERGENCE_BULL';
+        score = 0.4;
+        aligned = false;
+        strength = 'moderate';
+    }
+    // Mixed signals = NEUTRAL
+    else {
+        signal = 'NEUTRAL';
+        score = 0;
+        aligned = false;
+        strength = 'weak';
+    }
+
+    return {
+        score,
+        signal,
+        aligned,
+        priceDirection,
+        oiDirection,
+        cvdDirection,
+        strength,
+        priceChange,
+        oiChange,
+        cvdDelta,
+        description: signal.replace(/_/g, ' ')
+    };
 }
 
 /**
@@ -704,24 +918,24 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     // Calculate all factors using dynamic coin
-    // Note: RSI divergence kept as bonus, but RSI oversold/overbought removed from weighted factors
+    // Flow Confluence is now the PRIMARY SIGNAL (35% weight)
+    const flowConfluence = calculateFlowConfluence(hlData.price[coin], hlData.oi[coin], hlData.cvd[coin], coin);
     const divergence = detectRSIDivergence(hlData.price[coin]);
-    const fundingZScore = calculateFundingZScore(hlData.funding[coin]);
+    const fundingZScore = calculateFundingZScore(hlData.funding[coin], hlData.price[coin]);
     const oiRoC = calculateOIRoC(hlData.oi[coin], hlData.price[coin]);
-    const cvdPersistence = calculateCVDPersistence(hlData.cvd[coin]);
+    const cvdPersistence = calculateCVDPersistence(hlData.cvd[coin], coin);
     const regime = detectRegime(hlData.oi[coin], hlData.funding[coin], hlData.price[coin]);
     const whales = calculateWhaleAlignment(consensus);
     const confluence = calculateCrossExchangeConfluence(dataStore, coin);
     const volatility = calculateVolatility(hlData.price[coin]);
     const session = detectSession();
 
-    // Calculate weighted score (RSI divergence is bonus only, not in main weights)
-    let totalWeight = WEIGHTS.fundingZScore + WEIGHTS.oiRoC +
-        WEIGHTS.cvdPersistence + WEIGHTS.regime + WEIGHTS.confluence;
+    // Calculate weighted score with Flow Confluence as PRIMARY (35%)
+    let totalWeight = WEIGHTS.flowConfluence + WEIGHTS.fundingZScore + WEIGHTS.oiRoC + WEIGHTS.regime + WEIGHTS.confluence;
     let weightedScore = (
+        (flowConfluence.score * WEIGHTS.flowConfluence) +
         (fundingZScore.score * WEIGHTS.fundingZScore) +
         (oiRoC.score * WEIGHTS.oiRoC) +
-        (cvdPersistence.score * WEIGHTS.cvdPersistence) +
         (regime.score * WEIGHTS.regime) +
         (confluence.score * WEIGHTS.confluence)
     );
@@ -878,14 +1092,21 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
     // RSI overbought/oversold warnings removed (user request)
 
-    // Build key factors for display
+    // Build key factors for display (Flow Confluence first - PRIMARY SIGNAL)
     const keyFactors = [
+        {
+            name: '⭐ Flow Confluence',
+            direction: flowConfluence.score > 0.1 ? 'bullish' : flowConfluence.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(flowConfluence.score),
+            impact: flowConfluence.aligned ? 'high' : flowConfluence.strength === 'moderate' ? 'medium' : 'low',
+            detail: `${flowConfluence.signal.replace(/_/g, ' ')} (P:${flowConfluence.priceDirection} OI:${flowConfluence.oiDirection} CVD:${flowConfluence.cvdDirection})`
+        },
         {
             name: 'Funding Z-Score',
             direction: fundingZScore.score > 0.1 ? 'bullish' : fundingZScore.score < -0.1 ? 'bearish' : 'neutral',
             score: Math.abs(fundingZScore.score),
             impact: Math.abs(fundingZScore.zScore) > 2 ? 'high' : Math.abs(fundingZScore.zScore) > 1 ? 'medium' : 'low',
-            detail: `Z=${fundingZScore.zScore.toFixed(2)} (${fundingZScore.zone.replace(/_/g, ' ')})`
+            detail: `${fundingZScore.mode} mode - Z=${fundingZScore.zScore.toFixed(2)} (${fundingZScore.zone.replace(/_/g, ' ')})`
         },
         {
             name: 'OI Rate of Change',
@@ -898,8 +1119,8 @@ function generateProjection(coin, dataStore, consensus = null) {
             name: 'CVD Flow',
             direction: cvdPersistence.score > 0.1 ? 'bullish' : cvdPersistence.score < -0.1 ? 'bearish' : 'neutral',
             score: Math.abs(cvdPersistence.score),
-            impact: Math.abs(cvdPersistence.score) > 0.5 ? 'high' : Math.abs(cvdPersistence.score) > 0.2 ? 'medium' : 'low',
-            detail: `$${(cvdPersistence.twoHourDelta / 1000000).toFixed(1)}M (2hr)`
+            impact: cvdPersistence.strength === 'strong' ? 'high' : cvdPersistence.strength === 'moderate' ? 'medium' : 'low',
+            detail: `$${(cvdPersistence.twoHourDelta / 1000000).toFixed(1)}M (2hr) - ${cvdPersistence.strength}`
         },
         {
             name: 'Market Regime',
@@ -970,6 +1191,7 @@ function generateProjection(coin, dataStore, consensus = null) {
         session: session.name,
         divergence: divergence.detected ? divergence : null,
         components: {
+            flowConfluence,
             fundingZScore,
             oiRoC,
             cvdPersistence,
@@ -993,11 +1215,13 @@ module.exports = {
     calculateOIRoC,
     detectRegime,
     calculateCVDPersistence,
+    calculateFlowConfluence,
     calculateWhaleAlignment,
     calculateCrossExchangeConfluence,
     calculateVolatility,
     calculateATR,
     findSwingLevels,
     calculateInvalidation,
-    detectSession
+    detectSession,
+    CVD_THRESHOLDS
 };
