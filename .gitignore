@@ -5,6 +5,7 @@ logs
 deploy-dev.ps1
 deploy-prod.ps1
 .env
+docs/*
 server/docker-compose.yml
 */docker-compose.yml
 .env.example

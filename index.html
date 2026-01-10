@@ -1,58 +1,69 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- Primary Meta Tags -->
-    <title>Trader's Bias | Real-Time BTC ETH SOL Trading Signals Dashboard</title>
-    <meta name="title" content="Trader's Bias | Real-Time BTC ETH SOL Trading Signals Dashboard" />
-    <meta name="description" content="Track whale positions, open interest, funding rates, and orderbook imbalances on Hyperliquid, Binance & Bybit. Free real-time crypto trading signals for Bitcoin, Ethereum, Solana." />
-    <meta name="keywords" content="crypto whale tracker, hyperliquid trading, bitcoin trading signals, ethereum trading, solana trading, open interest analysis, funding rate monitor, crypto orderbook, whale alert, trading dashboard, defi trading, perps trading, crypto derivatives" />
-    <meta name="author" content="Trader's Bias" />
-    <meta name="robots" content="index, follow" />
-    
-    <!-- Canonical URL (update with your domain) -->
-    <link rel="canonical" href="https://yoursite.com/" />
-    
-    <!-- Open Graph / Facebook / Discord -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://yoursite.com/" />
-    <meta property="og:title" content="🎯 Trader's Bias | Live Trading Signals" />
-    <meta property="og:description" content="Real-time whale positions, OI changes, funding rates & orderbook data. Track smart money on Hyperliquid, Binance & Bybit." />
-    <meta property="og:image" content="https://yoursite.com/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:site_name" content="Trader's Bias" />
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://yoursite.com/" />
-    <meta name="twitter:title" content="🎯 Trader's Bias | Live Trading Signals" />
-    <meta name="twitter:description" content="Real-time whale positions, OI changes, funding rates & orderbook data. Free pro-level trading dashboard." />
-    <meta name="twitter:image" content="https://yoursite.com/og-image.png" />
-    
-    <!-- Theme & PWA -->
-    <meta name="theme-color" content="#0f172a" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Trader's Bias" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    
-    <!-- Favicon (update with your icon) -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    
-    <!-- Preconnect for faster API calls -->
-    <link rel="preconnect" href="https://api.hyperliquid.xyz" crossorigin />
-    <link rel="preconnect" href="https://stats-data.hyperliquid.xyz" crossorigin />
-    <link rel="dns-prefetch" href="https://fapi.binance.com" />
-    <link rel="dns-prefetch" href="https://api.bybit.com" />
-    
-    <!-- Structured Data for Rich Snippets -->
-    <script type="application/ld+json">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Primary Meta Tags -->
+  <title>Trader's Bias | Real-Time BTC ETH SOL Trading Signals Dashboard</title>
+  <meta name="title" content="Trader's Bias | Real-Time BTC ETH SOL Trading Signals Dashboard" />
+  <meta name="description"
+    content="Track whale positions, open interest, funding rates, and orderbook imbalances on Hyperliquid, Binance & Bybit. Free real-time crypto trading signals for Bitcoin, Ethereum, Solana." />
+  <meta name="keywords"
+    content="crypto whale tracker, hyperliquid trading, bitcoin trading signals, ethereum trading, solana trading, open interest analysis, funding rate monitor, crypto orderbook, whale alert, trading dashboard, defi trading, perps trading, crypto derivatives" />
+  <meta name="author" content="Trader's Bias" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Canonical URL (update with your domain) -->
+  <link rel="canonical" href="https://yoursite.com/" />
+
+  <!-- Open Graph / Facebook / Discord -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://yoursite.com/" />
+  <meta property="og:title" content="🎯 Trader's Bias | Live Trading Signals" />
+  <meta property="og:description"
+    content="Real-time whale positions, OI changes, funding rates & orderbook data. Track smart money on Hyperliquid, Binance & Bybit." />
+  <meta property="og:image" content="https://yoursite.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="Trader's Bias" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://yoursite.com/" />
+  <meta name="twitter:title" content="🎯 Trader's Bias | Live Trading Signals" />
+  <meta name="twitter:description"
+    content="Real-time whale positions, OI changes, funding rates & orderbook data. Free pro-level trading dashboard." />
+  <meta name="twitter:image" content="https://yoursite.com/og-image.png" />
+
+  <!-- Theme & PWA -->
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Trader's Bias" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Favicon (update with your icon) -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+  <!-- Preconnect for faster API calls -->
+  <link rel="preconnect" href="https://api.hyperliquid.xyz" crossorigin />
+  <link rel="preconnect" href="https://stats-data.hyperliquid.xyz" crossorigin />
+  <link rel="dns-prefetch" href="https://fapi.binance.com" />
+  <link rel="dns-prefetch" href="https://api.bybit.com" />
+
+  <!-- Google Fonts - Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+
+  <!-- Structured Data for Rich Snippets -->
+  <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
@@ -82,9 +93,9 @@
       ]
     }
     </script>
-    
-    <!-- FAQ Structured Data for Rich Snippets -->
-    <script type="application/ld+json">
+
+  <!-- FAQ Structured Data for Rich Snippets -->
+  <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
@@ -116,26 +127,29 @@
       ]
     }
     </script>
-  </head>
-  <body>
-    <!-- Noscript fallback for SEO crawlers -->
-    <noscript>
-      <div style="padding: 40px; text-align: center; font-family: sans-serif;">
-        <h1>Trader's Bias - Real-Time Trading Signals</h1>
-        <p>Track whale positions, open interest, funding rates, and orderbook imbalances on Hyperliquid, Binance & Bybit.</p>
-        <p>Enable JavaScript to use this application.</p>
-        <h2>Features</h2>
-        <ul style="list-style: none;">
-          <li>🐋 Real-time whale position tracking</li>
-          <li>📊 Open Interest analysis (1H, 4H, 8H)</li>
-          <li>💰 Funding rate monitoring</li>
-          <li>📈 Orderbook imbalance detection</li>
-          <li>🔷 Multi-exchange: Hyperliquid, Binance, Bybit</li>
-        </ul>
-      </div>
-    </noscript>
-    
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+</head>
+
+<body>
+  <!-- Noscript fallback for SEO crawlers -->
+  <noscript>
+    <div style="padding: 40px; text-align: center; font-family: sans-serif;">
+      <h1>Trader's Bias - Real-Time Trading Signals</h1>
+      <p>Track whale positions, open interest, funding rates, and orderbook imbalances on Hyperliquid, Binance & Bybit.
+      </p>
+      <p>Enable JavaScript to use this application.</p>
+      <h2>Features</h2>
+      <ul style="list-style: none;">
+        <li>🐋 Real-time whale position tracking</li>
+        <li>📊 Open Interest analysis (1H, 4H, 8H)</li>
+        <li>💰 Funding rate monitoring</li>
+        <li>📈 Orderbook imbalance detection</li>
+        <li>🔷 Multi-exchange: Hyperliquid, Binance, Bybit</li>
+      </ul>
+    </div>
+  </noscript>
+
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

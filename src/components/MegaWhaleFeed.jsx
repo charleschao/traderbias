@@ -4,7 +4,7 @@ import { formatUSD, formatPrice } from '../utils/formatters';
 import NotificationToggle from './NotificationToggle';
 import ThresholdSelector from './ThresholdSelector';
 
-// Individual whale trade row - compact version
+// Individual whale trade row - mockup timeline style
 const MegaWhaleTradeRow = ({ trade }) => {
     const isBuy = trade.side === 'BUY';
     const age = Date.now() - trade.timestamp;
@@ -19,42 +19,41 @@ const MegaWhaleTradeRow = ({ trade }) => {
 
     const config = WHALE_WS_CONFIG[trade.exchange];
 
+    // Exchange badge colors - Binance gets amber, others get slate
+    const getExchangeBadgeStyle = (exchangeName) => {
+        const name = exchangeName?.toLowerCase() || '';
+        if (name.includes('binance')) return 'bg-amber-900/30 text-amber-300';
+        return 'bg-slate-700 text-slate-300';
+    };
+
     return (
-        <div className={`px-3 py-1.5 flex items-center gap-3 hover:bg-slate-800/30 transition-colors ${isNew ? 'bg-slate-800/40' : ''
-            }`}>
-            {/* Side */}
-            <div className={`w-10 py-0.5 rounded text-center font-bold text-xs ${isBuy
-                ? 'bg-green-500/20 text-green-400'
-                : 'bg-red-500/20 text-red-400'
+        <div className={`flex items-center gap-4 p-4 bg-slate-800 rounded-lg ${isNew ? 'ring-1 ring-amber-500/50' : ''}`}>
+            {/* Time */}
+            <span className="text-slate-500 text-sm w-20">{time}</span>
+
+            {/* Side Badge */}
+            <span className={`px-3 py-1 text-white text-sm font-bold rounded w-16 text-center ${isBuy ? 'bg-emerald-500' : 'bg-rose-500'
                 }`}>
                 {isBuy ? 'BUY' : 'SELL'}
-            </div>
-
-            {/* Coin + Type */}
-            <div className="w-14">
-                <span className="text-sm font-bold text-white">{trade.symbol}</span>
-                <span className="text-[9px] text-slate-400 ml-1">{config?.type === 'PERP' ? 'P' : 'S'}</span>
-            </div>
+            </span>
 
             {/* Notional */}
-            <div className={`flex-1 text-sm font-bold font-mono ${isBuy ? 'text-green-400' : 'text-red-400'}`}>
+            <span className={`font-semibold text-lg ${isBuy ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {formatUSD(trade.notional)}
-            </div>
+            </span>
 
             {/* Size @ Price */}
-            <div className="hidden sm:block text-[10px] text-slate-300 w-32 text-right">
+            <span className="text-slate-400 text-sm hidden sm:block">
                 {trade.size.toLocaleString(undefined, { maximumFractionDigits: 2 })} @ ${formatPrice(trade.price)}
-            </div>
+            </span>
 
-            {/* Exchange */}
-            <div className="w-20 text-right">
-                <span className="text-[10px] text-slate-400">{config?.icon} {config?.name}</span>
-            </div>
+            {/* Coin */}
+            <span className="text-white font-bold text-sm">{trade.symbol}</span>
 
-            {/* Time */}
-            <div className="w-14 text-right">
-                <span className="text-[10px] font-mono text-slate-300">{time}</span>
-            </div>
+            {/* Exchange Badge */}
+            <span className={`ml-auto px-3 py-1 text-xs rounded ${getExchangeBadgeStyle(config?.name)}`}>
+                {config?.icon} {config?.name}
+            </span>
         </div>
     );
 };
@@ -164,7 +163,7 @@ const MegaWhaleFeed = ({
                                 </div>
                             </div>
                         ) : (
-                            <div className="divide-y divide-slate-800/30">
+                            <div className="space-y-3 p-3">
                                 {filteredTrades.slice(0, 50).map((trade, i) => (
                                     <MegaWhaleTradeRow key={`${trade.exchange}-${trade.tradeId}-${i}`} trade={trade} />
                                 ))}

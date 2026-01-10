@@ -10,6 +10,16 @@ const OrderbookSection = ({ orderbookData, coins = ['BTC'] }) => {
     // For single coin, render compact. For multiple, render grid.
     const isSingleCoin = coins.length === 1;
 
+    // Get interpretation text based on imbalance
+    const getInterpretation = (imbalance) => {
+        if (imbalance >= 40) return 'Heavy bid support suggests buyers willing to defend levels. Order book skewed strongly bullish.';
+        if (imbalance >= 20) return 'Moderate bid dominance indicates buyer interest at current levels.';
+        if (imbalance <= -40) return 'Heavy ask pressure suggests sellers dominating. Order book skewed strongly bearish.';
+        if (imbalance <= -20) return 'Moderate ask dominance indicates selling pressure at current levels.';
+        return 'Balanced order book with no clear directional bias.';
+    };
+
+
     if (isSingleCoin) {
         const coin = coins[0];
         const ob = orderbookData?.[coin];
@@ -68,12 +78,16 @@ const OrderbookSection = ({ orderbookData, coins = ['BTC'] }) => {
                     </div>
                 </div>
 
-                {/* Imbalance Value */}
                 <div className="flex justify-center items-center mt-3 pt-2 border-t border-slate-700/50">
                     <span className="text-xs text-slate-400 mr-2">Net Imbalance:</span>
                     <span className={`text-lg font-bold font-mono ${(ob?.imbalance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {(ob?.imbalance || 0) >= 0 ? '+' : ''}{(ob?.imbalance || 0).toFixed(1)}%
                     </span>
+                </div>
+
+                {/* Interpretation Text */}
+                <div className="mt-3 pt-3 border-t border-slate-700/50">
+                    <p className="text-[11px] text-slate-400">{getInterpretation(ob?.imbalance || 0)}</p>
                 </div>
             </div>
         );

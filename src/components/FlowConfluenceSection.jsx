@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 import SectionBiasHeader from './SectionBiasHeader';
 import { calculateFlowConfluence } from '../utils/biasCalculations';
 import { formatUSD } from '../utils/formatters';
@@ -29,6 +30,26 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
             'STRONG_BEAR': { bg: 'bg-red-500/20', border: 'border-red-500/50', icon: '🔴', label: 'STRONG BEAR', color: 'text-red-400' },
         };
         return styles[confluenceType] || styles.NEUTRAL;
+    };
+
+    // Get contextual description for each metric
+    const getMetricDescription = (metric, value, dir) => {
+        if (metric === 'price') {
+            if (dir === '↑') return value > 0.5 ? 'Strong upward price movement' : 'Modest price increase';
+            if (dir === '↓') return value < -0.5 ? 'Significant price decline' : 'Modest price decrease';
+            return 'Minimal price movement';
+        }
+        if (metric === 'oi') {
+            if (dir === '↑') return 'Open interest building - new positions entering';
+            if (dir === '↓') return 'Open interest declining - positions closing';
+            return 'No significant change in open interest';
+        }
+        if (metric === 'cvd') {
+            if (dir === '↑') return 'Net buying pressure detected';
+            if (dir === '↓') return 'Short-term selling pressure';
+            return 'Balanced buy/sell flow';
+        }
+        return '';
     };
 
     // Calculate metric counts and leaning state
@@ -160,51 +181,60 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
                             )}
 
                             {/* Confluence Table: Price, OI, CVD directions */}
-                            <div className="space-y-1 mb-3 bg-slate-800/50 rounded-lg p-2">
+                            <div className="space-y-2 mb-3 bg-slate-800/50 rounded-lg p-3">
                                 {/* Price Row */}
-                                <div className={`flex items-center justify-between ${!dataStatus.hasPriceData ? 'opacity-40' : ''}`}>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-lg ${confluence.priceDir === '↑' ? 'text-green-400' : confluence.priceDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
-                                            {confluence.priceDir === '↑' ? '↗' : confluence.priceDir === '↓' ? '↘' : '↔'}
-                                        </span>
-                                        <span className="text-white text-xs uppercase">PRICE:</span>
-                                        <span className={`text-xs font-mono font-bold ${(confluence.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {(confluence.priceChange || 0) >= 0 ? '+' : ''}{(confluence.priceChange || 0).toFixed(2)}%
+                                <div className={`${!dataStatus.hasPriceData ? 'opacity-40' : ''}`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-lg ${confluence.priceDir === '↑' ? 'text-green-400' : confluence.priceDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {confluence.priceDir === '↑' ? '↗' : confluence.priceDir === '↓' ? '↘' : '↔'}
+                                            </span>
+                                            <span className="text-white text-xs uppercase">PRICE:</span>
+                                            <span className={`text-xs font-mono font-bold ${(confluence.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {(confluence.priceChange || 0) >= 0 ? '+' : ''}{(confluence.priceChange || 0).toFixed(2)}%
+                                            </span>
+                                        </div>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${confluence.priceDir === '↑' ? 'bg-green-500/20 text-green-400' : confluence.priceDir === '↓' ? 'bg-red-500/20 text-red-400' : 'bg-slate-600/30 text-slate-400'}`}>
+                                            {confluence.priceDir === '↑' ? 'bullish' : confluence.priceDir === '↓' ? 'bearish' : 'neutral'}
                                         </span>
                                     </div>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${confluence.priceDir === '↑' ? 'bg-green-500/20 text-green-400' : confluence.priceDir === '↓' ? 'bg-red-500/20 text-red-400' : 'bg-slate-600/30 text-slate-400'}`}>
-                                        {confluence.priceDir === '↑' ? 'bullish' : confluence.priceDir === '↓' ? 'bearish' : 'neutral'}
-                                    </span>
+                                    <p className="text-[10px] text-slate-500 ml-7">{getMetricDescription('price', confluence.priceChange || 0, confluence.priceDir)}</p>
                                 </div>
                                 {/* OI Row */}
-                                <div className={`flex items-center justify-between ${!dataStatus.hasOiData ? 'opacity-40' : ''}`}>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-lg ${confluence.oiDir === '↑' ? 'text-green-400' : confluence.oiDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
-                                            {confluence.oiDir === '↑' ? '↗' : confluence.oiDir === '↓' ? '↘' : '↔'}
-                                        </span>
-                                        <span className="text-white text-xs uppercase">OI:</span>
-                                        <span className={`text-xs font-mono font-bold ${(confluence.oiChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {formatUSD(oi?.oiDelta || 0)}
+                                <div className={`${!dataStatus.hasOiData ? 'opacity-40' : ''}`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-lg ${confluence.oiDir === '↑' ? 'text-green-400' : confluence.oiDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {confluence.oiDir === '↑' ? '↗' : confluence.oiDir === '↓' ? '↘' : '↔'}
+                                            </span>
+                                            <span className="text-white text-xs uppercase">OI:</span>
+                                            <span className={`text-xs font-mono font-bold ${(confluence.oiChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {formatUSD(oi?.oiDelta || 0)}
+                                            </span>
+                                        </div>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${confluence.oiDir === '↑' ? 'bg-green-500/20 text-green-400' : confluence.oiDir === '↓' ? 'bg-red-500/20 text-red-400' : 'bg-slate-600/30 text-slate-400'}`}>
+                                            {confluence.oiDir === '↑' ? 'bullish' : confluence.oiDir === '↓' ? 'bearish' : 'neutral'}
                                         </span>
                                     </div>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${confluence.oiDir === '↑' ? 'bg-green-500/20 text-green-400' : confluence.oiDir === '↓' ? 'bg-red-500/20 text-red-400' : 'bg-slate-600/30 text-slate-400'}`}>
-                                        {confluence.oiDir === '↑' ? 'bullish' : confluence.oiDir === '↓' ? 'bearish' : 'neutral'}
-                                    </span>
+                                    <p className="text-[10px] text-slate-500 ml-7">{getMetricDescription('oi', oi?.oiDelta || 0, confluence.oiDir)}</p>
                                 </div>
                                 {/* CVD Row */}
-                                <div className={`flex items-center justify-between ${!dataStatus.hasCvdData ? 'opacity-40' : ''}`}>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-lg ${confluence.cvdDir === '↑' ? 'text-green-400' : confluence.cvdDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
-                                            {confluence.cvdDir === '↑' ? '↗' : confluence.cvdDir === '↓' ? '↘' : '↔'}
-                                        </span>
-                                        <span className="text-white text-xs uppercase">CVD {timeframe}:</span>
-                                        <span className={`text-xs font-mono font-bold ${(confluence.cvdDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {formatUSD(confluence.cvdDelta || 0)}
+                                <div className={`${!dataStatus.hasCvdData ? 'opacity-40' : ''}`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-lg ${confluence.cvdDir === '↑' ? 'text-green-400' : confluence.cvdDir === '↓' ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {confluence.cvdDir === '↑' ? '↗' : confluence.cvdDir === '↓' ? '↘' : '↔'}
+                                            </span>
+                                            <span className="text-white text-xs uppercase">CVD {timeframe}:</span>
+                                            <span className={`text-xs font-mono font-bold ${(confluence.cvdDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {formatUSD(confluence.cvdDelta || 0)}
+                                            </span>
+                                        </div>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${confluence.cvdDir === '↑' ? 'bg-green-500/20 text-green-400' : confluence.cvdDir === '↓' ? 'bg-red-500/20 text-red-400' : 'bg-slate-600/30 text-slate-400'}`}>
+                                            {confluence.cvdDir === '↑' ? 'bullish' : confluence.cvdDir === '↓' ? 'bearish' : 'neutral'}
                                         </span>
                                     </div>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${confluence.cvdDir === '↑' ? 'bg-green-500/20 text-green-400' : confluence.cvdDir === '↓' ? 'bg-red-500/20 text-red-400' : 'bg-slate-600/30 text-slate-400'}`}>
-                                        {confluence.cvdDir === '↑' ? 'bullish' : confluence.cvdDir === '↓' ? 'bearish' : 'neutral'}
-                                    </span>
+                                    <p className="text-[10px] text-slate-500 ml-7">{getMetricDescription('cvd', confluence.cvdDelta || 0, confluence.cvdDir)}</p>
                                 </div>
                             </div>
 
@@ -227,9 +257,15 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
                                 </div>
                             )}
 
-                            {/* Interpretation */}
-                            <div className="text-xs text-slate-400 pt-2 border-t border-slate-700/50">
-                                {confluence.reason}
+                            {/* Interpretation - styled like mockup */}
+                            <div className="pt-3 border-t border-slate-700/50">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                                    <span className="text-xs font-semibold text-white">
+                                        {metrics.bullishCount}/3 Bullish · {metrics.bearishCount}/3 Bearish
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-slate-400">{confluence.reason}</p>
                             </div>
                         </div>
                     );
