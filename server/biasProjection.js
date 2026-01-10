@@ -876,12 +876,7 @@ function generateProjection(coin, dataStore, consensus = null) {
     if (Math.abs(fundingZScore.zScore) >= 3) {
         warnings.push(`Extreme funding (Z=${fundingZScore.zScore.toFixed(1)}) - mean reversion likely`);
     }
-    if (rsi.zone === 'extreme_overbought') {
-        warnings.push('RSI extremely overbought (>80) - reversal risk');
-    }
-    if (rsi.zone === 'extreme_oversold') {
-        warnings.push('RSI extremely oversold (<20) - bounce potential');
-    }
+    // RSI overbought/oversold warnings removed (user request)
 
     // Build key factors for display
     const keyFactors = [
