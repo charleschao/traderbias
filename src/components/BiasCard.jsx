@@ -39,7 +39,9 @@ const BiasCard = ({
     timeframe = '5m',
     timeframeMinutes = 5,
     // Whether whale data is available (fallback, prefer biasData.hasWhaleData)
-    hasWhaleData: hasWhaleDataProp = true
+    hasWhaleData: hasWhaleDataProp = true,
+    // Backend projection data (optional) - includes win rate stats
+    projection = null
 }) => {
     // Use biasData.hasWhaleData if available (from calculation), otherwise use prop
     const hasWhaleData = biasData?.hasWhaleData ?? hasWhaleDataProp;
@@ -100,6 +102,44 @@ const BiasCard = ({
         return 'text-slate-400';
     };
 
+    // Get win rate badge info from backend projection
+    const getWinRateBadge = () => {
+        if (!projection?.historicalPerformance) return null;
+
+        const { winRate, total, strongWinRate, strongTotal } = projection.historicalPerformance;
+
+        // Not enough data yet
+        if (total < 5) return null;
+
+        // Use strong signal win rate if available, otherwise overall
+        const displayRate = strongTotal >= 3 ? strongWinRate : winRate;
+        const displayTotal = strongTotal >= 3 ? strongTotal : total;
+
+        // Color based on win rate
+        let color = 'text-slate-400';
+        let bgColor = 'bg-slate-700/50';
+        if (displayRate >= 60) {
+            color = 'text-green-400';
+            bgColor = 'bg-green-900/30';
+        } else if (displayRate >= 50) {
+            color = 'text-yellow-400';
+            bgColor = 'bg-yellow-900/30';
+        } else {
+            color = 'text-red-400';
+            bgColor = 'bg-red-900/30';
+        }
+
+        return {
+            rate: displayRate,
+            total: displayTotal,
+            color,
+            bgColor,
+            icon: displayRate >= 60 ? '✓' : displayRate >= 50 ? '~' : '✗'
+        };
+    };
+
+    const winRateBadge = getWinRateBadge();
+
     const handleToggleExpand = (e) => {
         e.stopPropagation();
         setIsExpanded(!isExpanded);
@@ -115,12 +155,19 @@ const BiasCard = ({
                 <span className="text-2xl font-black text-white">{coin}</span>
                 {/* Centered price */}
                 {priceData && <span className="text-slate-400 font-mono text-sm absolute left-1/2 -translate-x-1/2">${formatPrice(priceData.markPx)}</span>}
-                {/* Bias badge on right */}
+                {/* Bias badge + Win Rate on right */}
                 <div className="flex items-center gap-2">
                     <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-xs whitespace-nowrap ${biasData.bg}`}>
                         <span>{biasData.icon}</span>
                         <span className={biasData.color}>{biasData.label}</span>
                     </div>
+                    {winRateBadge && (
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-xs whitespace-nowrap ${winRateBadge.bgColor} border border-slate-600/50`}>
+                            <span>{winRateBadge.icon}</span>
+                            <span className={winRateBadge.color}>{winRateBadge.rate.toFixed(0)}%</span>
+                            <span className="text-slate-500 text-[10px]">({winRateBadge.total})</span>
+                        </div>
+                    )}
                     <InfoTooltip position="bottom-left">
                         <div className="space-y-2">
                             <div className="font-bold text-white text-sm">Composite Bias Score</div>
@@ -181,6 +228,17 @@ const BiasCard = ({
                             {!hasWhaleData && (
                                 <div className="pt-2 mt-2 border-t border-slate-700 text-[10px] text-amber-400">
                                     ⚠️ Whale data only available on Hyperliquid
+                                </div>
+                            )}
+                            {winRateBadge && (
+                                <div className="pt-2 mt-2 border-t border-slate-700">
+                                    <div className="text-white font-semibold text-xs mb-1">Historical Performance</div>
+                                    <div className="text-slate-300 text-xs">
+                                        This algorithm has a <span className={winRateBadge.color}>{winRateBadge.rate.toFixed(0)}%</span> win rate over <span className="text-white">{winRateBadge.total}</span> predictions.
+                                    </div>
+                                    <div className="text-slate-500 text-[10px] mt-1">
+                                        Predictions are evaluated 10 hours after generation.
+                                    </div>
                                 </div>
                             )}
                             <div className="pt-2 mt-2 border-t border-slate-700 text-[10px] text-slate-500">

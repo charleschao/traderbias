@@ -224,9 +224,17 @@ export default function App({ focusCoin = null }) {
   // Research agent state
   const [agentReport, setAgentReport] = useState(null);
 
-  // BTC Projection state
-  const [btcProjection, setBtcProjection] = useState(null);
-  const [projectionLoading, setProjectionLoading] = useState(false);
+  // Projections state for all coins (BTC, ETH, SOL)
+  const [projections, setProjections] = useState({
+    BTC: null,
+    ETH: null,
+    SOL: null
+  });
+  const [projectionLoading, setProjectionLoading] = useState({
+    BTC: false,
+    ETH: false,
+    SOL: false
+  });
 
   // Backtesting state
   const [backtestResults, setBacktestResults] = useState(null);
@@ -1323,63 +1331,70 @@ export default function App({ focusCoin = null }) {
     updateFromMarketData(priceData, oiData, cvdData, fundingData);
   }, [priceData, oiData, cvdData, fundingData, updateFromMarketData]);
 
-  // Fetch BTC projection (8-12 hour outlook)
+  // Fetch projections for all coins (8-12 hour outlook)
   // Update every 30 minutes, only change displayed bias if score shifts by >0.15
-  const lockedProjectionRef = useRef(null);
+  const lockedProjectionsRef = useRef({
+    BTC: null,
+    ETH: null,
+    SOL: null
+  });
   const PROJECTION_CHANGE_THRESHOLD = 0.15; // Minimum score change to update displayed bias
 
   useEffect(() => {
     if (!isBackendEnabled()) return;
 
-    const fetchProjection = async () => {
-      setProjectionLoading(true);
-      try {
-        const projection = await getCoinProjection(focusCoin);
-        if (projection && projection.prediction) {
-          // Check if this is first projection or if score changed significantly
-          const currentScore = projection.prediction.score || 0;
-          const lockedScore = lockedProjectionRef.current?.prediction?.score || 0;
-          const scoreDiff = Math.abs(currentScore - lockedScore);
+    const fetchProjections = async () => {
+      const coins = ['BTC', 'ETH', 'SOL'];
 
-          // Also reset lock if coin changed
-          const coinChanged = lockedProjectionRef.current?.coin !== focusCoin;
+      for (const coin of coins) {
+        // Set loading for this coin
+        setProjectionLoading(prev => ({ ...prev, [coin]: true }));
 
-          if (!lockedProjectionRef.current || coinChanged || scoreDiff >= PROJECTION_CHANGE_THRESHOLD) {
-            // Significant change or coin change - lock in new projection
-            lockedProjectionRef.current = projection;
-            setBtcProjection(projection);
-            console.log(`[Projection] Updated ${focusCoin}: ${projection.prediction.bias} (score: ${currentScore.toFixed(2)}, diff: ${scoreDiff.toFixed(2)})`);
-          } else {
-            // Minor change - keep locked projection but update timestamp/factors
-            const updatedProjection = {
-              ...lockedProjectionRef.current,
-              generatedAt: projection.generatedAt,
-              validUntil: projection.validUntil,
-              keyFactors: projection.keyFactors, // Update factors display
-              session: projection.session // Update session
-            };
-            setBtcProjection(updatedProjection);
-            console.log(`[Projection] Minor update (score diff: ${scoreDiff.toFixed(2)}, threshold: ${PROJECTION_CHANGE_THRESHOLD})`);
+        try {
+          const projection = await getCoinProjection(coin);
+          if (projection && projection.prediction) {
+            // Check if this is first projection or if score changed significantly
+            const currentScore = projection.prediction.score || 0;
+            const lockedScore = lockedProjectionsRef.current[coin]?.prediction?.score || 0;
+            const scoreDiff = Math.abs(currentScore - lockedScore);
+
+            if (!lockedProjectionsRef.current[coin] || scoreDiff >= PROJECTION_CHANGE_THRESHOLD) {
+              // Significant change - lock in new projection
+              lockedProjectionsRef.current[coin] = projection;
+              setProjections(prev => ({ ...prev, [coin]: projection }));
+              console.log(`[Projection] Updated ${coin}: ${projection.prediction.bias} (score: ${currentScore.toFixed(2)}, diff: ${scoreDiff.toFixed(2)})`);
+            } else {
+              // Minor change - keep locked projection but update timestamp/factors
+              const updatedProjection = {
+                ...lockedProjectionsRef.current[coin],
+                generatedAt: projection.generatedAt,
+                validUntil: projection.validUntil,
+                keyFactors: projection.keyFactors, // Update factors display
+                session: projection.session // Update session
+              };
+              setProjections(prev => ({ ...prev, [coin]: updatedProjection }));
+              console.log(`[Projection] Minor update ${coin} (score diff: ${scoreDiff.toFixed(2)}, threshold: ${PROJECTION_CHANGE_THRESHOLD})`);
+            }
+          } else if (projection) {
+            // COLLECTING or error state
+            setProjections(prev => ({ ...prev, [coin]: projection }));
           }
-        } else if (projection) {
-          // COLLECTING or error state
-          setBtcProjection(projection);
+        } catch (error) {
+          console.error(`[Projection] Failed to fetch ${coin}:`, error);
+        } finally {
+          setProjectionLoading(prev => ({ ...prev, [coin]: false }));
         }
-      } catch (error) {
-        console.error('[Projection] Failed to fetch:', error);
-      } finally {
-        setProjectionLoading(false);
       }
     };
 
     // Initial fetch
-    fetchProjection();
+    fetchProjections();
 
     // Refresh every 30 minutes (stable, actionable signal)
-    const projectionInterval = setInterval(fetchProjection, 30 * 60 * 1000);
+    const projectionInterval = setInterval(fetchProjections, 30 * 60 * 1000);
 
     return () => clearInterval(projectionInterval);
-  }, [focusCoin]);
+  }, []); // No dependencies - fetch all coins on mount and every 30 minutes
 
   // Notify on new whale trades
   useEffect(() => {
@@ -1672,8 +1687,8 @@ export default function App({ focusCoin = null }) {
                 {/* 8-12 Hour Projection - Full Width at Top */}
                 {isBackendEnabled() && (
                   <BiasProjection
-                    projection={btcProjection}
-                    loading={projectionLoading}
+                    projection={projections.BTC}
+                    loading={projectionLoading.BTC}
                   />
                 )}
 
@@ -1695,6 +1710,7 @@ export default function App({ focusCoin = null }) {
                     timeframe={dashboardTimeframe}
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
+                    projection={projections.BTC}
                   />
                   <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} onTimeframeChange={setDashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} />
                 </div>
@@ -1721,6 +1737,7 @@ export default function App({ focusCoin = null }) {
                     timeframe={dashboardTimeframe}
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
+                    projection={projections[focusCoin]}
                   />
                   <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} onTimeframeChange={setDashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} />
                 </div>
