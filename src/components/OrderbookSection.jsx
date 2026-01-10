@@ -32,7 +32,7 @@ const OrderbookSection = ({ orderbookData, coins = ['BTC'] }) => {
                 : 50;
 
         return (
-            <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-800 h-full">
+            <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-800 h-full min-h-[320px]">
                 {/* Compact Header */}
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">

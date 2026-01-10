@@ -154,8 +154,8 @@ const MegaWhaleFeed = ({
             {/* Expanded Content */}
             {isExpanded && (
                 <div className="border-t border-slate-800">
-                    {/* Trade List - compact height for ~5 trades */}
-                    <div className="max-h-[180px] overflow-y-auto">
+                    {/* Trade List - increased height for more trades */}
+                    <div className="max-h-[280px] overflow-y-auto">
                         {filteredTrades.length === 0 ? (
                             <div className="p-4 text-center">
                                 <div className="text-slate-300 text-sm">
