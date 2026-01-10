@@ -142,14 +142,24 @@ app.get('/api/stats', (req, res) => {
 });
 
 /**
- * Get BTC 8-12 hour bias projection
- * GET /api/btc/projection
+ * Get 8-12 hour bias projection for a coin
+ * GET /api/:coin/projection
  *
- * Returns predictive bias analysis for BTC
+ * Returns predictive bias analysis for BTC, ETH, or SOL
  */
-app.get('/api/btc/projection', (req, res) => {
+app.get('/api/:coin/projection', (req, res) => {
+  const { coin } = req.params;
+  const validCoins = ['btc', 'eth', 'sol'];
+
+  if (!validCoins.includes(coin.toLowerCase())) {
+    return res.status(400).json({
+      error: 'Invalid coin',
+      validCoins: validCoins.map(c => c.toUpperCase())
+    });
+  }
+
   try {
-    const projection = biasProjection.generateProjection('BTC', dataStore);
+    const projection = biasProjection.generateProjection(coin.toUpperCase(), dataStore);
     res.json(projection);
   } catch (error) {
     console.error('[Projection Error]', error);

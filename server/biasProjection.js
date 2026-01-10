@@ -454,15 +454,15 @@ function calculateWhaleAlignment(consensus) {
 /**
  * Calculate cross-exchange confluence
  */
-function calculateCrossExchangeConfluence(dataStore) {
+function calculateCrossExchangeConfluence(dataStore, coin = 'BTC') {
     const exchanges = ['hyperliquid', 'binance', 'bybit'];
     const biases = [];
 
     for (const exchange of exchanges) {
         const data = dataStore.getExchangeData(exchange);
-        if (!data?.current?.price?.BTC) continue;
+        if (!data?.current?.price?.[coin]) continue;
 
-        const priceHistory = data.price?.BTC || [];
+        const priceHistory = data.price?.[coin] || [];
         const now = Date.now();
         const oneHourAgo = now - TIMEFRAMES.ONE_HOUR;
         const recentPrices = priceHistory.filter(e => e && e.timestamp >= oneHourAgo);
@@ -680,9 +680,10 @@ function detectSession() {
  * Main projection generator (v2 - Refined Algorithm)
  */
 function generateProjection(coin, dataStore, consensus = null) {
-    if (coin !== 'BTC') {
+    const validCoins = ['BTC', 'ETH', 'SOL'];
+    if (!validCoins.includes(coin)) {
         return {
-            error: 'Projections currently only available for BTC',
+            error: `Projections available for ${validCoins.join(', ')} only`,
             coin,
             supported: false
         };
@@ -691,27 +692,27 @@ function generateProjection(coin, dataStore, consensus = null) {
     const now = Date.now();
     const hlData = dataStore.getExchangeData('hyperliquid');
 
-    if (!hlData || !hlData.price?.BTC || hlData.price.BTC.length < 20) {
+    if (!hlData || !hlData.price?.[coin] || hlData.price[coin].length < 20) {
         return {
-            coin: 'BTC',
+            coin,
             horizon: '8-12H',
             status: 'COLLECTING',
-            message: 'Collecting historical data. Prediction available after ~1 hour of data.',
-            dataAge: hlData?.price?.BTC?.length || 0,
+            message: `Collecting historical data for ${coin}. Prediction available after ~1 hour of data.`,
+            dataAge: hlData?.price?.[coin]?.length || 0,
             generatedAt: now
         };
     }
 
-    // Calculate all factors
-    const rsi = calculateRSI(hlData.price.BTC);
-    const divergence = detectRSIDivergence(hlData.price.BTC);
-    const fundingZScore = calculateFundingZScore(hlData.funding.BTC);
-    const oiRoC = calculateOIRoC(hlData.oi.BTC, hlData.price.BTC);
-    const cvdPersistence = calculateCVDPersistence(hlData.cvd.BTC);
-    const regime = detectRegime(hlData.oi.BTC, hlData.funding.BTC, hlData.price.BTC);
+    // Calculate all factors using dynamic coin
+    const rsi = calculateRSI(hlData.price[coin]);
+    const divergence = detectRSIDivergence(hlData.price[coin]);
+    const fundingZScore = calculateFundingZScore(hlData.funding[coin]);
+    const oiRoC = calculateOIRoC(hlData.oi[coin], hlData.price[coin]);
+    const cvdPersistence = calculateCVDPersistence(hlData.cvd[coin]);
+    const regime = detectRegime(hlData.oi[coin], hlData.funding[coin], hlData.price[coin]);
     const whales = calculateWhaleAlignment(consensus);
-    const confluence = calculateCrossExchangeConfluence(dataStore);
-    const volatility = calculateVolatility(hlData.price.BTC);
+    const confluence = calculateCrossExchangeConfluence(dataStore, coin);
+    const volatility = calculateVolatility(hlData.price[coin]);
     const session = detectSession();
 
     // Calculate weighted score (RSI divergence is bonus only, not in main weights)
@@ -750,7 +751,7 @@ function generateProjection(coin, dataStore, consensus = null) {
 
     // Spot vs Perp CVD divergence bonus
     let spotPerpDivergence = null;
-    const spotCvd = dataStore.getSpotCvd('BTC');
+    const spotCvd = dataStore.getSpotCvd(coin);
     if (spotCvd && spotCvd.rolling5mDelta !== undefined) {
         const perpCvdDelta = cvdPersistence.twoHourDelta || 0;
         const spotDelta = spotCvd.rolling5mDelta;

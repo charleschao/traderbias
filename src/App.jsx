@@ -37,7 +37,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData, getBTCProjection } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -1334,18 +1334,21 @@ export default function App({ focusCoin = null }) {
     const fetchProjection = async () => {
       setProjectionLoading(true);
       try {
-        const projection = await getBTCProjection();
+        const projection = await getCoinProjection(focusCoin);
         if (projection && projection.prediction) {
           // Check if this is first projection or if score changed significantly
           const currentScore = projection.prediction.score || 0;
           const lockedScore = lockedProjectionRef.current?.prediction?.score || 0;
           const scoreDiff = Math.abs(currentScore - lockedScore);
 
-          if (!lockedProjectionRef.current || scoreDiff >= PROJECTION_CHANGE_THRESHOLD) {
-            // Significant change - lock in new projection
+          // Also reset lock if coin changed
+          const coinChanged = lockedProjectionRef.current?.coin !== focusCoin;
+
+          if (!lockedProjectionRef.current || coinChanged || scoreDiff >= PROJECTION_CHANGE_THRESHOLD) {
+            // Significant change or coin change - lock in new projection
             lockedProjectionRef.current = projection;
             setBtcProjection(projection);
-            console.log(`[Projection] Updated: ${projection.prediction.bias} (score: ${currentScore.toFixed(2)}, diff: ${scoreDiff.toFixed(2)})`);
+            console.log(`[Projection] Updated ${focusCoin}: ${projection.prediction.bias} (score: ${currentScore.toFixed(2)}, diff: ${scoreDiff.toFixed(2)})`);
           } else {
             // Minor change - keep locked projection but update timestamp/factors
             const updatedProjection = {
@@ -1376,7 +1379,7 @@ export default function App({ focusCoin = null }) {
     const projectionInterval = setInterval(fetchProjection, 30 * 60 * 1000);
 
     return () => clearInterval(projectionInterval);
-  }, []);
+  }, [focusCoin]);
 
   // Notify on new whale trades
   useEffect(() => {

@@ -119,27 +119,30 @@ export const getBackendStats = async () => {
 };
 
 /**
- * Get BTC 8-12 hour bias projection
- * Returns predictive bias analysis
+ * Get 8-12 hour bias projection for a coin
+ * Returns predictive bias analysis for BTC, ETH, or SOL
  */
-export const getBTCProjection = async () => {
+export const getCoinProjection = async (coin = 'BTC') => {
   if (!USE_BACKEND) {
     return null;
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/btc/projection`);
+    const response = await fetch(`${BACKEND_URL}/api/${coin.toLowerCase()}/projection`);
     if (!response.ok) {
-      console.error(`[BackendAPI] Projection error: ${response.status}`);
+      console.error(`[BackendAPI] Projection error for ${coin}: ${response.status}`);
       return null;
     }
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error('[BackendAPI] Failed to fetch BTC projection:', error);
+    console.error(`[BackendAPI] Failed to fetch ${coin} projection:`, error);
     return null;
   }
 };
+
+// Backwards compatibility alias
+export const getBTCProjection = () => getCoinProjection('BTC');
 
 export default {
   isBackendEnabled,
@@ -148,5 +151,6 @@ export default {
   getAllExchangesData,
   checkBackendHealth,
   getBackendStats,
-  getBTCProjection
+  getBTCProjection,
+  getCoinProjection
 };
