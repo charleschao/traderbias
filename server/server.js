@@ -12,6 +12,7 @@ const { startDataCollection } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
+const dailyBiasProjection = require('./dailyBiasProjection');
 const winRateTracker = require('./winRateTracker');
 
 const app = express();
@@ -182,6 +183,42 @@ app.get('/api/:coin/projection', (req, res) => {
 });
 
 /**
+ * Get 24-hour Daily Bias projection for a coin
+ * GET /api/:coin/daily-bias
+ *
+ * Returns daily directional bias optimized for day traders
+ * Uses extended lookback windows and spot/perp CVD as primary signal
+ */
+app.get('/api/:coin/daily-bias', (req, res) => {
+  const { coin } = req.params;
+  const validCoins = ['btc', 'eth', 'sol'];
+
+  if (!validCoins.includes(coin.toLowerCase())) {
+    return res.status(400).json({
+      error: 'Invalid coin',
+      validCoins: validCoins.map(c => c.toUpperCase())
+    });
+  }
+
+  try {
+    const dailyBias = dailyBiasProjection.generateDailyBias(coin.toUpperCase(), dataStore);
+
+    // Record prediction for win rate tracking (only if status is ACTIVE)
+    if (dailyBias.status === 'ACTIVE') {
+      winRateTracker.recordPrediction(coin.toUpperCase(), dailyBias, 'daily');
+    }
+
+    res.json(dailyBias);
+  } catch (error) {
+    console.error('[Daily Bias Error]', error);
+    res.status(500).json({
+      error: 'Failed to generate daily bias',
+      message: error.message
+    });
+  }
+});
+
+/**
  * Get win rate statistics for predictions
  * GET /api/win-rates/:coin?
  *
@@ -241,6 +278,7 @@ app.get('/', (req, res) => {
       whaleTrades: 'GET /api/whale-trades',
       spotCvd: 'GET /api/spot-cvd/:coin?',
       projection: 'GET /api/:coin/projection',
+      dailyBias: 'GET /api/:coin/daily-bias',
       winRates: 'GET /api/win-rates/:coin?',
       predictions: 'GET /api/predictions/:coin?',
       all: 'GET /api/data/all',

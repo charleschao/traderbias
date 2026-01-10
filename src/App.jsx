@@ -20,7 +20,7 @@ import PositionCard from './components/PositionCard';
 import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
 import TraderRow from './components/TraderRow';
 import WhaleActivityFeed from './components/WhaleActivityFeed';
-import BiasProjection from './components/BiasProjection';
+import BiasProjectionTabs from './components/BiasProjectionTabs';
 import { BacktestControlPanel, BacktestResults } from './components/BacktestPanel';
 
 // Hook imports
@@ -37,7 +37,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -231,6 +231,18 @@ export default function App({ focusCoin = null }) {
     SOL: null
   });
   const [projectionLoading, setProjectionLoading] = useState({
+    BTC: false,
+    ETH: false,
+    SOL: false
+  });
+
+  // Daily Bias state (24H outlook)
+  const [dailyBiasData, setDailyBiasData] = useState({
+    BTC: null,
+    ETH: null,
+    SOL: null
+  });
+  const [dailyBiasLoading, setDailyBiasLoading] = useState({
     BTC: false,
     ETH: false,
     SOL: false
@@ -1338,6 +1350,11 @@ export default function App({ focusCoin = null }) {
     ETH: null,
     SOL: null
   });
+  const lockedDailyBiasRef = useRef({
+    BTC: null,
+    ETH: null,
+    SOL: null
+  });
   const PROJECTION_CHANGE_THRESHOLD = 0.15; // Minimum score change to update displayed bias
 
   useEffect(() => {
@@ -1387,14 +1404,59 @@ export default function App({ focusCoin = null }) {
       }
     };
 
-    // Initial fetch
+    // Fetch daily bias for all coins (24H outlook)
+    const fetchDailyBias = async () => {
+      const coins = ['BTC', 'ETH', 'SOL'];
+
+      for (const coin of coins) {
+        setDailyBiasLoading(prev => ({ ...prev, [coin]: true }));
+
+        try {
+          const dailyBias = await getDailyBias(coin);
+          if (dailyBias && dailyBias.prediction) {
+            const currentScore = dailyBias.prediction.score || 0;
+            const lockedScore = lockedDailyBiasRef.current[coin]?.prediction?.score || 0;
+            const scoreDiff = Math.abs(currentScore - lockedScore);
+
+            if (!lockedDailyBiasRef.current[coin] || scoreDiff >= PROJECTION_CHANGE_THRESHOLD) {
+              lockedDailyBiasRef.current[coin] = dailyBias;
+              setDailyBiasData(prev => ({ ...prev, [coin]: dailyBias }));
+              console.log(`[DailyBias] Updated ${coin}: ${dailyBias.prediction.bias} (score: ${currentScore.toFixed(2)})`);
+            } else {
+              const updatedBias = {
+                ...lockedDailyBiasRef.current[coin],
+                generatedAt: dailyBias.generatedAt,
+                nextUpdate: dailyBias.nextUpdate,
+                keyFactors: dailyBias.keyFactors,
+                freshness: dailyBias.freshness
+              };
+              setDailyBiasData(prev => ({ ...prev, [coin]: updatedBias }));
+            }
+          } else if (dailyBias) {
+            setDailyBiasData(prev => ({ ...prev, [coin]: dailyBias }));
+          }
+        } catch (error) {
+          console.error(`[DailyBias] Failed to fetch ${coin}:`, error);
+        } finally {
+          setDailyBiasLoading(prev => ({ ...prev, [coin]: false }));
+        }
+      }
+    };
+
+    // Initial fetch for both
     fetchProjections();
+    fetchDailyBias();
 
-    // Refresh every 30 minutes (stable, actionable signal)
+    // Refresh projections every 30 minutes
     const projectionInterval = setInterval(fetchProjections, 30 * 60 * 1000);
+    // Refresh daily bias every 2 hours (longer timeframe = less frequent updates)
+    const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
 
-    return () => clearInterval(projectionInterval);
-  }, []); // No dependencies - fetch all coins on mount and every 30 minutes
+    return () => {
+      clearInterval(projectionInterval);
+      clearInterval(dailyBiasInterval);
+    };
+  }, []); // No dependencies - fetch all coins on mount and at intervals
 
   // Notify on new whale trades
   useEffect(() => {
@@ -1684,11 +1746,13 @@ export default function App({ focusCoin = null }) {
             {/* BTC Layout */}
             {!showTop10 && focusCoin === 'BTC' && (
               <div className="space-y-6">
-                {/* 8-12 Hour Projection - Full Width at Top */}
+                {/* Daily Bias + 8-12H Outlook Tabs - Full Width at Top */}
                 {isBackendEnabled() && (
-                  <BiasProjection
+                  <BiasProjectionTabs
                     projection={projections.BTC}
-                    loading={projectionLoading.BTC}
+                    dailyBias={dailyBiasData.BTC}
+                    projectionLoading={projectionLoading.BTC}
+                    dailyBiasLoading={dailyBiasLoading.BTC}
                   />
                 )}
 

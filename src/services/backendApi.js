@@ -141,6 +141,29 @@ export const getCoinProjection = async (coin = 'BTC') => {
   }
 };
 
+/**
+ * Get 24-hour daily bias projection for a coin
+ * Returns daily directional bias optimized for day traders
+ */
+export const getDailyBias = async (coin = 'BTC') => {
+  if (!USE_BACKEND) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/${coin.toLowerCase()}/daily-bias`);
+    if (!response.ok) {
+      console.error(`[BackendAPI] Daily bias error for ${coin}: ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`[BackendAPI] Failed to fetch ${coin} daily bias:`, error);
+    return null;
+  }
+};
+
 // Backwards compatibility alias
 export const getBTCProjection = () => getCoinProjection('BTC');
 
@@ -152,5 +175,6 @@ export default {
   checkBackendHealth,
   getBackendStats,
   getBTCProjection,
-  getCoinProjection
+  getCoinProjection,
+  getDailyBias
 };

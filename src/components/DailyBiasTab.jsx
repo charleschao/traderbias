@@ -2,12 +2,12 @@ import React from 'react';
 import InfoTooltip from './InfoTooltip';
 
 /**
- * BiasProjection Component
- * 
- * Displays 8-12 hour forward-looking bias prediction for BTC
- * Horizontal layout with factors on the right side
+ * DailyBiasTab Component
+ *
+ * Displays 24-hour daily directional bias prediction for BTC
+ * Optimized for day traders wanting "direction for today"
  */
-export default function BiasProjection({ projection, loading = false }) {
+export default function DailyBiasTab({ dailyBias, loading = false }) {
     // Loading state
     if (loading) {
         return (
@@ -21,25 +21,25 @@ export default function BiasProjection({ projection, loading = false }) {
         );
     }
 
-    // No projection data
-    if (!projection) {
+    // No data
+    if (!dailyBias) {
         return null;
     }
 
     // Still collecting data
-    if (projection.status === 'COLLECTING') {
+    if (dailyBias.status === 'COLLECTING') {
         return (
             <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 rounded-xl p-4 border border-slate-700/50">
                 <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">📊</span>
-                    <span className="text-sm font-semibold text-slate-300">12HR OUTLOOK</span>
+                    <span className="text-lg">🌅</span>
+                    <span className="text-sm font-semibold text-slate-300">DAILY BIAS</span>
                     <span className="text-xs text-slate-500 ml-auto">Collecting...</span>
                 </div>
                 <div className="bg-slate-700/30 rounded-lg p-4 text-center">
                     <div className="text-2xl mb-2">⏳</div>
-                    <p className="text-sm text-slate-400">{projection.message}</p>
+                    <p className="text-sm text-slate-400">{dailyBias.message}</p>
                     <p className="text-xs text-slate-500 mt-2">
-                        {projection.dataAge || 0} data points collected
+                        {dailyBias.dataAge || 0} data points collected
                     </p>
                 </div>
             </div>
@@ -47,18 +47,18 @@ export default function BiasProjection({ projection, loading = false }) {
     }
 
     // Error state
-    if (projection.error) {
+    if (dailyBias.error) {
         return (
             <div className="bg-slate-800/50 rounded-xl p-4 border border-red-500/30">
                 <div className="flex items-center gap-2 text-red-400">
                     <span>⚠️</span>
-                    <span className="text-sm">{projection.error}</span>
+                    <span className="text-sm">{dailyBias.error}</span>
                 </div>
             </div>
         );
     }
 
-    const { prediction, confidence, keyFactors, warnings, session, generatedAt, invalidation, currentPrice, components } = projection;
+    const { prediction, confidence, keyFactors, warnings, generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness } = dailyBias;
     const spotPerpDivergence = components?.spotPerpDivergence;
 
     // Determine colors and styling based on bias
@@ -119,13 +119,11 @@ export default function BiasProjection({ projection, loading = false }) {
 
     const formatBias = (bias) => {
         if (!bias) return 'NEUTRAL';
-        // Replace underscores, then format the labels properly
         const formatted = bias.replace('_', ' ')
             .replace('STRONG_BULL', 'STRONG BULLISH')
             .replace('STRONG_BEAR', 'STRONG BEARISH')
             .replace('LEAN_BULL', 'LEAN BULLISH')
             .replace('LEAN_BEAR', 'LEAN BEARISH');
-        // Only add ISH if not already present
         if (formatted === 'BULL' || formatted === 'BULLISH') return 'BULLISH';
         if (formatted === 'BEAR' || formatted === 'BEARISH') return 'BEARISH';
         return formatted;
@@ -138,48 +136,44 @@ export default function BiasProjection({ projection, loading = false }) {
             {/* Header Row */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg">📊</span>
-                    <span className="text-sm font-bold text-white">12HR OUTLOOK</span>
+                    <span className="text-lg">🌅</span>
+                    <span className="text-sm font-bold text-white">DAILY BIAS</span>
                     <InfoTooltip position="bottom-right">
                         <div className="space-y-3">
-                            <div className="font-bold text-white text-sm">8-12 Hour Bias Prediction (v2)</div>
+                            <div className="font-bold text-white text-sm">24-Hour Daily Bias (v1)</div>
                             <div className="text-slate-300 text-xs">
-                                Forward-looking directional bias using proven quantitative indicators:
+                                Day trader's directional guide using extended lookback windows and institutional flow signals:
                             </div>
 
                             {/* Weighted Factors */}
                             <div className="space-y-2 text-xs">
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">💰 Funding Z-Score (20%)</span>
-                                    <div className="text-slate-400 mt-1">Statistical measure of funding extremity. Z &gt; 2 = extremely long-biased → contrarian bearish. Z &lt; -2 = extremely short-biased → contrarian bullish.</div>
+                                    <span className="text-cyan-400 font-bold">🔀 Spot/Perp Divergence (35%)</span>
+                                    <div className="text-slate-400 mt-1">PRIMARY signal. 6H spot vs perp CVD comparison. Spot leading = smart money accumulation/distribution.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">📈 OI Rate of Change (20%)</span>
-                                    <div className="text-slate-400 mt-1">4-hour leverage dynamics. Rising OI + price up = strong trend. OI drop &gt;5% with price drop = capitulation/bounce potential.</div>
+                                    <span className="text-cyan-400 font-bold">💰 Funding Mean Reversion (25%)</span>
+                                    <div className="text-slate-400 mt-1">90-day baseline funding. Extreme deviation = crowd positioning, mean reversion expected.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">🌊 CVD Flow (20%)</span>
-                                    <div className="text-slate-400 mt-1">2-hour cumulative buy vs sell delta. Measures sustained buying/selling pressure from market makers and takers.</div>
+                                    <span className="text-cyan-400 font-bold">📈 OI + Price Momentum (20%)</span>
+                                    <div className="text-slate-400 mt-1">8H window for OI velocity and price trend alignment. Healthy trend = aligned, divergence = caution.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">⚖️ Market Regime (20%)</span>
-                                    <div className="text-slate-400 mt-1">Detects overcrowding via OI + funding. Long crowded = bearish caution. Short squeezed = bullish potential.</div>
+                                    <span className="text-cyan-400 font-bold">⚖️ Cross-Exchange Confluence (10%)</span>
+                                    <div className="text-slate-400 mt-1">Veto mechanism. Agreement across Hyperliquid, Binance, Bybit strengthens signal.</div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
-                                    <span className="text-cyan-400 font-bold">🐋 Whales + Confluence (10%+10%)</span>
-                                    <div className="text-slate-400 mt-1">Top trader positioning (Hyperliquid) + cross-exchange agreement (Binance, Bybit).</div>
+                                    <span className="text-cyan-400 font-bold">🐋 Whale Activity (5%)</span>
+                                    <div className="text-slate-400 mt-1">$4M+ trade flow tracking. Net whale bias with size-weighted importance.</div>
                                 </div>
                             </div>
 
-                            {/* Bonus Signals */}
+                            {/* Signal Freshness */}
                             <div className="pt-2 border-t border-slate-700">
-                                <div className="text-yellow-400 font-bold text-xs mb-1">⚡ Bonus Signals (additive)</div>
-                                <div className="space-y-1 text-[10px]">
-                                    <div className="text-slate-400">• <span className="text-yellow-400">RSI Divergence</span>: ±20% (price/RSI divergence)</div>
-                                    <div className="text-slate-400">• <span className="text-green-400">Spot Accumulation</span>: +25% (spot buying, perp flat)</div>
-                                    <div className="text-slate-400">• <span className="text-green-400">Capitulation Bottom</span>: +20% (spot absorbing panic)</div>
-                                    <div className="text-slate-400">• <span className="text-red-400">Fake Pump</span>: -25% (perp rally, spot selling)</div>
-                                    <div className="text-slate-400">• <span className="text-red-400">Distribution</span>: -20% (spot distribution)</div>
+                                <div className="text-yellow-400 font-bold text-xs mb-1">⏱️ Signal Freshness Decay</div>
+                                <div className="text-slate-400 text-[10px]">
+                                    Signals age over 24H: 0-6H = 100%, 6-12H = 90%, 12-18H = 75%, 18-24H = 60%
                                 </div>
                             </div>
 
@@ -187,26 +181,33 @@ export default function BiasProjection({ projection, loading = false }) {
                             <div className="pt-2 border-t border-slate-700">
                                 <div className="text-cyan-400 font-bold text-xs mb-1">How Scoring Works</div>
                                 <div className="text-slate-400 text-[10px]">
-                                    Each factor generates -1 to +1 score. Weighted sum + bonuses = final score.
+                                    Extended lookbacks for 24H stability. Score ≥0.5 = STRONG direction.
                                 </div>
                                 <div className="text-slate-400 text-[10px] mt-1">
-                                    • Score ≥0.6 → <span className="text-green-400">STRONG BULLISH</span> (A+)<br />
-                                    • Score 0.3-0.6 → <span className="text-green-400">BULLISH</span> (A/B+)<br />
-                                    • Score 0.1-0.3 → <span className="text-green-300">LEAN BULLISH</span> (B)<br />
-                                    • Score -0.1 to 0.1 → <span className="text-slate-400">NEUTRAL</span> (C)<br />
+                                    • Score ≥0.5 → <span className="text-green-400">STRONG BULLISH</span><br />
+                                    • Score 0.25-0.5 → <span className="text-green-400">BULLISH</span><br />
+                                    • Score 0.1-0.25 → <span className="text-green-300">LEAN BULLISH</span><br />
+                                    • Score -0.1 to 0.1 → <span className="text-slate-400">NEUTRAL</span><br />
                                     • Negative scores = bearish equivalents
                                 </div>
                             </div>
 
                             {/* Update frequency */}
                             <div className="pt-2 border-t border-slate-700 text-[10px] text-slate-500">
-                                Updates every 30 minutes. Bias only changes if score differs by &gt;0.15 (prevents flip-flopping).
+                                Updates every 2 hours. Optimized for full trading day visibility.
                             </div>
                         </div>
                     </InfoTooltip>
-                    <span className="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-400">
-                        {session}
-                    </span>
+                    {/* Freshness indicator */}
+                    {freshness && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                            freshness >= 0.9 ? 'bg-green-500/20 text-green-400' :
+                            freshness >= 0.75 ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-orange-500/20 text-orange-400'
+                        }`}>
+                            {Math.round(freshness * 100)}% fresh
+                        </span>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Current Price Display */}
@@ -219,7 +220,7 @@ export default function BiasProjection({ projection, loading = false }) {
                         </div>
                     )}
                     <span className="text-xs text-slate-500">
-                        {projection.validUntil ? `Valid until ${new Date(projection.validUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : formatTimeAgo(generatedAt)}
+                        {nextUpdate ? `Next: ${new Date(nextUpdate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : formatTimeAgo(generatedAt)}
                     </span>
                 </div>
             </div>
@@ -287,7 +288,7 @@ export default function BiasProjection({ projection, loading = false }) {
                 </div>
             )}
 
-            {/* Spot vs Perp CVD Divergence */}
+            {/* Spot vs Perp CVD Divergence - Primary Signal for Daily */}
             {spotPerpDivergence && (
                 <div className={`mt-3 p-2 rounded-lg border ${spotPerpDivergence.bias === 'bullish'
                     ? 'bg-green-500/10 border-green-500/30'
@@ -297,6 +298,7 @@ export default function BiasProjection({ projection, loading = false }) {
                     }`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-cyan-400 font-bold">PRIMARY</span>
                             <span className={`text-sm font-bold ${spotPerpDivergence.bias === 'bullish' ? 'text-green-400' :
                                 spotPerpDivergence.bias === 'bearish' ? 'text-red-400' : 'text-slate-400'
                                 }`}>
@@ -304,6 +306,7 @@ export default function BiasProjection({ projection, loading = false }) {
                                 {spotPerpDivergence.signal === 'CAPITULATION_BOTTOM' && '🟢 CAPITULATION BOTTOM'}
                                 {spotPerpDivergence.signal === 'FAKE_PUMP' && '🔴 FAKE PUMP'}
                                 {spotPerpDivergence.signal === 'DISTRIBUTION' && '🔴 DISTRIBUTION'}
+                                {!['SPOT_ACCUMULATION', 'CAPITULATION_BOTTOM', 'FAKE_PUMP', 'DISTRIBUTION'].includes(spotPerpDivergence.signal) && '⚪ ALIGNED'}
                             </span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded ${spotPerpDivergence.strength === 'strong' ? 'bg-white/10 text-white' : 'bg-slate-600/50 text-slate-400'
                                 }`}>
@@ -322,6 +325,22 @@ export default function BiasProjection({ projection, loading = false }) {
                     <div className="text-[10px] text-slate-400 mt-1">
                         {spotPerpDivergence.description}
                     </div>
+                </div>
+            )}
+
+            {/* Data Quality indicator for Daily */}
+            {dataQuality && dataQuality.completeness < 1 && (
+                <div className="mt-3 flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                        dataQuality.completeness >= 0.8 ? 'bg-green-500/10 text-green-400' :
+                        dataQuality.completeness >= 0.5 ? 'bg-yellow-500/10 text-yellow-400' :
+                        'bg-orange-500/10 text-orange-400'
+                    }`}>
+                        📊 Data: {Math.round(dataQuality.completeness * 100)}% complete
+                    </span>
+                    {dataQuality.issues?.slice(0, 2).map((issue, i) => (
+                        <span key={i} className="text-[10px] text-slate-500">{issue}</span>
+                    ))}
                 </div>
             )}
 
