@@ -351,6 +351,16 @@ class DataStore {
   }
 
   /**
+   * Get spot CVD history for a coin (Phase 2: for 2H calculations)
+   */
+  getSpotCvdHistory(coin) {
+    if (!this.data.spotCvd[coin]) {
+      return [];
+    }
+    return this.data.spotCvd[coin].history || [];
+  }
+
+  /**
    * Get all spot CVD data
    */
   getAllSpotCvd() {

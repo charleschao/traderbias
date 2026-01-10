@@ -12,14 +12,13 @@
  * - Cross-exchange confluence
  */
 
-// Weights distribution (Flow Confluence is now primary signal)
+// Weights distribution (Phase 2: Tier 1 - Redundant factors eliminated)
 const WEIGHTS = {
-    flowConfluence: 0.35, // Price + OI + CVD alignment (PRIMARY SIGNAL)
-    fundingZScore: 0.15,  // Z-score for extreme funding detection
-    oiRoC: 0.15,          // OI rate of change (leverage dynamics)
-    regime: 0.15,         // OI + Funding regime detection
-    whales: 0.10,         // Whale positioning (Hyperliquid only)
-    confluence: 0.10      // Cross-exchange agreement
+    flowConfluence: 0.55, // Price + OI + CVD alignment (PRIMARY SIGNAL - boosted from 35%)
+    fundingZScore: 0.20,  // Z-score for extreme funding detection (boosted from 15%)
+    confluence: 0.15,     // Cross-exchange agreement (boosted from 10%)
+    whales: 0.05          // Whale positioning (reduced from 10%)
+    // Removed: oiRoC (0.15), regime (0.15) - redundant with Flow Confluence
 };
 
 // Coin-specific CVD thresholds (realistic institutional levels)
@@ -517,8 +516,9 @@ function calculateCVDPersistence(cvdHistory, coin = 'BTC') {
  * Calculate Flow Confluence (PRIMARY SIGNAL)
  * Checks if Price, OI, and CVD are all aligned in the same direction
  * STRONG signal when all 3 agree, WEAK when mixed
+ * Phase 2: Now uses volatility-adaptive thresholds
  */
-function calculateFlowConfluence(priceHistory, oiHistory, cvdHistory, coin = 'BTC') {
+function calculateFlowConfluence(priceHistory, oiHistory, cvdHistory, coin = 'BTC', priceThreshold = 1.0) {
     if (!priceHistory || priceHistory.length < 10 || !oiHistory || oiHistory.length < 5 || !cvdHistory || cvdHistory.length < 5) {
         return {
             score: 0,
@@ -534,14 +534,14 @@ function calculateFlowConfluence(priceHistory, oiHistory, cvdHistory, coin = 'BT
     const now = Date.now();
     const oneHourAgo = now - TIMEFRAMES.ONE_HOUR;
 
-    // Price direction (1H)
+    // Price direction (1H) - Phase 2: Uses volatility-adaptive threshold
     const recentPrices = priceHistory.filter(e => e && e.timestamp >= oneHourAgo);
     let priceDirection = 'neutral';
     let priceChange = 0;
     if (recentPrices.length >= 2 && recentPrices[0].value > 0) {
         priceChange = ((recentPrices[recentPrices.length - 1].value - recentPrices[0].value) / recentPrices[0].value) * 100;
-        if (priceChange > 0.5) priceDirection = 'up';
-        else if (priceChange < -0.5) priceDirection = 'down';
+        if (priceChange > priceThreshold) priceDirection = 'up';
+        else if (priceChange < -priceThreshold) priceDirection = 'down';
     }
 
     // OI direction (1H)
@@ -630,6 +630,45 @@ function calculateFlowConfluence(priceHistory, oiHistory, cvdHistory, coin = 'BT
         oiChange,
         cvdDelta,
         description: signal.replace(/_/g, ' ')
+    };
+}
+
+/**
+ * Calculate volume context (Phase 2: Tier 1 improvement +7% alpha)
+ * Determines if current volume is high or low compared to recent average
+ * Used to boost/reduce confluence signals
+ */
+function calculateVolumeContext(cvdHistory, priceHistory) {
+    if (!cvdHistory || cvdHistory.length < 20) {
+        return { isHigh: false, isLow: false, ratio: 1.0, recentVolume: 0, avgVolume: 0 };
+    }
+
+    const now = Date.now();
+    const oneHourAgo = now - TIMEFRAMES.ONE_HOUR;
+    const fourHoursAgo = now - TIMEFRAMES.FOUR_HOURS;
+
+    // Recent volume (1H)
+    const recentCVD = cvdHistory.filter(e => e && e.time >= oneHourAgo);
+    const recentVolume = recentCVD.reduce((sum, e) => sum + Math.abs(e.delta || 0), 0);
+
+    // Average volume (4H lookback for baseline)
+    const historicalCVD = cvdHistory.filter(e => e && e.time >= fourHoursAgo && e.time < oneHourAgo);
+    const avgVolume = historicalCVD.length > 0
+        ? historicalCVD.reduce((sum, e) => sum + Math.abs(e.delta || 0), 0) / (historicalCVD.length / (recentCVD.length || 1))
+        : recentVolume;
+
+    if (avgVolume === 0) {
+        return { isHigh: false, isLow: false, ratio: 1.0, recentVolume, avgVolume: 0 };
+    }
+
+    const volumeRatio = recentVolume / avgVolume;
+
+    return {
+        isHigh: volumeRatio > 1.5,  // 50% above average = high volume
+        isLow: volumeRatio < 0.6,   // 40% below average = low volume
+        ratio: volumeRatio,
+        recentVolume,
+        avgVolume
     };
 }
 
@@ -917,9 +956,14 @@ function generateProjection(coin, dataStore, consensus = null) {
         };
     }
 
+    // Calculate volatility first for adaptive thresholds (Phase 2: Tier 1)
+    const volatility = calculateVolatility(hlData.price[coin]);
+    const volatilityAdjustment = volatility.atr / 3;
+    const adaptivePriceThreshold = 1.0 + volatilityAdjustment; // Base 1.0% + volatility adjustment
+
     // Calculate all factors using dynamic coin
-    // Flow Confluence is now the PRIMARY SIGNAL (35% weight)
-    const flowConfluence = calculateFlowConfluence(hlData.price[coin], hlData.oi[coin], hlData.cvd[coin], coin);
+    // Flow Confluence is now the PRIMARY SIGNAL (55% weight in Phase 2)
+    const flowConfluence = calculateFlowConfluence(hlData.price[coin], hlData.oi[coin], hlData.cvd[coin], coin, adaptivePriceThreshold);
     const divergence = detectRSIDivergence(hlData.price[coin]);
     const fundingZScore = calculateFundingZScore(hlData.funding[coin], hlData.price[coin]);
     const oiRoC = calculateOIRoC(hlData.oi[coin], hlData.price[coin]);
@@ -927,16 +971,26 @@ function generateProjection(coin, dataStore, consensus = null) {
     const regime = detectRegime(hlData.oi[coin], hlData.funding[coin], hlData.price[coin]);
     const whales = calculateWhaleAlignment(consensus);
     const confluence = calculateCrossExchangeConfluence(dataStore, coin);
-    const volatility = calculateVolatility(hlData.price[coin]);
     const session = detectSession();
 
-    // Calculate weighted score with Flow Confluence as PRIMARY (35%)
-    let totalWeight = WEIGHTS.flowConfluence + WEIGHTS.fundingZScore + WEIGHTS.oiRoC + WEIGHTS.regime + WEIGHTS.confluence;
+    // Calculate volume context for confluence boosting (Phase 2: +7% alpha)
+    const volumeContext = calculateVolumeContext(hlData.cvd[coin], hlData.price[coin]);
+
+    // Apply volume-based adjustment to Flow Confluence score
+    let adjustedFlowScore = flowConfluence.score;
+    if (flowConfluence.aligned && volumeContext.isHigh) {
+        adjustedFlowScore *= 1.2; // Boost strong confluence on heavy volume
+    } else if (flowConfluence.aligned && volumeContext.isLow) {
+        adjustedFlowScore *= 0.6; // Reduce on thin volume (less reliable)
+    }
+    adjustedFlowScore = Math.max(-1, Math.min(1, adjustedFlowScore));
+
+    // Calculate weighted score with Flow Confluence as PRIMARY (55% - Phase 2)
+    // OI RoC and Regime removed as redundant with Flow Confluence
+    let totalWeight = WEIGHTS.flowConfluence + WEIGHTS.fundingZScore + WEIGHTS.confluence;
     let weightedScore = (
-        (flowConfluence.score * WEIGHTS.flowConfluence) +
+        (adjustedFlowScore * WEIGHTS.flowConfluence) +
         (fundingZScore.score * WEIGHTS.fundingZScore) +
-        (oiRoC.score * WEIGHTS.oiRoC) +
-        (regime.score * WEIGHTS.regime) +
         (confluence.score * WEIGHTS.confluence)
     );
 
@@ -955,23 +1009,31 @@ function generateProjection(coin, dataStore, consensus = null) {
         normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
     }
 
-    // Check for all factors aligned bonus (RSI removed - no oversold/overbought)
-    const allBullish = fundingZScore.score > 0 && oiRoC.score > 0 && regime.score > 0;
-    const allBearish = fundingZScore.score < 0 && oiRoC.score < 0 && regime.score < 0;
+    // Check for all factors aligned bonus (simplified - Phase 2)
+    // Flow Confluence + Funding + Confluence all aligned
+    const allBullish = flowConfluence.score > 0.3 && fundingZScore.score > 0 && confluence.score > 0;
+    const allBearish = flowConfluence.score < -0.3 && fundingZScore.score < 0 && confluence.score < 0;
     if (allBullish || allBearish) {
         normalizedScore += allBullish ? BONUSES.allFactorsAligned : -BONUSES.allFactorsAligned;
         normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
     }
 
-    // Spot vs Perp CVD divergence bonus
+    // Spot vs Perp CVD divergence bonus (Phase 2: Both use 2H timeframe now)
     let spotPerpDivergence = null;
-    const spotCvd = dataStore.getSpotCvd(coin);
-    if (spotCvd && spotCvd.rolling5mDelta !== undefined) {
-        const perpCvdDelta = cvdPersistence.twoHourDelta || 0;
-        const spotDelta = spotCvd.rolling5mDelta;
+    const spotCvdHistory = dataStore.getSpotCvdHistory(coin);
+    if (spotCvdHistory && spotCvdHistory.length > 0) {
+        const now = Date.now();
+        const twoHoursAgo = now - TIMEFRAMES.TWO_HOURS;
 
-        const spotTrend = spotDelta > 50000 ? 'up' : spotDelta < -50000 ? 'down' : 'flat';
-        const perpTrend = perpCvdDelta > 100000 ? 'up' : perpCvdDelta < -100000 ? 'down' : 'flat';
+        // Calculate spot CVD delta over 2H (matches perp timeframe)
+        const spotCvd2H = spotCvdHistory.filter(e => e && e.time >= twoHoursAgo);
+        const spotDelta = spotCvd2H.reduce((sum, e) => sum + (e.delta || 0), 0);
+        const perpCvdDelta = cvdPersistence.twoHourDelta || 0;
+
+        // Get coin-specific thresholds for trend detection
+        const thresholds = CVD_THRESHOLDS[coin] || CVD_THRESHOLDS.BTC;
+        const spotTrend = spotDelta > thresholds.weak ? 'up' : spotDelta < -thresholds.weak ? 'down' : 'flat';
+        const perpTrend = perpCvdDelta > thresholds.weak ? 'up' : perpCvdDelta < -thresholds.weak ? 'down' : 'flat';
 
         // BULLISH: Spot rising, Perp flat/falling = Real accumulation
         if (spotTrend === 'up' && perpTrend !== 'up') {
@@ -1199,6 +1261,7 @@ function generateProjection(coin, dataStore, consensus = null) {
             whales,
             confluence,
             volatility,
+            volumeContext,
             spotPerpDivergence
         },
         generatedAt: now,
@@ -1216,6 +1279,7 @@ module.exports = {
     detectRegime,
     calculateCVDPersistence,
     calculateFlowConfluence,
+    calculateVolumeContext,
     calculateWhaleAlignment,
     calculateCrossExchangeConfluence,
     calculateVolatility,
