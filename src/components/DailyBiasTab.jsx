@@ -58,31 +58,62 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
         );
     }
 
-    const { prediction, confidence, keyFactors, warnings, generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness } = dailyBias;
+    const { prediction, confidence, keyFactors, warnings, generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails } = dailyBias;
     const spotPerpDivergence = components?.spotPerpDivergence;
 
     // Determine colors and styling based on bias
     const getBiasStyles = () => {
         const bias = prediction?.bias || 'NEUTRAL';
+
+        // NO_SIGNAL (VETO) - orange warning
+        if (bias === 'NO_SIGNAL') {
+            return {
+                gradient: 'from-orange-500/20 to-amber-600/10',
+                border: 'border-orange-500/40',
+                text: 'text-orange-400',
+                bg: 'bg-orange-500',
+                icon: '⛔',
+                glow: 'shadow-orange-500/20'
+            };
+        }
+
+        // CONSOLIDATION - cyan range-trading
+        if (bias === 'CONSOLIDATION') {
+            return {
+                gradient: 'from-cyan-500/20 to-teal-600/10',
+                border: 'border-cyan-500/40',
+                text: 'text-cyan-400',
+                bg: 'bg-cyan-500',
+                icon: '⬌',
+                glow: 'shadow-cyan-500/20'
+            };
+        }
+
+        // MICRO or stronger BULL
         if (bias.includes('BULL')) {
             return {
                 gradient: 'from-green-500/20 to-emerald-600/10',
                 border: 'border-green-500/40',
                 text: 'text-green-400',
                 bg: 'bg-green-500',
-                icon: '▲',
+                icon: bias.includes('MICRO') ? '↗' : '▲',
                 glow: 'shadow-green-500/20'
             };
-        } else if (bias.includes('BEAR')) {
+        }
+
+        // MICRO or stronger BEAR
+        if (bias.includes('BEAR')) {
             return {
                 gradient: 'from-red-500/20 to-rose-600/10',
                 border: 'border-red-500/40',
                 text: 'text-red-400',
                 bg: 'bg-red-500',
-                icon: '▼',
+                icon: bias.includes('MICRO') ? '↘' : '▼',
                 glow: 'shadow-red-500/20'
             };
         }
+
+        // NEUTRAL (default)
         return {
             gradient: 'from-slate-600/20 to-slate-700/10',
             border: 'border-slate-500/40',
@@ -119,6 +150,13 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
     const formatBias = (bias) => {
         if (!bias) return 'NEUTRAL';
+
+        // Handle special cases first
+        if (bias === 'NO_SIGNAL') return 'NO SIGNAL';
+        if (bias === 'CONSOLIDATION') return 'CONSOLIDATION';
+        if (bias === 'MICRO_BULL') return 'MICRO BULLISH';
+        if (bias === 'MICRO_BEAR') return 'MICRO BEARISH';
+
         const formatted = bias.replace('_', ' ')
             .replace('STRONG_BULL', 'STRONG BULLISH')
             .replace('STRONG_BEAR', 'STRONG BEARISH')
@@ -127,6 +165,16 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
         if (formatted === 'BULL' || formatted === 'BULLISH') return 'BULLISH';
         if (formatted === 'BEAR' || formatted === 'BEARISH') return 'BEARISH';
         return formatted;
+    };
+
+    // Get trading guidance for low-conviction states
+    const getTradingGuidance = () => {
+        const bias = prediction?.bias;
+        if (bias === 'NO_SIGNAL') return vetoDetails?.recommendation || 'Conflicting data - stand aside';
+        if (bias === 'CONSOLIDATION') return rangeAnalysis?.tradingGuidance || 'Trade the range';
+        if (bias === 'MICRO_BULL' || bias === 'MICRO_BEAR') return 'Scalp only - tight stops';
+        if (bias === 'NEUTRAL') return prediction?.marketState === 'CHOPPY' ? 'Choppy - reduce exposure' : 'No clear direction';
+        return null;
     };
 
     return (
@@ -268,6 +316,40 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
                     ))}
                 </div>
             </div>
+
+            {/* Trading Guidance for low-conviction states */}
+            {getTradingGuidance() && (
+                <div className="mt-3">
+                    <span className={`text-xs px-3 py-1.5 rounded ${
+                        prediction?.bias === 'NO_SIGNAL' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30' :
+                        prediction?.bias === 'CONSOLIDATION' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' :
+                        prediction?.bias?.includes('MICRO') ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30' :
+                        'bg-slate-700/50 text-slate-400 border border-slate-600'
+                    }`}>
+                        💡 {getTradingGuidance()}
+                    </span>
+                </div>
+            )}
+
+            {/* Range Analysis for CONSOLIDATION */}
+            {rangeAnalysis && (prediction?.bias === 'CONSOLIDATION' || prediction?.bias === 'NEUTRAL' || prediction?.bias?.includes('MICRO')) && (
+                <div className="mt-3 p-2 rounded-lg bg-slate-800/40 border border-slate-700/50">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400">📊 8H Range:</span>
+                            <span className="text-sm font-mono text-white">
+                                ${rangeAnalysis.swingLow?.toLocaleString()} - ${rangeAnalysis.swingHigh?.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                                ({rangeAnalysis.rangeWidth}%)
+                            </span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                            Mid: ${rangeAnalysis.midpoint?.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Invalidation Level */}
             {invalidation && invalidation.price && (

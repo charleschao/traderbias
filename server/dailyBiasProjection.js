@@ -607,12 +607,19 @@ function generateDailyBias(coin, dataStore, consensus = null) {
             status: 'VETO',
             message: 'Cross-exchange disagreement - no reliable daily signal',
             prediction: {
-                bias: 'NEUTRAL',
+                bias: 'NO_SIGNAL',
                 strength: 'NONE',
                 score: 0,
                 grade: 'N/A'
             },
             vetoReason: `Only ${Math.round(confluence.agreement * 100)}% exchange agreement (need 70%+)`,
+            vetoDetails: {
+                agreement: Math.round(confluence.agreement * 100),
+                exchangeBiases: confluence.details,
+                recommendation: confluence.agreement < 0.50
+                    ? "High disagreement - stand aside completely"
+                    : "Moderate disagreement - watch for 70%+ agreement to form"
+            },
             generatedAt: now
         };
     }
@@ -653,8 +660,15 @@ function generateDailyBias(coin, dataStore, consensus = null) {
     // Clamp score
     normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
 
-    // Determine bias
-    let bias, strength;
+    // Calculate range metrics for low-score scenarios
+    const { swingLow, swingHigh, currentPrice: swingCurrentPrice } = findSwingLevels8H(hlData.price?.[coin]);
+    const atr = calculateATR8H(hlData.price?.[coin]);
+    const rangeWidth = (swingHigh > 0 && swingLow > 0 && swingCurrentPrice > 0)
+        ? ((swingHigh - swingLow) / swingCurrentPrice) * 100
+        : 0;
+
+    // Determine bias with enhanced low-score handling
+    let bias, strength, marketState = null;
     const absScore = Math.abs(normalizedScore);
 
     if (absScore >= 0.60) {
@@ -666,9 +680,25 @@ function generateDailyBias(coin, dataStore, consensus = null) {
     } else if (absScore >= 0.15) {
         bias = normalizedScore > 0 ? 'LEAN_BULL' : 'LEAN_BEAR';
         strength = 'WEAK';
+    } else if (absScore >= 0.08) {
+        // NEW: Micro directional lean (scalpers only)
+        bias = normalizedScore > 0 ? 'MICRO_BULL' : 'MICRO_BEAR';
+        strength = 'MINIMAL';
+        marketState = 'LOW_CONVICTION';
     } else {
-        bias = 'NEUTRAL';
-        strength = 'NONE';
+        // Very low score - distinguish CONSOLIDATION from true NEUTRAL
+        if (rangeWidth > 0 && rangeWidth < 2.5) {
+            bias = 'CONSOLIDATION';
+            strength = 'RANGE';
+            marketState = 'TIGHT_RANGE';
+        } else if (rangeWidth >= 2.5) {
+            bias = 'NEUTRAL';
+            strength = 'NONE';
+            marketState = 'CHOPPY';
+        } else {
+            bias = 'NEUTRAL';
+            strength = 'NONE';
+        }
     }
 
     // Calculate grade
@@ -738,6 +768,18 @@ function generateDailyBias(coin, dataStore, consensus = null) {
     const nextRefresh = now + TIMEFRAMES_24H.REFRESH_INTERVAL;
     const refreshInHours = TIMEFRAMES_24H.REFRESH_INTERVAL / (60 * 60 * 1000);
 
+    // Build range analysis for low-score scenarios
+    const rangeAnalysis = (absScore < 0.15 && swingLow > 0 && swingHigh > 0) ? {
+        swingLow: Math.round(swingLow),
+        swingHigh: Math.round(swingHigh),
+        midpoint: Math.round((swingLow + swingHigh) / 2),
+        rangeWidth: Math.round(rangeWidth * 100) / 100,
+        atr: Math.round(atr),
+        tradingGuidance: rangeWidth < 2.5
+            ? `Tight ${rangeWidth.toFixed(1)}% range - trade support/resistance`
+            : `Wide ${rangeWidth.toFixed(1)}% range - choppy, reduce exposure`
+    } : null;
+
     return {
         coin,
         horizon: '24H',
@@ -750,7 +792,8 @@ function generateDailyBias(coin, dataStore, consensus = null) {
             strength,
             score: Math.round(normalizedScore * 1000) / 1000,
             grade,
-            direction: normalizedScore > 0 ? 'BULLISH' : normalizedScore < 0 ? 'BEARISH' : 'NEUTRAL'
+            direction: normalizedScore > 0 ? 'BULLISH' : normalizedScore < 0 ? 'BEARISH' : 'NEUTRAL',
+            marketState
         },
         confidence: {
             level: confidenceLevel,
@@ -762,6 +805,7 @@ function generateDailyBias(coin, dataStore, consensus = null) {
             generatedAt: now
         },
         invalidation,
+        rangeAnalysis,
         keyDrivers,
         dataCompleteness: {
             percentComplete: dataCompleteness.percentComplete,
