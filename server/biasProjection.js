@@ -704,7 +704,7 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     // Calculate all factors using dynamic coin
-    const rsi = calculateRSI(hlData.price[coin]);
+    // Note: RSI divergence kept as bonus, but RSI oversold/overbought removed from weighted factors
     const divergence = detectRSIDivergence(hlData.price[coin]);
     const fundingZScore = calculateFundingZScore(hlData.funding[coin]);
     const oiRoC = calculateOIRoC(hlData.oi[coin], hlData.price[coin]);
@@ -735,15 +735,15 @@ function generateProjection(coin, dataStore, consensus = null) {
     // Normalize
     let normalizedScore = weightedScore / totalWeight;
 
-    // Add divergence bonus
+    // Add RSI divergence bonus (kept - powerful reversal signal)
     if (divergence.detected) {
         normalizedScore += divergence.score;
         normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
     }
 
-    // Check for all factors aligned bonus
-    const allBullish = rsi.score > 0 && fundingZScore.score > 0 && oiRoC.score > 0 && regime.score > 0;
-    const allBearish = rsi.score < 0 && fundingZScore.score < 0 && oiRoC.score < 0 && regime.score < 0;
+    // Check for all factors aligned bonus (RSI removed - no oversold/overbought)
+    const allBullish = fundingZScore.score > 0 && oiRoC.score > 0 && regime.score > 0;
+    const allBearish = fundingZScore.score < 0 && oiRoC.score < 0 && regime.score < 0;
     if (allBullish || allBearish) {
         normalizedScore += allBullish ? BONUSES.allFactorsAligned : -BONUSES.allFactorsAligned;
         normalizedScore = Math.max(-1, Math.min(1, normalizedScore));
