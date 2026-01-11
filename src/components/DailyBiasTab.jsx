@@ -118,10 +118,13 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
             <div className="space-y-2 text-xs">
               <div className="font-bold text-neutral-900 dark:text-white">24-Hour Daily Bias</div>
               <div className="text-neutral-600 dark:text-slate-300">
-                Spot/Perp Divergence (35%), Funding Mean Reversion (25%), OI + Price Momentum (20%), Cross-Exchange Confluence (10%), Whale Activity (5%)
+                Spot/Perp Divergence (30%), Funding Mean Reversion (20%), OI + Price Momentum (20%), ETF Flows (10% - BTC only), Cross-Exchange Confluence (10%), Whale Activity (5%)
+              </div>
+              <div className="text-neutral-500 dark:text-slate-400 pt-1">
+                ETF tracks IBIT, FBTC, ARKB net flows from SoSoValue
               </div>
               <div className="text-neutral-500 dark:text-slate-400 pt-2 border-t border-neutral-200 dark:border-slate-600">
-                Updates every 2 hours
+                Updates every 4 hours
               </div>
             </div>
           </InfoTooltip>
