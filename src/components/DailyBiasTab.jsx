@@ -199,7 +199,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
       {/* Range Analysis */}
       {rangeAnalysis && (prediction?.bias === 'CONSOLIDATION' || prediction?.bias === 'NEUTRAL' || prediction?.bias?.includes('MICRO')) && (
-        <div className="mt-3 p-2 rounded bg-neutral-50 dark:bg-slate-700/30">
+        <div className="mt-3 p-2 rounded">
           <div className="flex items-center justify-between text-sm">
             <span className="text-neutral-500 dark:text-slate-400">8H Range:</span>
             <span className="font-mono text-neutral-900 dark:text-white">
@@ -221,7 +221,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
       {/* Spot/Perp Divergence */}
       {spotPerpDivergence && spotPerpDivergence.signal && (
-        <div className={`mt-3 p-2 rounded ${spotPerpDivergence.bias === 'bullish' ? 'bg-green-50 dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-neutral-50 dark:bg-slate-700/30'}`}>
+        <div className={`mt-3 p-2 rounded ${spotPerpDivergence.bias === 'bullish' ? 'bg-green-50 dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-neutral-500 font-semibold">PRIMARY</span>
