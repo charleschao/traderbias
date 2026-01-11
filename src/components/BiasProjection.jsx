@@ -142,7 +142,7 @@ export default function BiasProjection({ projection, loading = false }) {
                     <span className="text-sm font-bold text-white">12HR BIAS</span>
                     <InfoTooltip position="bottom-right">
                         <div className="space-y-3">
-                            <div className="font-bold text-white text-sm">8-12 Hour Bias Prediction (v2)</div>
+                            <div className="font-bold text-white text-sm">12 Hour Bias Prediction (v2)</div>
                             <div className="text-slate-300 text-xs">
                                 Forward-looking directional bias using proven quantitative indicators:
                             </div>
