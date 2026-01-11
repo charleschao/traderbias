@@ -121,7 +121,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
                 Spot/Perp Divergence (30%), Funding Mean Reversion (20%), OI + Price Momentum (20%), ETF Flows (10% - BTC only), Cross-Exchange Confluence (10%), Whale Activity (5%)
               </div>
               <div className="text-neutral-500 dark:text-slate-400 pt-1">
-                ETF tracks IBIT, FBTC, ARKB net flows from SoSoValue
+                ETF tracks IBIT, FBTC, ARKB net flows from farside.co.uk
               </div>
               <div className="text-neutral-500 dark:text-slate-400 pt-2 border-t border-neutral-200 dark:border-slate-600">
                 Updates every 4 hours
