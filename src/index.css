@@ -1,43 +1,62 @@
 @import "tailwindcss";
 
-/* ===== MOCKUP STYLING ===== */
+/* Enable dark mode with class strategy */
+@custom-variant dark (&:where(.dark, .dark *));
 
-/* Base font - Inter */
-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background-color: #020617;
-    /* slate-950 */
-    color: #f8fafc;
-    /* slate-50 */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+/* ===== LIGHT THEME (Default) ===== */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #fafafa;
+  --bg-card: #ffffff;
+  --border: #e5e5e5;
+  --border-light: #f0f0f0;
+  --text-primary: #0a0a0a;
+  --text-secondary: #525252;
+  --text-muted: #a3a3a3;
+  --green: #16a34a;
+  --green-light: #dcfce7;
+  --red: #dc2626;
+  --red-light: #fee2e2;
 }
 
-/* Card styling utility class */
-.card-mockup {
-    background-color: rgb(15 23 42 / 0.8);
-    /* slate-900/80 */
-    border-radius: 0.75rem;
-    /* rounded-xl */
-    padding: 1.5rem;
-    /* p-6 */
-    border: 1px solid rgb(30 41 59);
-    /* border-slate-800 */
+/* ===== DARK THEME ===== */
+.dark {
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-card: #1e293b;
+  --border: #334155;
+  --border-light: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --green: #22c55e;
+  --green-light: #14532d;
+  --red: #ef4444;
+  --red-light: #7f1d1d;
+}
+
+/* Base styling */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Custom animations */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fadeIn {
-    animation: fadeIn 0.15s ease-out forwards;
+  animation: fadeIn 0.15s ease-out forwards;
 }

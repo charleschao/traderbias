@@ -69,11 +69,11 @@ const TradingQuote = () => {
     }, []);
 
     return (
-        <div className="mb-4 px-4 py-3 bg-slate-900/50 rounded-xl border border-slate-800/50">
-            <p className="text-slate-300 text-sm italic text-center">
+        <div className="mb-4 px-4 py-3 bg-neutral-50 dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700">
+            <p className="text-neutral-600 dark:text-slate-300 text-sm italic text-center">
                 "{randomQuote.quote}"
             </p>
-            <p className="text-slate-500 text-xs text-center mt-1">
+            <p className="text-neutral-400 dark:text-slate-500 text-xs text-center mt-1">
                 — {randomQuote.author}
             </p>
         </div>

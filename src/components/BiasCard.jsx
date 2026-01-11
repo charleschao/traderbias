@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { formatUSD, formatPrice } from '../utils/formatters';
 import {
-    calculateFlowConfluence,
-    calculateDivergenceStrength,
-    calculateOIVelocity
+  calculateFlowConfluence,
+  calculateDivergenceStrength,
+  calculateOIVelocity
 } from '../utils/biasCalculations';
 import { detectEdgeSignals, getPrioritySignal } from '../utils/flowSignals';
 import Sparkline from './Sparkline';
@@ -12,384 +12,296 @@ import InfoTooltip from './InfoTooltip';
 
 // Load expanded state from localStorage
 const loadExpandedState = () => {
-    try {
-        const saved = localStorage.getItem('biasCardExpanded');
-        return saved ? JSON.parse(saved) : { BTC: false, ETH: false, SOL: false };
-    } catch {
-        return { BTC: false, ETH: false, SOL: false };
-    }
+  try {
+    const saved = localStorage.getItem('biasCardExpanded');
+    return saved ? JSON.parse(saved) : { BTC: false, ETH: false, SOL: false };
+  } catch {
+    return { BTC: false, ETH: false, SOL: false };
+  }
+};
+
+// Minimal bias styling - just text color, no backgrounds
+const getBiasStyle = (signal) => {
+  if (signal === 'bullish') return 'text-green-600 dark:text-green-400';
+  if (signal === 'bearish') return 'text-red-600 dark:text-red-400';
+  return 'text-neutral-500 dark:text-slate-400';
 };
 
 const BiasCard = ({
-    coin,
-    biasData,
-    priceData,
-    oiData,
-    orderbookData,
-    cvdData,
-    fundingData,
-    onExpand,
-    // Sparkline data (optional)
-    priceHistory = [],
-    oiHistory = [],
-    cvdHistory = [],
-    // New: Bias history for time-weighted display
-    biasHistory = [],
-    // Timeframe information
-    timeframe = '5m',
-    timeframeMinutes = 5,
-    // Whether whale data is available (fallback, prefer biasData.hasWhaleData)
-    hasWhaleData: hasWhaleDataProp = true,
-    // Backend projection data (optional) - includes win rate stats
-    projection = null
+  coin,
+  biasData,
+  priceData,
+  oiData,
+  orderbookData,
+  cvdData,
+  fundingData,
+  onExpand,
+  priceHistory = [],
+  oiHistory = [],
+  cvdHistory = [],
+  biasHistory = [],
+  timeframe = '5m',
+  timeframeMinutes = 5,
+  hasWhaleData: hasWhaleDataProp = true,
+  projection = null
 }) => {
-    // Use biasData.hasWhaleData if available (from calculation), otherwise use prop
-    const hasWhaleData = biasData?.hasWhaleData ?? hasWhaleDataProp;
-    const [isExpanded, setIsExpanded] = useState(() => loadExpandedState()[coin] || false);
+  const hasWhaleData = biasData?.hasWhaleData ?? hasWhaleDataProp;
+  const [isExpanded, setIsExpanded] = useState(() => loadExpandedState()[coin] || false);
 
-    // Save to localStorage when expanded state changes
-    useEffect(() => {
-        const current = loadExpandedState();
-        current[coin] = isExpanded;
-        localStorage.setItem('biasCardExpanded', JSON.stringify(current));
-    }, [isExpanded, coin]);
+  useEffect(() => {
+    const current = loadExpandedState();
+    current[coin] = isExpanded;
+    localStorage.setItem('biasCardExpanded', JSON.stringify(current));
+  }, [isExpanded, coin]);
 
-    if (!biasData) return null;
+  if (!biasData) return null;
 
-    // Generate trader-focused insight labels
-    const getBookLabel = () => {
-        const imb = orderbookData?.imbalance || 0;
-        const avg = orderbookData?.avgImbalance || 0;
-        if (imb > 20) return { text: '📗 Heavy Bids', color: 'text-green-400' };
-        if (imb > 10) return { text: '📗 Bids Lean', color: 'text-green-400' };
-        if (imb < -20) return { text: '📕 Heavy Asks', color: 'text-red-400' };
-        if (imb < -10) return { text: '📕 Asks Lean', color: 'text-red-400' };
-        if (imb > avg + 10) return { text: '↗️ Bids Strengthening', color: 'text-lime-400' };
-        if (imb < avg - 10) return { text: '↘️ Asks Strengthening', color: 'text-orange-400' };
-        return { text: '⚖️ Balanced Book', color: 'text-slate-400' };
-    };
+  const getBookLabel = () => {
+    const imb = orderbookData?.imbalance || 0;
+    const avg = orderbookData?.avgImbalance || 0;
+    if (imb > 20) return { text: 'Heavy Bids', color: 'text-green-600' };
+    if (imb > 10) return { text: 'Bids Lean', color: 'text-green-600' };
+    if (imb < -20) return { text: 'Heavy Asks', color: 'text-red-600' };
+    if (imb < -10) return { text: 'Asks Lean', color: 'text-red-600' };
+    if (imb > avg + 10) return { text: 'Bids Strengthening', color: 'text-green-600' };
+    if (imb < avg - 10) return { text: 'Asks Strengthening', color: 'text-red-600' };
+    return { text: 'Balanced', color: 'text-neutral-500' };
+  };
 
-    const getFundingLabel = () => {
-        const rate = fundingData?.rate || 0;
-        const apr = Math.abs(rate * 3 * 365 * 100);
-        if (rate > 0.0005) return { text: `⚠️ CROWDED LONGS (${apr.toFixed(0)}% APR)`, color: 'text-red-400' };
-        if (rate > 0.0002) return { text: `Bullish Bias`, color: 'text-green-400' };
-        if (rate < -0.0005) return { text: `⚠️ CROWDED SHORTS (${apr.toFixed(0)}% APR)`, color: 'text-green-400' };
-        if (rate < -0.0002) return { text: `Bearish Bias`, color: 'text-red-400' };
-        return { text: 'Neutral Funding', color: 'text-slate-400' };
-    };
+  const getFundingLabel = () => {
+    const rate = fundingData?.rate || 0;
+    const apr = Math.abs(rate * 3 * 365 * 100);
+    if (rate > 0.0005) return { text: `Crowded Longs (${apr.toFixed(0)}% APR)`, color: 'text-red-600' };
+    if (rate > 0.0002) return { text: 'Bullish Bias', color: 'text-green-600' };
+    if (rate < -0.0005) return { text: `Crowded Shorts (${apr.toFixed(0)}% APR)`, color: 'text-green-600' };
+    if (rate < -0.0002) return { text: 'Bearish Bias', color: 'text-red-600' };
+    return { text: 'Neutral', color: 'text-neutral-500' };
+  };
 
-    const book = getBookLabel();
-    const funding = getFundingLabel();
-    const confluence = calculateFlowConfluence(coin, oiData, cvdData, priceData);
+  const book = getBookLabel();
+  const funding = getFundingLabel();
+  const confluence = calculateFlowConfluence(coin, oiData, cvdData, priceData);
 
-    // Detect event signals (BUYING ABSORBED, etc.)
-    const signals = detectEdgeSignals(coin, oiData, cvdData, priceData);
-    const prioritySignal = getPrioritySignal(signals);
-    const hasEventAlert = signals.length > 0 && prioritySignal;
+  const signals = detectEdgeSignals(coin, oiData, cvdData, priceData);
+  const prioritySignal = getPrioritySignal(signals);
+  const hasEventAlert = signals.length > 0 && prioritySignal;
 
-    // New algorithm improvements
-    const oiVelocity = calculateOIVelocity(oiData?.current, oiHistory, timeframeMinutes);
-    const divergence = calculateDivergenceStrength(
-        priceData?.timeframeChange || priceData?.sessionChange || 0,
-        cvdData?.rolling5mDelta
-    );
+  const oiVelocity = calculateOIVelocity(oiData?.current, oiHistory, timeframeMinutes);
+  const divergence = calculateDivergenceStrength(
+    priceData?.timeframeChange || priceData?.sessionChange || 0,
+    cvdData?.rolling5mDelta
+  );
 
-    // Color-coded confluence indicators
-    const getDirectionColor = (value, threshold = 0) => {
-        if (value > threshold) return 'text-green-400';
-        if (value < -threshold) return 'text-red-400';
-        return 'text-slate-400';
-    };
+  const getDirectionColor = (value, threshold = 0) => {
+    if (value > threshold) return 'text-green-600';
+    if (value < -threshold) return 'text-red-600';
+    return 'text-neutral-500';
+  };
 
-    // Get win rate badge info from backend projection
-    const getWinRateBadge = () => {
-        if (!projection?.historicalPerformance) return null;
+  const getWinRateBadge = () => {
+    if (!projection?.historicalPerformance) return null;
+    const { winRate, total, strongWinRate, strongTotal } = projection.historicalPerformance;
+    if (total < 5) return null;
+    const displayRate = strongTotal >= 3 ? strongWinRate : winRate;
+    const displayTotal = strongTotal >= 3 ? strongTotal : total;
+    let color = 'text-neutral-500';
+    if (displayRate >= 60) color = 'text-green-600';
+    else if (displayRate < 50) color = 'text-red-600';
+    return { rate: displayRate, total: displayTotal, color };
+  };
 
-        const { winRate, total, strongWinRate, strongTotal } = projection.historicalPerformance;
+  const winRateBadge = getWinRateBadge();
 
-        // Not enough data yet
-        if (total < 5) return null;
+  const handleToggleExpand = (e) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  };
 
-        // Use strong signal win rate if available, otherwise overall
-        const displayRate = strongTotal >= 3 ? strongWinRate : winRate;
-        const displayTotal = strongTotal >= 3 ? strongTotal : total;
+  // Get bias signal for styling
+  const biasSignal = biasData.signal || 'neutral';
 
-        // Color based on win rate
-        let color = 'text-slate-400';
-        let bgColor = 'bg-slate-700/50';
-        if (displayRate >= 60) {
-            color = 'text-green-400';
-            bgColor = 'bg-green-900/30';
-        } else if (displayRate >= 50) {
-            color = 'text-yellow-400';
-            bgColor = 'bg-yellow-900/30';
-        } else {
-            color = 'text-red-400';
-            bgColor = 'bg-red-900/30';
-        }
-
-        return {
-            rate: displayRate,
-            total: displayTotal,
-            color,
-            bgColor,
-            icon: displayRate >= 60 ? '✓' : displayRate >= 50 ? '~' : '✗'
-        };
-    };
-
-    const winRateBadge = getWinRateBadge();
-
-    const handleToggleExpand = (e) => {
-        e.stopPropagation();
-        setIsExpanded(!isExpanded);
-    };
-
-    return (
-        <div
-            className={`${biasData.bg} border border-slate-700/50 rounded-2xl p-5 transition-all`}
-        >
-            {/* Header with Price + Bias Badge - Always visible */}
-            <div className="flex items-center justify-between mb-3 relative">
-                {/* Coin name on left */}
-                <span className="text-2xl font-black text-white">{coin}</span>
-                {/* Centered price */}
-                {priceData && <span className="text-slate-400 font-mono text-sm absolute left-1/2 -translate-x-1/2">${formatPrice(priceData.markPx)}</span>}
-                {/* Bias badge + Win Rate on right */}
-                <div className="flex items-center gap-2">
-                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-xs whitespace-nowrap ${biasData.bg}`}>
-                        <span>{biasData.icon}</span>
-                        <span className={biasData.color}>{biasData.label}</span>
-                    </div>
-                    {winRateBadge && (
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-xs whitespace-nowrap ${winRateBadge.bgColor} border border-slate-600/50`}>
-                            <span>{winRateBadge.icon}</span>
-                            <span className={winRateBadge.color}>{winRateBadge.rate.toFixed(0)}%</span>
-                            <span className="text-slate-500 text-[10px]">({winRateBadge.total})</span>
-                        </div>
-                    )}
-                    <InfoTooltip position="bottom-left">
-                        <div className="space-y-2">
-                            <div className="font-bold text-white text-sm">Composite Bias Score</div>
-                            <div className="text-slate-300">
-                                Bias measures market directional conviction by combining:
-                            </div>
-                            <ul className="space-y-1 text-slate-300">
-                                <li className="flex items-start gap-2">
-                                    <span className="text-cyan-400 font-mono">{hasWhaleData ? '50%' : '71%'}</span>
-                                    <span><strong className="text-white">Flow Confluence</strong> = OI + CVD + Price alignment</span>
-                                </li>
-                                {hasWhaleData && (
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-cyan-400 font-mono">30%</span>
-                                        <span><strong className="text-white">Whale Consensus</strong> = Top 10 trader positions</span>
-                                    </li>
-                                )}
-                                <li className="flex items-start gap-2">
-                                    <span className="text-cyan-400 font-mono">{hasWhaleData ? '10%' : '14%'}</span>
-                                    <span><strong className="text-white">Orderbook</strong> = Bid/ask imbalance</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-cyan-400 font-mono">{hasWhaleData ? '10%' : '14%'}</span>
-                                    <span><strong className="text-white">Funding</strong> = Crowding signal (contrarian)</span>
-                                </li>
-                            </ul>
-                            {biasData.components && (
-                                <div className="pt-2 mt-2 border-t border-slate-700 space-y-1">
-                                    <div className="text-white font-semibold">Current Readings:</div>
-                                    <div className="flex justify-between">
-                                        <span>Flow:</span>
-                                        <span className={biasData.components.flowConfluence?.signal === 'bullish' ? 'text-green-400' : biasData.components.flowConfluence?.signal === 'bearish' ? 'text-red-400' : 'text-slate-400'}>
-                                            {biasData.components.flowConfluence?.confluenceType?.replace('_', ' ') || 'Loading...'}
-                                        </span>
-                                    </div>
-                                    {hasWhaleData && (
-                                        <div className="flex justify-between">
-                                            <span>Whales:</span>
-                                            <span className={biasData.components.whaleBias?.score > 0 ? 'text-green-400' : biasData.components.whaleBias?.score < 0 ? 'text-red-400' : 'text-slate-400'}>
-                                                {biasData.components.whaleBias?.reason || 'Loading...'}
-                                            </span>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between">
-                                        <span>Book:</span>
-                                        <span className={biasData.components.obBias?.score > 0 ? 'text-green-400' : biasData.components.obBias?.score < 0 ? 'text-red-400' : 'text-slate-400'}>
-                                            {biasData.components.obBias?.reason || 'Loading...'}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Funding:</span>
-                                        <span className={biasData.components.fundingBias?.score > 0 ? 'text-green-400' : biasData.components.fundingBias?.score < 0 ? 'text-red-400' : 'text-slate-400'}>
-                                            {biasData.components.fundingBias?.reason || 'Loading...'}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                            {!hasWhaleData && (
-                                <div className="pt-2 mt-2 border-t border-slate-700 text-[10px] text-amber-400">
-                                    ⚠️ Whale data only available on Hyperliquid
-                                </div>
-                            )}
-                            {winRateBadge && (
-                                <div className="pt-2 mt-2 border-t border-slate-700">
-                                    <div className="text-white font-semibold text-xs mb-1">Historical Performance</div>
-                                    <div className="text-slate-300 text-xs">
-                                        This algorithm has a <span className={winRateBadge.color}>{winRateBadge.rate.toFixed(0)}%</span> win rate over <span className="text-white">{winRateBadge.total}</span> predictions.
-                                    </div>
-                                    <div className="text-slate-500 text-[10px] mt-1">
-                                        Predictions are evaluated 10 hours after generation.
-                                    </div>
-                                </div>
-                            )}
-                            <div className="pt-2 mt-2 border-t border-slate-700 text-[10px] text-slate-500">
-                                Score range: STRONG BEAR → STRONG BULL
-                            </div>
-                        </div>
-                    </InfoTooltip>
-                </div>
-            </div>
-
-            {/* Event Alert Banner (if any signal detected) */}
-            {hasEventAlert && (
-                <div className={`mb-3 p-3 rounded-lg ${prioritySignal.bg} ${prioritySignal.border} border`}>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{prioritySignal.icon}</span>
-                        <span className={`text-sm font-bold ${prioritySignal.color}`}>
-                            {prioritySignal.signal}
-                        </span>
-                    </div>
-                    <div className="text-xs text-white mb-1">{prioritySignal.description}</div>
-                    <div className={`text-[10px] ${prioritySignal.color}`}>→ {prioritySignal.implication}</div>
-                    {prioritySignal.strength && (
-                        <div className="mt-2">
-                            <div className="h-1 bg-slate-700/50 rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full transition-all ${prioritySignal.type === 'bullish' ? 'bg-green-500' :
-                                        prioritySignal.type === 'bearish' ? 'bg-red-500' : 'bg-yellow-500'
-                                        }`}
-                                    style={{ width: `${prioritySignal.strength}%` }}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Collapsed View - Key Metrics Only */}
-            <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-white">OI</span>
-                        <Sparkline data={oiHistory} width={40} height={14} strokeWidth={1} />
-                    </div>
-                    <div className={`font-mono font-bold ${(oiData?.oiDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatUSD(oiData?.oiDelta || 0)}
-                    </div>
-                </div>
-                <div className="bg-slate-800/50 rounded-lg p-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-white">CVD</span>
-                        <Sparkline data={cvdHistory} width={40} height={14} strokeWidth={1} />
-                    </div>
-                    <div className={`font-mono font-bold ${(cvdData?.rolling5mDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatUSD(cvdData?.rolling5mDelta || 0)}
-                    </div>
-                </div>
-                <div className="bg-slate-800/50 rounded-lg p-2">
-                    <span className="text-white block">Flow</span>
-                    <span className={`font-bold text-xs ${confluence.signal === 'bullish' ? 'text-green-400' :
-                        confluence.signal === 'bearish' ? 'text-red-400' : 'text-slate-400'
-                        }`}>
-                        {confluence.confluenceType.replace('_', ' ')}
+  return (
+    <div className="bg-white dark:bg-slate-800 border border-neutral-200 dark:border-slate-700 rounded-lg p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xl font-bold text-neutral-900 dark:text-white">{coin}</span>
+        {priceData && (
+          <span className="text-neutral-500 dark:text-slate-400 font-mono text-sm">
+            ${formatPrice(priceData.markPx)}
+          </span>
+        )}
+        <div className="flex items-center gap-2">
+          <span className={`font-semibold text-sm ${getBiasStyle(biasSignal)}`}>
+            {biasData.label}
+          </span>
+          {winRateBadge && (
+            <span className={`text-xs ${winRateBadge.color}`}>
+              {winRateBadge.rate.toFixed(0)}%
+            </span>
+          )}
+          <InfoTooltip position="bottom-left">
+            <div className="space-y-2">
+              <div className="font-bold text-neutral-900 dark:text-white text-sm">Composite Bias Score</div>
+              <div className="text-neutral-600 dark:text-slate-300 text-xs">
+                Combines Flow Confluence ({hasWhaleData ? '50%' : '71%'}),
+                {hasWhaleData && ' Whale Consensus (30%),'} Orderbook ({hasWhaleData ? '10%' : '14%'}),
+                Funding ({hasWhaleData ? '10%' : '14%'})
+              </div>
+              {biasData.components && (
+                <div className="pt-2 mt-2 border-t border-neutral-200 dark:border-slate-600 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500 dark:text-slate-400">Flow:</span>
+                    <span className={getBiasStyle(biasData.components.flowConfluence?.signal)}>
+                      {biasData.components.flowConfluence?.confluenceType?.replace('_', ' ') || '...'}
                     </span>
+                  </div>
+                  {hasWhaleData && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500 dark:text-slate-400">Whales:</span>
+                      <span className={biasData.components.whaleBias?.score > 0 ? 'text-green-600 dark:text-green-400' : biasData.components.whaleBias?.score < 0 ? 'text-red-600 dark:text-red-400' : 'text-neutral-500 dark:text-slate-400'}>
+                        {biasData.components.whaleBias?.reason || '...'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500 dark:text-slate-400">Book:</span>
+                    <span className={biasData.components.obBias?.score > 0 ? 'text-green-600 dark:text-green-400' : biasData.components.obBias?.score < 0 ? 'text-red-600 dark:text-red-400' : 'text-neutral-500 dark:text-slate-400'}>
+                      {biasData.components.obBias?.reason || '...'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500 dark:text-slate-400">Funding:</span>
+                    <span className={biasData.components.fundingBias?.score > 0 ? 'text-green-600 dark:text-green-400' : biasData.components.fundingBias?.score < 0 ? 'text-red-600 dark:text-red-400' : 'text-neutral-500 dark:text-slate-400'}>
+                      {biasData.components.fundingBias?.reason || '...'}
+                    </span>
+                  </div>
                 </div>
-            </div>
-
-            {/* Expanded Details - Only shown when expanded */}
-            {isExpanded && (
-                <div className="mt-3 space-y-1.5 text-sm animate-fadeIn">
-                    {/* Full OI Details */}
-                    <div className="flex items-center justify-between bg-slate-800/30 rounded px-2 py-1">
-                        <span className="text-white">Open Interest</span>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-white">{formatUSD(oiData?.current || 0)}</span>
-                            <span className={`text-xs ${oiVelocity.color}`}>{oiVelocity.icon} {oiVelocity.label}</span>
-                        </div>
-                    </div>
-
-                    {/* Flow Confluence with P/OI/CVD indicators */}
-                    <div className="flex items-center justify-between">
-                        <span className="text-white">Flow Confluence</span>
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 text-[10px] font-mono">
-                                <span className={getDirectionColor(priceData?.timeframeChange || priceData?.sessionChange, 0.3)}>
-                                    P{confluence.priceDir}
-                                </span>
-                                <span className={getDirectionColor(oiData?.timeframeChange || oiData?.sessionChange, 1)}>
-                                    OI{confluence.oiDir}
-                                </span>
-                                <span className={getDirectionColor(cvdData?.rolling5mDelta, 0)}>
-                                    CVD{confluence.cvdDir}
-                                </span>
-                            </div>
-                            <span className={`font-bold ${confluence.signal === 'bullish' ? 'text-green-400' :
-                                confluence.signal === 'bearish' ? 'text-red-400' : 'text-slate-400'
-                                }`}>
-                                {{
-                                    'STRONG_BULL': '🟢', 'BULLISH': '🟢', 'WEAK_BULL': '🟡',
-                                    'STRONG_BEAR': '🔴', 'BEARISH': '🔴', 'WEAK_BEAR': '🟡',
-                                    'DIVERGENCE': '⚠️', 'NEUTRAL': '⚪'
-                                }[confluence.confluenceType] || '⚪'} {confluence.confluenceType.replace('_', ' ')}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Divergence Warning (if detected) */}
-                    {divergence.label && divergence.strength > 20 && (
-                        <div className="flex items-center justify-between bg-slate-800/30 rounded px-2 py-1">
-                            <span className="text-white text-xs">Divergence Alert</span>
-                            <span className={`font-bold text-xs ${divergence.color}`}>
-                                {divergence.label}
-                            </span>
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                        <span className="text-white">Book</span>
-                        <span className={`font-bold ${book.color}`}>{book.text}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-white">Funding</span>
-                        <span className={`font-bold ${funding.color}`}>{funding.text}</span>
-                    </div>
-
-                    {hasWhaleData && (
-                        <div className="mt-2 pt-2 border-t border-slate-700/50">
-                            <span className="text-xs text-white">Consensus: {biasData.components?.whaleBias?.reason || 'Loading...'}</span>
-                        </div>
-                    )}
+              )}
+              {winRateBadge && (
+                <div className="pt-2 mt-2 border-t border-neutral-200 dark:border-slate-600 text-xs text-neutral-600 dark:text-slate-300">
+                  Win rate: <span className={winRateBadge.color}>{winRateBadge.rate.toFixed(0)}%</span> ({winRateBadge.total} predictions)
                 </div>
-            )}
-
-            {/* Toggle Button + Bias History */}
-            <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
-                <button
-                    onClick={handleToggleExpand}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
-                >
-                    {isExpanded ? '▲ Hide Details' : '▼ Show Details'}
-                </button>
-                <BiasHistoryBar history={biasHistory} label="15m" />
-                <button
-                    onClick={(e) => { e.stopPropagation(); onExpand(coin); }}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-                >
-                    Full View →
-                </button>
+              )}
             </div>
+          </InfoTooltip>
         </div>
-    );
+      </div>
+
+      {/* Event Alert */}
+      {hasEventAlert && (
+        <div className={`mb-3 p-2 rounded border-l-4 border ${prioritySignal.type === 'bullish' ? 'border-l-green-500 border-neutral-200 dark:border-slate-700' : prioritySignal.type === 'bearish' ? 'border-l-red-500 border-neutral-200 dark:border-slate-700' : 'border-l-neutral-400 border-neutral-200 dark:border-slate-700'} bg-white dark:bg-slate-800`}>
+          <div className={`text-sm font-semibold ${prioritySignal.type === 'bullish' ? 'text-green-700 dark:text-green-400' : prioritySignal.type === 'bearish' ? 'text-red-700 dark:text-red-400' : 'text-neutral-700 dark:text-slate-300'}`}>
+            {prioritySignal.signal}
+          </div>
+          <div className="text-xs text-neutral-600 dark:text-slate-300">{prioritySignal.description}</div>
+          {prioritySignal.strength && (
+            <div className="mt-1 h-1 bg-neutral-200 dark:bg-slate-600 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${prioritySignal.type === 'bullish' ? 'bg-green-500' : prioritySignal.type === 'bearish' ? 'bg-red-500' : 'bg-neutral-400'}`}
+                style={{ width: `${prioritySignal.strength}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="border border-neutral-200 dark:border-slate-700 rounded p-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-neutral-500 dark:text-slate-400">OI</span>
+            <Sparkline data={oiHistory} width={40} height={14} strokeWidth={1} />
+          </div>
+          <div className={`font-mono font-semibold ${(oiData?.oiDelta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            {formatUSD(oiData?.oiDelta || 0)}
+          </div>
+        </div>
+        <div className="border border-neutral-200 dark:border-slate-700 rounded p-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-neutral-500 dark:text-slate-400">CVD</span>
+            <Sparkline data={cvdHistory} width={40} height={14} strokeWidth={1} />
+          </div>
+          <div className={`font-mono font-semibold ${(cvdData?.rolling5mDelta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            {formatUSD(cvdData?.rolling5mDelta || 0)}
+          </div>
+        </div>
+        <div className="border border-neutral-200 dark:border-slate-700 rounded p-2">
+          <span className="text-neutral-500 dark:text-slate-400 block mb-1">Flow</span>
+          <span className={`font-semibold ${getBiasStyle(confluence.signal)}`}>
+            {confluence.confluenceType.replace('_', ' ')}
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded Details */}
+      {isExpanded && (
+        <div className="mt-3 space-y-2 text-sm animate-fadeIn">
+          <div className="flex items-center justify-between py-1 border-b border-neutral-100 dark:border-slate-700">
+            <span className="text-neutral-500 dark:text-slate-400">Open Interest</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-neutral-900 dark:text-white">{formatUSD(oiData?.current || 0)}</span>
+              <span className={`text-xs ${oiVelocity.color?.replace('400', '600').replace('lime', 'green').replace('orange', 'red').replace('slate', 'neutral') || 'text-neutral-500 dark:text-slate-400'}`}>
+                {oiVelocity.label}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between py-1 border-b border-neutral-100 dark:border-slate-700">
+            <span className="text-neutral-500 dark:text-slate-400">Flow Confluence</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-neutral-400 dark:text-slate-500">
+                P{confluence.priceDir} OI{confluence.oiDir} CVD{confluence.cvdDir}
+              </span>
+              <span className={`font-semibold ${getBiasStyle(confluence.signal)}`}>
+                {confluence.confluenceType.replace('_', ' ')}
+              </span>
+            </div>
+          </div>
+
+          {divergence.label && divergence.strength > 20 && (
+            <div className="flex items-center justify-between py-1 border-b border-neutral-100 dark:border-slate-700">
+              <span className="text-neutral-500 dark:text-slate-400">Divergence</span>
+              <span className="text-red-600 dark:text-red-400 font-semibold text-xs">{divergence.label}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between py-1 border-b border-neutral-100 dark:border-slate-700">
+            <span className="text-neutral-500 dark:text-slate-400">Book</span>
+            <span className={`font-semibold ${book.color}`}>{book.text}</span>
+          </div>
+
+          <div className="flex items-center justify-between py-1 border-b border-neutral-100 dark:border-slate-700">
+            <span className="text-neutral-500 dark:text-slate-400">Funding</span>
+            <span className={`font-semibold ${funding.color}`}>{funding.text}</span>
+          </div>
+
+          {hasWhaleData && biasData.components?.whaleBias?.reason && (
+            <div className="flex items-center justify-between py-1">
+              <span className="text-neutral-500 dark:text-slate-400">Consensus</span>
+              <span className="text-neutral-700 dark:text-slate-300 text-xs">{biasData.components.whaleBias.reason}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-slate-700 flex justify-between items-center">
+        <button
+          onClick={handleToggleExpand}
+          className="text-xs text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+        >
+          {isExpanded ? '− Less' : '+ More'}
+        </button>
+        <BiasHistoryBar history={biasHistory} label="15m" />
+        <button
+          onClick={(e) => { e.stopPropagation(); onExpand(coin); }}
+          className="text-xs text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+        >
+          Details →
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default BiasCard;
-

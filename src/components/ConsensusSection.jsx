@@ -1,86 +1,120 @@
 import React from 'react';
-import SectionBiasHeader from './SectionBiasHeader';
-import { calculateWhaleBias, getBiasIndicator } from '../utils/biasCalculations';
+import { calculateWhaleBias } from '../utils/biasCalculations';
 import { formatUSD, getProfileUrl } from '../utils/formatters';
 
 const ConsensusSection = ({ consensus }) => {
-    // Get coins that have actual data, prioritize BTC/ETH/SOL
-    const preferredCoins = ['BTC', 'ETH', 'SOL'];
-    const availableCoins = Object.keys(consensus || {});
-    const coins = preferredCoins.filter(c => availableCoins.includes(c));
+  const preferredCoins = ['BTC', 'ETH', 'SOL'];
+  const availableCoins = Object.keys(consensus || {});
+  const coins = preferredCoins.filter(c => availableCoins.includes(c));
 
-    // If no preferred coins, show whatever we have
-    if (coins.length === 0 && availableCoins.length > 0) {
-        coins.push(...availableCoins.slice(0, 3));
-    }
+  if (coins.length === 0 && availableCoins.length > 0) {
+    coins.push(...availableCoins.slice(0, 3));
+  }
 
-    return (
-        <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-4">
-            <SectionBiasHeader
-                title="TOP 10 WHALE CONSENSUS"
-                icon="🎯"
-                updateInterval="30s"
-            />
-            {coins.length === 0 ? (
-                <div className="text-center py-8 text-white">Loading whale consensus data...</div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {coins.map(coin => {
-                        const data = consensus?.[coin];
-                        if (!data) return null;
+  const getBiasColor = (score) => {
+    if (score > 0) return 'text-green-600 dark:text-green-400';
+    if (score < 0) return 'text-red-600 dark:text-red-400';
+    return 'text-neutral-500 dark:text-slate-400';
+  };
 
-                        const bias = calculateWhaleBias(coin, consensus);
-                        const indicator = getBiasIndicator(bias.score, 10);
-                        const total = data.longs.length + data.shorts.length;
-                        const longPct = total > 0 ? (data.longs.length / total) * 100 : 50;
+  const getBiasLabel = (score) => {
+    if (score > 20) return 'BULLISH';
+    if (score > 0) return 'LEAN BULL';
+    if (score < -20) return 'BEARISH';
+    if (score < 0) return 'LEAN BEAR';
+    return 'NEUTRAL';
+  };
 
-                        return (
-                            <div key={coin} className={`${indicator.bg} rounded-lg p-3 border border-slate-700/50`}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-bold text-white text-lg">{coin}</span>
-                                    <span className={`text-xs font-bold ${indicator.color}`}>{indicator.icon} {indicator.label}</span>
-                                </div>
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700 p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-sm font-semibold text-neutral-900 dark:text-white">TOP 10 WHALE CONSENSUS</span>
+        <span className="text-xs text-neutral-400 dark:text-slate-500">30s</span>
+      </div>
 
-                                <div className="mb-2">
-                                    <div className="flex h-4 rounded-full overflow-hidden bg-slate-700">
-                                        <div className="bg-green-500 transition-all duration-500 flex items-center justify-center" style={{ width: `${longPct}%` }}>
-                                            {data.longs.length > 0 && <span className="text-[10px] text-white font-bold">{data.longs.length}L</span>}
-                                        </div>
-                                        <div className="bg-red-500 transition-all duration-500 flex items-center justify-center" style={{ width: `${100 - longPct}%` }}>
-                                            {data.shorts.length > 0 && <span className="text-[10px] text-white font-bold">{data.shorts.length}S</span>}
-                                        </div>
-                                    </div>
-                                </div>
+      {coins.length === 0 ? (
+        <div className="text-center py-8 text-neutral-500 dark:text-slate-400">Loading whale consensus data...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {coins.map(coin => {
+            const data = consensus?.[coin];
+            if (!data) return null;
 
-                                <div className="text-xs space-y-1">
-                                    {data.longs.slice(0, 2).map((p, i) => (
-                                        <div key={`long-${i}`} className="flex justify-between">
-                                            <a href={getProfileUrl(p.trader)} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">
-                                                #{p.rank} {p.isConsistent && '⭐'}
-                                            </a>
-                                            <span className="text-white">{formatUSD(p.notional)}</span>
-                                        </div>
-                                    ))}
-                                    {data.shorts.slice(0, 2).map((p, i) => (
-                                        <div key={`short-${i}`} className="flex justify-between">
-                                            <a href={getProfileUrl(p.trader)} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:underline">
-                                                #{p.rank} {p.isConsistent && '⭐'}
-                                            </a>
-                                            <span className="text-white">{formatUSD(p.notional)}</span>
-                                        </div>
-                                    ))}
-                                </div>
+            const bias = calculateWhaleBias(coin, consensus);
+            const total = data.longs.length + data.shorts.length;
+            const longPct = total > 0 ? (data.longs.length / total) * 100 : 50;
 
-                                <div className="text-[10px] text-white pt-2 mt-2 border-t border-slate-700/50">
-                                    {formatUSD(data.totalNotional)} total • ⭐ = consistent winner
-                                </div>
-                            </div>
-                        );
-                    })}
+            return (
+              <div key={coin} className="border border-neutral-200 dark:border-slate-600 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-neutral-900 dark:text-white">{coin}</span>
+                  <span className={`text-sm font-semibold ${getBiasColor(bias.score)}`}>
+                    {getBiasLabel(bias.score)}
+                  </span>
                 </div>
-            )}
+
+                {/* Longs/Shorts Bar */}
+                <div className="mb-3">
+                  <div className="flex h-5 rounded overflow-hidden bg-neutral-100 dark:bg-slate-700">
+                    <div
+                      className="bg-green-500 transition-all duration-500 flex items-center justify-center"
+                      style={{ width: `${longPct}%` }}
+                    >
+                      {data.longs.length > 0 && (
+                        <span className="text-[10px] text-white font-bold">{data.longs.length}L</span>
+                      )}
+                    </div>
+                    <div
+                      className="bg-red-500 transition-all duration-500 flex items-center justify-center"
+                      style={{ width: `${100 - longPct}%` }}
+                    >
+                      {data.shorts.length > 0 && (
+                        <span className="text-[10px] text-white font-bold">{data.shorts.length}S</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Positions */}
+                <div className="text-xs space-y-1">
+                  {data.longs.slice(0, 2).map((p, i) => (
+                    <div key={`long-${i}`} className="flex justify-between">
+                      <a
+                        href={getProfileUrl(p.trader)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:underline"
+                      >
+                        #{p.rank} {p.isConsistent && '*'}
+                      </a>
+                      <span className="text-neutral-700 dark:text-slate-300 font-mono">{formatUSD(p.notional)}</span>
+                    </div>
+                  ))}
+                  {data.shorts.slice(0, 2).map((p, i) => (
+                    <div key={`short-${i}`} className="flex justify-between">
+                      <a
+                        href={getProfileUrl(p.trader)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-600 hover:underline"
+                      >
+                        #{p.rank} {p.isConsistent && '*'}
+                      </a>
+                      <span className="text-neutral-700 dark:text-slate-300 font-mono">{formatUSD(p.notional)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-[10px] text-neutral-500 dark:text-slate-400 pt-2 mt-2 border-t border-neutral-100 dark:border-slate-700">
+                  {formatUSD(data.totalNotional)} total
+                </div>
+              </div>
+            );
+          })}
         </div>
-    );
+      )}
+    </div>
+  );
 };
 
 export default ConsensusSection;

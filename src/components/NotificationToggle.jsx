@@ -24,9 +24,9 @@ const NotificationToggle = ({
     };
 
     const getStatusColor = () => {
-        if (permission === 'denied') return 'text-red-400 bg-red-500/10';
-        if (enabled) return 'text-green-400 bg-green-500/10';
-        return 'text-slate-400 bg-slate-700/50';
+        if (permission === 'denied') return 'text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-500/10';
+        if (enabled) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/10';
+        return 'text-neutral-600 dark:text-slate-400 bg-neutral-200 dark:bg-slate-700/50';
     };
 
     return (

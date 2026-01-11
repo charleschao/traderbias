@@ -2,66 +2,52 @@ import React from 'react';
 import { EXCHANGE_LIST } from '../config/exchanges';
 
 const ExchangeSelector = ({ activeExchange, onExchangeChange, onTop10Click, showTop10 = false }) => (
-    <div className="flex items-center gap-1 bg-slate-800/50 rounded-xl p-1">
-        {EXCHANGE_LIST.map(exchange => {
-            const isActive = activeExchange === exchange.id;
-            const isHyperliquid = exchange.id === 'hyperliquid';
-            const colorClasses = {
-                cyan: isActive ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-400 hover:text-cyan-400',
-                purple: isActive ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'text-slate-400 hover:text-purple-400',
-                violet: isActive ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-violet-400',
-                yellow: isActive ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20' : 'text-slate-400 hover:text-yellow-400',
-                orange: isActive ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-400 hover:text-orange-400',
-                amber: isActive ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-400 hover:text-amber-400',
-            };
+  <div className="flex items-center gap-1 bg-neutral-100 dark:bg-slate-800 rounded-lg p-1">
+    {EXCHANGE_LIST.map(exchange => {
+      const isActive = activeExchange === exchange.id;
+      const isHyperliquid = exchange.id === 'hyperliquid';
 
-            // Special layout for Hyperliquid with Top10 underneath
-            if (isHyperliquid) {
-                return (
-                    <div key={exchange.id} className="flex flex-col">
-                        <button
-                            onClick={() => { onExchangeChange(exchange.id); if (showTop10 && onTop10Click) onTop10Click(); }}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg font-bold text-sm transition-all ${colorClasses[exchange.color] || colorClasses.cyan} ${isActive && !showTop10 ? '' : isActive ? 'bg-cyan-600/50' : ''}`}
-                            title={exchange.description}
-                        >
-                            <span className="text-lg">{exchange.icon}</span>
-                            <span className="hidden sm:inline">{exchange.name}</span>
-                            <span className="sm:hidden">{exchange.shortName}</span>
-                        </button>
-                        {isActive && (
-                            <button
-                                onClick={onTop10Click}
-                                className={`text-[10px] font-bold px-3 py-1 rounded-b-lg transition-all ${showTop10
-                                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
-                                        : 'bg-slate-700/50 text-yellow-400 hover:bg-slate-700'
-                                    }`}
-                            >
-                                🏆 Top 10 Traders
-                            </button>
-                        )}
-                    </div>
-                );
-            }
+      if (isHyperliquid) {
+        return (
+          <div key={exchange.id} className="flex flex-col">
+            <button
+              onClick={() => { onExchangeChange(exchange.id); if (showTop10 && onTop10Click) onTop10Click(); }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg font-semibold text-sm transition-all ${isActive && !showTop10 ? 'bg-neutral-900 dark:bg-slate-600 text-white' : isActive ? 'bg-neutral-700 dark:bg-slate-700 text-white' : 'text-neutral-600 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
+              title={exchange.description}
+            >
+              <span className="hidden sm:inline">{exchange.name}</span>
+              <span className="sm:hidden">{exchange.shortName}</span>
+            </button>
+            {isActive && (
+              <button
+                onClick={onTop10Click}
+                className={`text-[10px] font-semibold px-3 py-1 rounded-b-lg transition-all ${showTop10 ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'bg-neutral-200 dark:bg-slate-700 text-neutral-600 dark:text-slate-300 hover:bg-neutral-300 dark:hover:bg-slate-600'}`}
+              >
+                Top 10 Traders
+              </button>
+            )}
+          </div>
+        );
+      }
 
-            return (
-                <button
-                    key={exchange.id}
-                    onClick={() => onExchangeChange(exchange.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-all ${colorClasses[exchange.color] || colorClasses.cyan}`}
-                    title={exchange.description}
-                >
-                    <span className="text-lg">{exchange.icon}</span>
-                    <span className="hidden sm:inline">{exchange.name}</span>
-                    <span className="sm:hidden">{exchange.shortName}</span>
-                    {exchange.status !== 'active' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">
-                            {exchange.status === 'api_required' ? 'API' : 'Soon'}
-                        </span>
-                    )}
-                </button>
-            );
-        })}
-    </div>
+      return (
+        <button
+          key={exchange.id}
+          onClick={() => onExchangeChange(exchange.id)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all ${isActive ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-600 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
+          title={exchange.description}
+        >
+          <span className="hidden sm:inline">{exchange.name}</span>
+          <span className="sm:hidden">{exchange.shortName}</span>
+          {exchange.status !== 'active' && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-slate-700 text-neutral-500 dark:text-slate-400">
+              {exchange.status === 'api_required' ? 'API' : 'Soon'}
+            </span>
+          )}
+        </button>
+      );
+    })}
+  </div>
 );
 
 export default ExchangeSelector;

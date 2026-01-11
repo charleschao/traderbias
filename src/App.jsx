@@ -21,6 +21,7 @@ import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
 import TraderRow from './components/TraderRow';
 import WhaleActivityFeed from './components/WhaleActivityFeed';
 import BiasProjectionTabs from './components/BiasProjectionTabs';
+import ThemeToggle from './components/ThemeToggle';
 import { BacktestControlPanel, BacktestResults } from './components/BacktestPanel';
 
 // Hook imports
@@ -1700,7 +1701,7 @@ export default function App({ focusCoin = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-white dark:bg-slate-900 text-neutral-900 dark:text-white">
       {expandedCoin && (
         <DetailModal
           coin={expandedCoin}
@@ -1720,21 +1721,24 @@ export default function App({ focusCoin = null }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-black mb-1">
-              {EXCHANGES[activeExchange]?.icon} {EXCHANGES[activeExchange]?.name || 'TRADER BIAS'}
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">
+              {EXCHANGES[activeExchange]?.name || 'TRADER BIAS'}
             </h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-neutral-500 dark:text-slate-400 text-sm">
               {EXCHANGES[activeExchange]?.status === 'active' ? (
                 <>Session: {sessionDuration}min{lastUpdate && <span className="ml-2">• Updated {lastUpdate.toLocaleTimeString()}</span>}</>
               ) : EXCHANGES[activeExchange]?.description}
             </p>
           </div>
-          <ExchangeSelector
-            activeExchange={activeExchange}
-            onExchangeChange={(exchange) => { setActiveExchange(exchange); setShowTop10(false); }}
-            onTop10Click={() => { setShowTop10(!showTop10); if (!showTop10) setTimeout(() => document.getElementById('top10-section')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
-            showTop10={showTop10}
-          />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <ExchangeSelector
+              activeExchange={activeExchange}
+              onExchangeChange={(exchange) => { setActiveExchange(exchange); setShowTop10(false); }}
+              onTop10Click={() => { setShowTop10(!showTop10); if (!showTop10) setTimeout(() => document.getElementById('top10-section')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
+              showTop10={showTop10}
+            />
+          </div>
         </div>
 
         {/* Main Content */}
@@ -1976,23 +1980,22 @@ export default function App({ focusCoin = null }) {
             )}
 
             {/* Footer */}
-            <div className="mt-8 pt-6 border-t border-slate-800">
+            <div className="mt-8 pt-6 border-t border-neutral-200 dark:border-slate-700">
               {/* Trading Quote - Moved to footer */}
               <div className="mb-6">
                 <TradingQuote />
               </div>
 
-              <div className="text-center text-slate-400 text-xs space-y-2">
-                <p className="text-slate-500">
-                  ⚠️ <strong>Not Financial Advice</strong> • For informational purposes only •
-                  Trading crypto carries significant risk • Do your own research
-                </p>
+              <div className="text-center text-neutral-500 dark:text-slate-400 text-xs space-y-2">
                 <p>
-                  Data from third-party APIs (Hyperliquid, Binance, etc.) • May be delayed or inaccurate •
-                  No guarantees provided
+                  Not Financial Advice • For informational purposes only •
+                  Trading crypto carries significant risk
                 </p>
-                <p className="text-slate-500">
-                  © 2026 Trader Bias • Licensed under CC BY-NC 4.0
+                <p className="text-neutral-400 dark:text-slate-500">
+                  Data from third-party APIs • May be delayed or inaccurate
+                </p>
+                <p className="text-neutral-400 dark:text-slate-500">
+                  © 2026 Trader Bias
                 </p>
               </div>
             </div>
