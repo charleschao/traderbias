@@ -144,27 +144,16 @@ async function fetchEtfFlows() {
 
   // Correct format: openapi.sosovalue.com with x-soso-api-key header
   const authHeaders = { 'x-soso-api-key': apiKey };
+  const base = 'https://openapi.sosovalue.com/api/v1';
   const endpoints = [
-    {
-      url: 'https://openapi.sosovalue.com/api/v1/etf/btc-spot/fund-flows-summary',
-      headers: authHeaders
-    },
-    {
-      url: 'https://openapi.sosovalue.com/api/v1/etf/btc-spot/flows',
-      headers: authHeaders
-    },
-    {
-      url: 'https://openapi.sosovalue.com/api/v1/etf/btc-spot/daily-flows',
-      headers: authHeaders
-    },
-    {
-      url: 'https://openapi.sosovalue.com/api/v1/etf/btc/flows',
-      headers: authHeaders
-    },
-    {
-      url: 'https://openapi.sosovalue.com/api/v1/btc-etf/fund-flows',
-      headers: authHeaders
-    }
+    { url: `${base}/etf/flows`, headers: authHeaders },
+    { url: `${base}/etf/fund-flows`, headers: authHeaders },
+    { url: `${base}/etf/btc/fund-flows`, headers: authHeaders },
+    { url: `${base}/etf/bitcoin/flows`, headers: authHeaders },
+    { url: `${base}/etf/spot/btc/flows`, headers: authHeaders },
+    { url: `${base}/coin/btc/etf-flows`, headers: authHeaders },
+    { url: `${base}/market/etf/flows`, headers: authHeaders },
+    { url: `${base}/data/etf/btc/flows`, headers: authHeaders }
   ];
 
   for (const endpoint of endpoints) {
