@@ -142,38 +142,28 @@ async function fetchEtfFlows() {
     return null;
   }
 
-  // Try different auth formats (401 = endpoint exists, auth wrong)
-  const baseUrl = 'https://api.sosovalue.xyz/v1/etf/btc-spot/fund-flows-summary';
+  // Correct format: openapi.sosovalue.com with x-soso-api-key header
+  const authHeaders = { 'x-soso-api-key': apiKey };
   const endpoints = [
-    // Try token as query param
     {
-      url: `${baseUrl}?token=${apiKey}`,
-      headers: {}
+      url: 'https://openapi.sosovalue.com/api/v1/etf/btc-spot/fund-flows-summary',
+      headers: authHeaders
     },
-    // Try apiKey query param
     {
-      url: `${baseUrl}?apiKey=${apiKey}`,
-      headers: {}
+      url: 'https://openapi.sosovalue.com/api/v1/etf/btc-spot/flows',
+      headers: authHeaders
     },
-    // Try Authorization with SOSO prefix
     {
-      url: baseUrl,
-      headers: { 'Authorization': `SOSO ${apiKey}` }
+      url: 'https://openapi.sosovalue.com/api/v1/etf/btc-spot/daily-flows',
+      headers: authHeaders
     },
-    // Try soso-token header
     {
-      url: baseUrl,
-      headers: { 'soso-token': apiKey }
+      url: 'https://openapi.sosovalue.com/api/v1/etf/btc/flows',
+      headers: authHeaders
     },
-    // Try token header
     {
-      url: baseUrl,
-      headers: { 'token': apiKey }
-    },
-    // Try api-key header
-    {
-      url: baseUrl,
-      headers: { 'api-key': apiKey }
+      url: 'https://openapi.sosovalue.com/api/v1/btc-etf/fund-flows',
+      headers: authHeaders
     }
   ];
 
