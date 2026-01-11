@@ -19,7 +19,7 @@ const MegaWhaleTradeRow = ({ trade }) => {
   const config = WHALE_WS_CONFIG[trade.exchange];
 
   return (
-    <div className={`flex items-center gap-4 p-3 border-b border-neutral-100 dark:border-slate-700 ${isNew ? 'bg-neutral-50 dark:bg-slate-800' : ''}`}>
+    <div className={`flex items-center gap-4 p-3 ${isNew ? 'bg-neutral-50 dark:bg-slate-800' : ''}`}>
       <span className="text-neutral-400 dark:text-slate-400 text-sm w-20 font-mono">{time}</span>
       <span className={`px-2 py-0.5 text-white text-xs font-bold rounded w-12 text-center ${isBuy ? 'bg-green-500' : 'bg-red-500'}`}>
         {isBuy ? 'BUY' : 'SELL'}
@@ -70,7 +70,7 @@ const MegaWhaleFeed = ({
     <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700 overflow-hidden h-full">
       {/* Header */}
       <div
-        className="px-4 py-3 cursor-pointer border-b border-neutral-100 dark:border-slate-700"
+        className="px-4 py-3 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">

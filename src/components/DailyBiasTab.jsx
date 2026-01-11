@@ -173,7 +173,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
         {/* Key Factors */}
         <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {keyFactors?.slice(0, 4).map((factor, i) => (
-            <div key={i} className="border border-neutral-200 dark:border-none dark:bg-slate-700/50 rounded p-2">
+            <div key={i} className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2">
               <div className="flex items-center gap-1 mb-1">
                 <span className={`text-xs ${getFactorColor(factor.direction)}`}>
                   {factor.direction === 'bullish' ? '▲' : factor.direction === 'bearish' ? '▼' : '─'}
@@ -191,7 +191,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
       {/* Trading Guidance */}
       {getTradingGuidance() && (
         <div className="mt-3">
-          <span className="text-xs px-2 py-1 rounded border border-neutral-200 dark:border-none dark:bg-slate-700/50 text-neutral-600 dark:text-slate-300">
+          <span className="text-xs px-2 py-1 rounded bg-neutral-50 dark:bg-slate-700/50 text-neutral-600 dark:text-slate-300">
             {getTradingGuidance()}
           </span>
         </div>
@@ -199,7 +199,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
       {/* Range Analysis */}
       {rangeAnalysis && (prediction?.bias === 'CONSOLIDATION' || prediction?.bias === 'NEUTRAL' || prediction?.bias?.includes('MICRO')) && (
-        <div className="mt-3 p-2 rounded border border-neutral-200 dark:border-none dark:bg-slate-700/30">
+        <div className="mt-3 p-2 rounded bg-neutral-50 dark:bg-slate-700/30">
           <div className="flex items-center justify-between text-sm">
             <span className="text-neutral-500 dark:text-slate-400">8H Range:</span>
             <span className="font-mono text-neutral-900 dark:text-white">
@@ -213,7 +213,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
       {/* Invalidation */}
       {invalidation && invalidation.price && (
         <div className="mt-3">
-          <span className={`text-xs px-2 py-1 rounded border ${invalidation.type === 'below' ? 'border-red-200 text-red-600' : 'border-green-200 text-green-600'}`}>
+          <span className={`text-xs px-2 py-1 rounded ${invalidation.type === 'below' ? 'bg-red-50 text-red-600 dark:bg-red-900/20' : 'bg-green-50 text-green-600 dark:bg-green-900/20'}`}>
             Invalidation: {invalidation.type === 'below' ? 'Below' : 'Above'} ${invalidation.price.toLocaleString()} ({invalidation.distance > 0 ? '-' : '+'}{Math.abs(invalidation.distance).toFixed(1)}%)
           </span>
         </div>
@@ -221,7 +221,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
       {/* Spot/Perp Divergence */}
       {spotPerpDivergence && spotPerpDivergence.signal && (
-        <div className={`mt-3 p-2 rounded border ${spotPerpDivergence.bias === 'bullish' ? 'border-green-200 bg-green-50 dark:border-none dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'border-red-200 bg-red-50 dark:border-none dark:bg-red-900/20' : 'border-neutral-200 dark:border-none dark:bg-slate-700/30'}`}>
+        <div className={`mt-3 p-2 rounded ${spotPerpDivergence.bias === 'bullish' ? 'bg-green-50 dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-neutral-50 dark:bg-slate-700/30'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-neutral-500 font-semibold">PRIMARY</span>
@@ -251,7 +251,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
       {warnings && warnings.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {warnings.slice(0, 2).map((warning, i) => (
-            <span key={i} className="text-xs px-2 py-1 rounded border border-neutral-200 dark:border-slate-600 text-neutral-600 dark:text-slate-300">
+            <span key={i} className="text-xs px-2 py-1 rounded bg-neutral-100 dark:bg-slate-700 text-neutral-600 dark:text-slate-300">
               {warning}
             </span>
           ))}

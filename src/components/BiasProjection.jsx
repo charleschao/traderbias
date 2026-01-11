@@ -142,7 +142,7 @@ export default function BiasProjection({ projection, loading = false }) {
         {/* Key Factors */}
         <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {keyFactors?.slice(0, 4).map((factor, i) => (
-            <div key={i} className="border border-neutral-200 dark:border-none dark:bg-slate-700/50 rounded p-2">
+            <div key={i} className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2">
               <div className="flex items-center gap-1 mb-1">
                 <span className={`text-xs ${getFactorColor(factor.direction)}`}>
                   {factor.direction === 'bullish' ? '▲' : factor.direction === 'bearish' ? '▼' : '─'}
@@ -168,7 +168,7 @@ export default function BiasProjection({ projection, loading = false }) {
 
       {/* Spot/Perp Divergence */}
       {spotPerpDivergence && spotPerpDivergence.signal && (
-        <div className={`mt-3 p-2 rounded border ${spotPerpDivergence.bias === 'bullish' ? 'border-green-200 bg-green-50 dark:border-none dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'border-red-200 bg-red-50 dark:border-none dark:bg-red-900/20' : 'border-neutral-200 dark:border-none dark:bg-slate-700/30'}`}>
+        <div className={`mt-3 p-2 rounded ${spotPerpDivergence.bias === 'bullish' ? 'bg-green-50 dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-neutral-50 dark:bg-slate-700/30'}`}>
           <div className="flex items-center justify-between">
             <span className={`text-sm font-semibold ${spotPerpDivergence.bias === 'bullish' ? 'text-green-700' : spotPerpDivergence.bias === 'bearish' ? 'text-red-700' : 'text-neutral-600'}`}>
               {spotPerpDivergence.signal.replace('_', ' ')}
@@ -184,7 +184,7 @@ export default function BiasProjection({ projection, loading = false }) {
 
       {/* Liquidation Cascade Indicator */}
       {projection.components?.liquidation && projection.components.liquidation.signal !== 'INSUFFICIENT_DATA' && projection.components.liquidation.signal !== 'NEUTRAL' && (
-        <div className={`mt-3 p-2 rounded border ${projection.components.liquidation.score < 0 ? 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-none' : 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-none'}`}>
+        <div className={`mt-3 p-2 rounded ${projection.components.liquidation.score < 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
           <div className="flex items-center justify-between">
             <span className={`text-sm font-semibold ${projection.components.liquidation.score < 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
               🌊 {projection.components.liquidation.signal.replace(/_/g, ' ')}
@@ -203,7 +203,7 @@ export default function BiasProjection({ projection, loading = false }) {
       {warnings && warnings.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {warnings.slice(0, 2).map((warning, i) => (
-            <span key={i} className="text-xs px-2 py-1 rounded border border-neutral-200 dark:border-slate-600 text-neutral-600 dark:text-slate-300">
+            <span key={i} className="text-xs px-2 py-1 rounded bg-neutral-100 dark:bg-slate-700 text-neutral-600 dark:text-slate-300">
               {warning}
             </span>
           ))}

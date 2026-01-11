@@ -66,28 +66,28 @@ const OrderbookSection = ({ orderbookData, coins = ['BTC'] }) => {
 
         {/* Bid/Ask Values */}
         <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-          <div className="border border-neutral-200 dark:border-slate-600 rounded p-2 text-center">
-            <div className="text-neutral-500 dark:text-slate-400 text-[10px]">BID DEPTH</div>
+          <div className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2 text-center">
+            <div className="text-neutral-50 dark:text-slate-400 text-[10px]">BID DEPTH</div>
             <div className="text-green-600 font-mono font-semibold">
               {formatUSD(ob?.bidVolume || 0)}
             </div>
           </div>
-          <div className="border border-neutral-200 dark:border-slate-600 rounded p-2 text-center">
-            <div className="text-neutral-500 dark:text-slate-400 text-[10px]">ASK DEPTH</div>
+          <div className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2 text-center">
+            <div className="text-neutral-50 dark:text-slate-400 text-[10px]">ASK DEPTH</div>
             <div className="text-red-600 font-mono font-semibold">
               {formatUSD(ob?.askVolume || 0)}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-center items-center pt-2 border-t border-neutral-100 dark:border-slate-700">
+        <div className="flex justify-center items-center pt-2">
           <span className="text-xs text-neutral-500 dark:text-slate-400 mr-2">Net:</span>
           <span className={`text-lg font-bold font-mono ${(ob?.imbalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {(ob?.imbalance || 0) >= 0 ? '+' : ''}{(ob?.imbalance || 0).toFixed(1)}%
           </span>
         </div>
 
-        <div className="mt-3 pt-2 border-t border-neutral-100 dark:border-slate-700">
+        <div className="mt-3 pt-2">
           <p className="text-xs text-neutral-500 dark:text-slate-400">{getInterpretation(ob?.imbalance || 0)}</p>
         </div>
       </div>
@@ -111,7 +111,7 @@ const OrderbookSection = ({ orderbookData, coins = ['BTC'] }) => {
               : 50;
 
           return (
-            <div key={coin} className="border border-neutral-200 dark:border-slate-600 rounded-lg p-3">
+            <div key={coin} className="bg-neutral-50 dark:bg-slate-700/50 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-neutral-900 dark:text-white">{coin}</span>
                 <span className={`text-xs font-semibold ${getBiasColor(bias.score)}`}>

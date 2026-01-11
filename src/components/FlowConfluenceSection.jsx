@@ -96,7 +96,7 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
 
       {/* Data Warning */}
       {!hasEnoughData && (
-        <div className="mb-3 p-2 border border-neutral-200 dark:border-slate-600 rounded text-xs text-neutral-500 dark:text-slate-400">
+        <div className="mb-3 p-2 bg-neutral-50 dark:bg-slate-700/50 rounded text-xs text-neutral-500 dark:text-slate-400">
           Collecting {timeframe.toUpperCase()} historical data. Using session data as fallback.
         </div>
       )}
@@ -118,7 +118,7 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
           };
 
           return (
-            <div key={coin} className={`border border-neutral-200 dark:border-slate-600 rounded-lg p-3 ${!dataStatus.hasAllData ? 'opacity-60' : ''}`}>
+            <div key={coin} className={`bg-neutral-50 dark:bg-slate-700/50 rounded-lg p-3 ${!dataStatus.hasAllData ? 'opacity-60' : ''}`}>
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <span className="font-bold text-neutral-900 dark:text-white">{coin}</span>
@@ -168,7 +168,7 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
               </div>
 
               {/* Summary */}
-              <div className="pt-2 border-t border-neutral-100 dark:border-slate-700 text-xs">
+              <div className="pt-2 text-xs">
                 <div className="flex gap-2 mb-1">
                   {metrics.bullishCount > 0 && <span className="text-green-600">{metrics.bullishCount}/3 bullish</span>}
                   {metrics.bearishCount > 0 && <span className="text-red-600">{metrics.bearishCount}/3 bearish</span>}
@@ -185,7 +185,7 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
 
       {/* Divergence Alerts */}
       {divergences.length > 0 && (
-        <div className="mt-3 p-2 border border-red-200 dark:border-red-800 rounded text-xs text-red-600 dark:text-red-400">
+        <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs text-red-600 dark:text-red-400">
           {divergences.map((d, i) => (
             <div key={i}><strong>{d.coin}:</strong> {d.message}</div>
           ))}
