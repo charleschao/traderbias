@@ -10,15 +10,18 @@
  * - Market regime detection
  * - Whale consensus
  * - Cross-exchange confluence
+ * - Liquidation cascade momentum (v2.1)
  */
 
-// Weights distribution (Phase 2: Tier 1 - Redundant factors eliminated)
+const liquidationCollector = require('./liquidationCollector');
+
+// Weights distribution (Phase 2: Tier 1 + Liquidation Momentum)
 const WEIGHTS = {
-    flowConfluence: 0.55, // Price + OI + CVD alignment (PRIMARY SIGNAL - boosted from 35%)
-    fundingZScore: 0.20,  // Z-score for extreme funding detection (boosted from 15%)
-    confluence: 0.15,     // Cross-exchange agreement (boosted from 10%)
-    whales: 0.05          // Whale positioning (reduced from 10%)
-    // Removed: oiRoC (0.15), regime (0.15) - redundant with Flow Confluence
+    flowConfluence: 0.55,        // Price + OI + CVD alignment (PRIMARY SIGNAL)
+    fundingZScore: 0.17,         // Z-score for extreme funding detection (reduced from 20%)
+    confluence: 0.13,            // Cross-exchange agreement (reduced from 15%)
+    liquidationMomentum: 0.10,   // NEW: Cascade detection (Binance forced orders)
+    whales: 0.05                 // Whale positioning
 };
 
 // Coin-specific CVD thresholds (realistic institutional levels)
@@ -998,6 +1001,13 @@ function generateProjection(coin, dataStore, consensus = null) {
     if (whales.hasData) {
         totalWeight += WEIGHTS.whales;
         weightedScore += whales.score * WEIGHTS.whales;
+    }
+
+    // Add liquidation momentum factor (v2.1)
+    const liqSignal = liquidationCollector.calculateLiquidationSignal(coin);
+    if (liqSignal.signal !== 'INSUFFICIENT_DATA') {
+        totalWeight += WEIGHTS.liquidationMomentum;
+        weightedScore += liqSignal.score * WEIGHTS.liquidationMomentum;
     }
 
     // Normalize

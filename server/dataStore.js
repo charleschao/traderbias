@@ -34,6 +34,12 @@ class DataStore {
         marketStatus: null,
         today: null,
         history: []  // 7-day rolling history
+      },
+      // Liquidation data from Binance (for cascade detection)
+      liquidations: {
+        BTC: [],
+        ETH: [],
+        SOL: []
       }
     };
 
@@ -429,6 +435,33 @@ class DataStore {
   getEtfFlowHistory() {
     return this.data.etfFlows.history || [];
   }
+
+  /**
+   * Add a liquidation event
+   */
+  addLiquidation(liq) {
+    const coin = liq.symbol;
+    if (!this.data.liquidations[coin]) return;
+
+    this.data.liquidations[coin].push(liq);
+
+    // Keep 2 hours of data (max 1000 entries per coin)
+    const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+    this.data.liquidations[coin] = this.data.liquidations[coin]
+      .filter(l => l.timestamp >= twoHoursAgo)
+      .slice(-1000);
+
+    this.isDirty = true;
+  }
+
+  /**
+   * Get liquidations for a coin
+   */
+  getLiquidations(coin) {
+    if (!this.data.liquidations[coin]) return [];
+    return this.data.liquidations[coin];
+  }
+
 
   /**
    * Cleanup old data points (older than 24 hours)

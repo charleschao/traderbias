@@ -11,6 +11,7 @@ const dataStore = require('./dataStore');
 const { startDataCollection } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
 const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
+const liquidationCollector = require('./liquidationCollector');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
 const dailyBiasProjection = require('./dailyBiasProjection');
@@ -352,6 +353,45 @@ app.get('/api/etf-flows', (req, res) => {
   });
 });
 
+/**
+ * Get liquidation data
+ * GET /api/liquidations/:coin
+ *
+ * Returns liquidation velocity, cascade detection, and signal
+ */
+app.get('/api/liquidations/:coin?', (req, res) => {
+  const { coin } = req.params;
+  const validCoins = ['BTC', 'ETH', 'SOL'];
+
+  if (coin) {
+    const upperCoin = coin.toUpperCase();
+    if (!validCoins.includes(upperCoin)) {
+      return res.status(400).json({ error: 'Invalid coin', validCoins });
+    }
+
+    const signal = liquidationCollector.calculateLiquidationSignal(upperCoin);
+    const liqs = dataStore.getLiquidations(upperCoin);
+
+    return res.json({
+      coin: upperCoin,
+      signal,
+      recentLiquidations: liqs.slice(-20),
+      status: liquidationCollector.getStatus()
+    });
+  }
+
+  // Return all coins
+  const allSignals = {};
+  validCoins.forEach(c => {
+    allSignals[c] = liquidationCollector.calculateLiquidationSignal(c);
+  });
+
+  res.json({
+    signals: allSignals,
+    status: liquidationCollector.getStatus()
+  });
+});
+
 // ============== ERROR HANDLING ==============
 
 // 404 handler
@@ -394,6 +434,9 @@ function startServer() {
 
   // Start ETF flow collector (SoSoValue API)
   startEtfFlowCollection();
+
+  // Start liquidation collector (Binance forced orders)
+  liquidationCollector.start();
 
   // Start Express server
   app.listen(PORT, () => {
