@@ -23,17 +23,17 @@ export default function BiasProjectionTabs({
                 <button
                     onClick={() => setActiveTab('daily')}
                     className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${activeTab === 'daily'
-                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                            : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                        : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
                         }`}
                 >
-                    🌅 Daily Bias
+                    🔮 Daily Bias
                 </button>
                 <button
                     onClick={() => setActiveTab('8-12h')}
                     className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${activeTab === '8-12h'
-                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                            : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                        : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
                         }`}
                 >
                     📊 12Hr Outlook

@@ -31,7 +31,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
         return (
             <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 rounded-xl p-4 border border-slate-700/50">
                 <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">🌅</span>
+                    <span className="text-lg">🔮</span>
                     <span className="text-sm font-semibold text-slate-300">DAILY BIAS</span>
                     <span className="text-xs text-slate-500 ml-auto">Collecting...</span>
                 </div>
@@ -184,7 +184,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
             {/* Header Row */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg">🌅</span>
+                    <span className="text-lg">🔮</span>
                     <span className="text-sm font-bold text-white">DAILY BIAS</span>
                     <InfoTooltip position="bottom-right">
                         <div className="space-y-3">
@@ -248,11 +248,10 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
                     </InfoTooltip>
                     {/* Freshness indicator */}
                     {freshness && (
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                            freshness >= 0.9 ? 'bg-green-500/20 text-green-400' :
-                            freshness >= 0.75 ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-orange-500/20 text-orange-400'
-                        }`}>
+                        <span className={`text-xs px-2 py-0.5 rounded ${freshness >= 0.9 ? 'bg-green-500/20 text-green-400' :
+                                freshness >= 0.75 ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-orange-500/20 text-orange-400'
+                            }`}>
                             {Math.round(freshness * 100)}% fresh
                         </span>
                     )}
@@ -320,12 +319,11 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
             {/* Trading Guidance for low-conviction states */}
             {getTradingGuidance() && (
                 <div className="mt-3">
-                    <span className={`text-xs px-3 py-1.5 rounded ${
-                        prediction?.bias === 'NO_SIGNAL' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30' :
-                        prediction?.bias === 'CONSOLIDATION' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' :
-                        prediction?.bias?.includes('MICRO') ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30' :
-                        'bg-slate-700/50 text-slate-400 border border-slate-600'
-                    }`}>
+                    <span className={`text-xs px-3 py-1.5 rounded ${prediction?.bias === 'NO_SIGNAL' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30' :
+                            prediction?.bias === 'CONSOLIDATION' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' :
+                                prediction?.bias?.includes('MICRO') ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30' :
+                                    'bg-slate-700/50 text-slate-400 border border-slate-600'
+                        }`}>
                         💡 {getTradingGuidance()}
                     </span>
                 </div>
@@ -413,11 +411,10 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
             {/* Data Quality indicator for Daily */}
             {dataQuality && dataQuality.completeness < 1 && (
                 <div className="mt-3 flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded ${
-                        dataQuality.completeness >= 0.8 ? 'bg-green-500/10 text-green-400' :
-                        dataQuality.completeness >= 0.5 ? 'bg-yellow-500/10 text-yellow-400' :
-                        'bg-orange-500/10 text-orange-400'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded ${dataQuality.completeness >= 0.8 ? 'bg-green-500/10 text-green-400' :
+                            dataQuality.completeness >= 0.5 ? 'bg-yellow-500/10 text-yellow-400' :
+                                'bg-orange-500/10 text-orange-400'
+                        }`}>
                         📊 Data: {Math.round(dataQuality.completeness * 100)}% complete
                     </span>
                     {dataQuality.issues?.slice(0, 2).map((issue, i) => (
