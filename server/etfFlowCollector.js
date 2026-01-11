@@ -97,7 +97,8 @@ function httpsGet(url, headers) {
         'Content-Type': 'application/json',
         'User-Agent': 'TraderBias/1.0'
       },
-      timeout: 15000
+      timeout: 15000,
+      rejectUnauthorized: false  // Allow self-signed certs
     };
 
     const req = https.request(options, (res) => {
@@ -144,16 +145,20 @@ async function fetchEtfFlows() {
   // Try multiple endpoint formats
   const endpoints = [
     {
-      url: 'https://api.sosovalue.com/v1/etf/btc/flows',
+      url: 'https://sosovalue.com/api/v1/etf/btc-spot/fund-flows-summary',
       headers: { 'Authorization': `Bearer ${apiKey}` }
     },
     {
-      url: 'https://api.sosovalue.xyz/etf/btc-spot/flow',
+      url: 'https://api.sosovalue.xyz/api/v1/etf/btc-spot/fund-flows-summary',
       headers: { 'X-API-Key': apiKey }
     },
     {
-      url: 'https://data.sosovalue.xyz/api/v1/etf/btc/netflow',
+      url: 'https://sosovalue.xyz/api/etf/btc/flows',
       headers: { 'apikey': apiKey }
+    },
+    {
+      url: 'https://data.sosovalue.com/api/v1/btc-etf/flows',
+      headers: { 'Authorization': `Bearer ${apiKey}` }
     }
   ];
 
