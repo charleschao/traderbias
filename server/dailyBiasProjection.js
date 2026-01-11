@@ -5,17 +5,21 @@
  * Optimized for day traders wanting "direction for today"
  *
  * Key differences from 8-12H algorithm:
- * - Spot/Perp CVD Divergence is PRIMARY signal (35% weight)
+ * - Spot/Perp CVD Divergence is PRIMARY signal (30% weight)
+ * - ETF Flows from SoSoValue (10% weight) - BTC only
  * - Extended lookback windows (8H momentum, 6H spot/perp, 90-day funding)
  * - Signal freshness decay over time
  * - Multi-timeframe RSI divergence (4H + 1D)
  */
 
+const { calculateEtfFlowSignal, generateFlowDescription } = require('./etfFlowCollector');
+
 // Weight distribution optimized for 24H prediction
 const WEIGHTS_24H = {
-    spotPerpDivergence: 0.35,      // PRIMARY - institutional flows
-    fundingMeanReversion: 0.25,    // Extended 90-day baseline
+    spotPerpDivergence: 0.30,      // PRIMARY - institutional flows (reduced from 0.35)
+    fundingMeanReversion: 0.20,    // Extended 90-day baseline (reduced from 0.25)
     oiPriceMomentum: 0.20,         // 8H window momentum
+    etfFlows: 0.10,                // NEW - Bitcoin ETF flows (IBIT, FBTC, ARKB)
     crossExchangeConfluence: 0.10, // Veto mechanism
     whales: 0.05                   // Limited data quality
 };
@@ -598,6 +602,9 @@ function generateDailyBias(coin, dataStore, consensus = null) {
     const confluence = calculateCrossExchangeConfluence(dataStore, coin);
     const whales = calculateWhaleAlignment(consensus);
 
+    // ETF flows (BTC only)
+    const etfFlows = coin === 'BTC' ? calculateEtfFlowSignal() : { score: 0, signal: 'NOT_APPLICABLE' };
+
     // Check for veto condition
     if (confluence.shouldVeto) {
         return {
@@ -634,6 +641,12 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         (oiPriceMomentum.score * WEIGHTS_24H.oiPriceMomentum) +
         (confluence.score * WEIGHTS_24H.crossExchangeConfluence)
     );
+
+    // Add ETF flows if available (BTC only)
+    if (coin === 'BTC' && etfFlows.signal !== 'NO_DATA' && etfFlows.signal !== 'STALE_DATA' && etfFlows.signal !== 'NOT_APPLICABLE') {
+        totalWeight += WEIGHTS_24H.etfFlows;
+        weightedScore += etfFlows.score * WEIGHTS_24H.etfFlows;
+    }
 
     // Add whale factor if available
     if (whales.hasData) {
@@ -754,6 +767,16 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         }
     ];
 
+    // Add ETF flows to key drivers (BTC only)
+    if (coin === 'BTC' && etfFlows.signal !== 'NOT_APPLICABLE') {
+        keyDrivers.push({
+            name: 'ETF Flows',
+            weight: WEIGHTS_24H.etfFlows,
+            signal: etfFlows.score > 0.1 ? 'bullish' : etfFlows.score < -0.1 ? 'bearish' : 'neutral',
+            description: generateFlowDescription(etfFlows)
+        });
+    }
+
     // Calculate invalidation
     const invalidation = calculateInvalidation24H(hlData.price?.[coin], bias);
 
@@ -815,6 +838,7 @@ function generateDailyBias(coin, dataStore, consensus = null) {
             spotPerpDivergence,
             fundingMeanReversion,
             oiPriceMomentum,
+            etfFlows,
             confluence,
             whales
         },

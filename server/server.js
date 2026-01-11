@@ -10,6 +10,7 @@ const cors = require('cors');
 const dataStore = require('./dataStore');
 const { startDataCollection } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
+const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
 const dailyBiasProjection = require('./dailyBiasProjection');
@@ -277,6 +278,7 @@ app.get('/', (req, res) => {
       snapshot: 'GET /api/snapshot/:exchange',
       whaleTrades: 'GET /api/whale-trades',
       spotCvd: 'GET /api/spot-cvd/:coin?',
+      etfFlows: 'GET /api/etf-flows',
       projection: 'GET /api/:coin/projection',
       dailyBias: 'GET /api/:coin/daily-bias',
       winRates: 'GET /api/win-rates/:coin?',
@@ -333,6 +335,23 @@ app.get('/api/spot-cvd/:coin?', (req, res) => {
   res.json(allSpotCvd);
 });
 
+/**
+ * Get ETF flow data
+ * GET /api/etf-flows
+ *
+ * Returns current ETF flow data from SoSoValue
+ */
+app.get('/api/etf-flows', (req, res) => {
+  const etfData = dataStore.getEtfFlows();
+  const status = getEtfStatus();
+
+  res.json({
+    status,
+    data: etfData,
+    history: dataStore.getEtfFlowHistory()
+  });
+});
+
 // ============== ERROR HANDLING ==============
 
 // 404 handler
@@ -372,6 +391,9 @@ function startServer() {
 
   // Start spot CVD collector (Binance spot trades)
   startSpotDataCollection();
+
+  // Start ETF flow collector (SoSoValue API)
+  startEtfFlowCollection();
 
   // Start Express server
   app.listen(PORT, () => {

@@ -27,6 +27,13 @@ class DataStore {
         BTC: { current: null, history: [] },
         ETH: { current: null, history: [] },
         SOL: { current: null, history: [] }
+      },
+      // ETF flow data from SoSoValue (BTC only)
+      etfFlows: {
+        lastUpdated: null,
+        marketStatus: null,
+        today: null,
+        history: []  // 7-day rolling history
       }
     };
 
@@ -369,6 +376,58 @@ class DataStore {
       ETH: this.data.spotCvd.ETH.current,
       SOL: this.data.spotCvd.SOL.current
     };
+  }
+
+  /**
+   * Update ETF flow data (from SoSoValue)
+   */
+  updateEtfFlows(etfData) {
+    if (!etfData) return;
+
+    this.data.etfFlows.lastUpdated = etfData.lastUpdated || Date.now();
+    this.data.etfFlows.marketStatus = etfData.marketStatus || null;
+    this.data.etfFlows.today = etfData.today || null;
+
+    // Add to history (keep 7 days)
+    if (etfData.today && etfData.today.netFlow !== undefined) {
+      const historyEntry = {
+        date: new Date().toISOString().split('T')[0],
+        netFlow: etfData.today.netFlow,
+        timestamp: Date.now()
+      };
+
+      // Avoid duplicate entries for same day
+      const existingIndex = this.data.etfFlows.history.findIndex(
+        h => h.date === historyEntry.date
+      );
+
+      if (existingIndex >= 0) {
+        this.data.etfFlows.history[existingIndex] = historyEntry;
+      } else {
+        this.data.etfFlows.history.push(historyEntry);
+      }
+
+      // Keep only last 7 days
+      if (this.data.etfFlows.history.length > 7) {
+        this.data.etfFlows.history = this.data.etfFlows.history.slice(-7);
+      }
+    }
+
+    this.isDirty = true;
+  }
+
+  /**
+   * Get ETF flow data
+   */
+  getEtfFlows() {
+    return this.data.etfFlows;
+  }
+
+  /**
+   * Get ETF flow history (7 days)
+   */
+  getEtfFlowHistory() {
+    return this.data.etfFlows.history || [];
   }
 
   /**
