@@ -1,25 +1,38 @@
 /**
  * ETF Flow Collector Module
  *
- * Collects Bitcoin ETF flow data from SoSoValue API
- * Tracks IBIT, FBTC, ARKB (top 3 by volume, ~85% of market)
+ * Scrapes Bitcoin ETF flow data from farside.co.uk
+ * Tracks IBIT, FBTC, ARKB, BITB, GBTC and Total net flows
  * Polls every 30 minutes with aggressive caching
  */
 
-const https = require('https');
+const axios = require('axios');
+const cheerio = require('cheerio');
 const dataStore = require('./dataStore');
 
 // Configuration
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-const TRACKED_ETFS = ['IBIT', 'FBTC', 'ARKB'];
-const SOSOVALUE_API_BASE = 'https://api.sosovalue.com';
+const FARSIDE_URL = 'https://farside.co.uk/btc/';
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-// ETF flow thresholds (in USD)
+// Column mapping for farside.co.uk table (0-indexed)
+// Columns: Date, IBIT, FBTC, BITB, ARKB, BTCO, EZBC, BRRR, HODL, BTCW, GBTC, BTC, Total
+const ETF_COLUMNS = {
+  IBIT: 1,
+  FBTC: 2,
+  BITB: 3,
+  ARKB: 4,
+  GBTC: 10,
+  TOTAL: 12  // Total net flow column
+};
+
+const TRACKED_ETFS = ['IBIT', 'FBTC', 'ARKB', 'BITB', 'GBTC'];
+
+// ETF flow thresholds (in USD millions - farside reports in millions)
 const FLOW_THRESHOLDS = {
-  STRONG: 200000000,   // $200M
-  MODERATE: 100000000, // $100M
-  MILD: 50000000       // $50M
+  STRONG: 200,    // $200M
+  MODERATE: 100,  // $100M
+  MILD: 50        // $50M
 };
 
 let pollInterval = null;
@@ -82,177 +95,161 @@ function getMarketStatus() {
 }
 
 /**
- * Make HTTPS request (Promise wrapper)
+ * Parse flow value from table cell
+ * Handles formats: "123.4", "(123.4)" for negative, "-", empty
  */
-function httpsGet(url, headers) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
+function parseFlowValue(text) {
+  if (!text) return 0;
 
-    const options = {
-      hostname: urlObj.hostname,
-      path: urlObj.pathname + urlObj.search,
-      method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-        'User-Agent': 'TraderBias/1.0'
-      },
-      timeout: 15000,
-      rejectUnauthorized: false  // Allow self-signed certs
-    };
+  const cleaned = text.trim();
+  if (cleaned === '-' || cleaned === '' || cleaned === '−') return 0;
 
-    const req = https.request(options, (res) => {
-      let data = '';
+  // Check for parentheses (negative)
+  const isNegative = cleaned.startsWith('(') && cleaned.endsWith(')');
+  const numStr = cleaned.replace(/[(),$]/g, '').trim();
 
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
+  const value = parseFloat(numStr);
+  if (isNaN(value)) return 0;
 
-      res.on('end', () => {
-        resolve({
-          status: res.statusCode,
-          statusText: res.statusMessage,
-          data,
-          ok: res.statusCode >= 200 && res.statusCode < 300
-        });
-      });
-    });
-
-    req.on('error', (error) => {
-      reject(error);
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Request timeout'));
-    });
-
-    req.end();
-  });
+  return isNegative ? -value : value;
 }
 
 /**
- * Fetch ETF flow data from Coinglass API
+ * Scrape ETF flow data from farside.co.uk
  */
 async function fetchEtfFlows() {
-  const apiKey = process.env.COINGLASS_API_KEY;
+  try {
+    console.log('[ETF Collector] Scraping farside.co.uk/btc/...');
 
-  if (!apiKey) {
-    console.warn('[ETF Collector] COINGLASS_API_KEY not set in environment');
+    const { data } = await axios.get(FARSIDE_URL, {
+      timeout: 20000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Connection': 'keep-alive'
+      },
+      maxRedirects: 5,
+      decompress: true
+    });
+
+    const $ = cheerio.load(data);
+    const flows = [];
+
+    // Find the main data table
+    $('table tbody tr').each((i, row) => {
+      const cols = $(row).find('td');
+      if (cols.length < 13) return; // Skip incomplete rows
+
+      const dateText = $(cols[0]).text().trim();
+
+      // Skip header rows or empty dates
+      if (!dateText || dateText.toLowerCase() === 'date' || dateText === '') return;
+
+      // Parse individual ETF flows
+      const rowData = {
+        date: dateText,
+        IBIT: parseFlowValue($(cols[ETF_COLUMNS.IBIT]).text()),
+        FBTC: parseFlowValue($(cols[ETF_COLUMNS.FBTC]).text()),
+        BITB: parseFlowValue($(cols[ETF_COLUMNS.BITB]).text()),
+        ARKB: parseFlowValue($(cols[ETF_COLUMNS.ARKB]).text()),
+        GBTC: parseFlowValue($(cols[ETF_COLUMNS.GBTC]).text()),
+        total: parseFlowValue($(cols[ETF_COLUMNS.TOTAL]).text())
+      };
+
+      // Only add rows with actual data
+      if (rowData.date && (rowData.total !== 0 || rowData.IBIT !== 0 || rowData.FBTC !== 0)) {
+        flows.push(rowData);
+      }
+    });
+
+    if (flows.length === 0) {
+      console.error('[ETF Collector] No data rows found in farside table');
+      return null;
+    }
+
+    // Sort by date descending (most recent first)
+    // Farside dates are in format "DD Mon" e.g. "10 Jan"
+    flows.sort((a, b) => {
+      // Simple comparison - latest dates should come first
+      // This works because the table is already in chronological order
+      return -1;
+    });
+
+    console.log(`[ETF Collector] Scraped ${flows.length} rows from farside.co.uk`);
+    console.log(`[ETF Collector] Latest: ${flows[0]?.date} | Total: $${flows[0]?.total}M`);
+
+    return flows;
+
+  } catch (error) {
+    console.error('[ETF Collector] Scrape failed:', error.message);
     return null;
   }
-
-  // Coinglass v4 API for Bitcoin ETF data
-  const authHeaders = {
-    'CG-API-KEY': apiKey,
-    'Accept': 'application/json'
-  };
-
-  const endpoints = [
-    {
-      url: 'https://open-api-v4.coinglass.com/api/bitcoin/etf/flow-history?interval=1d&limit=7',
-      headers: authHeaders
-    },
-    {
-      url: 'https://open-api-v4.coinglass.com/api/bitcoin/etf/list',
-      headers: authHeaders
-    }
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      console.log(`[ETF Collector] Trying: ${endpoint.url}`);
-
-      const response = await httpsGet(endpoint.url, endpoint.headers);
-
-      console.log(`[ETF Collector] Response: ${response.status} ${response.statusText}`);
-
-      if (response.ok) {
-        const data = JSON.parse(response.data);
-        console.log('[ETF Collector] Success! Got data from:', endpoint.url);
-        return data;
-      }
-
-      // Log response body for debugging
-      console.log(`[ETF Collector] Response body: ${response.data.substring(0, 200)}`);
-
-    } catch (error) {
-      console.error(`[ETF Collector] Error with ${endpoint.url}:`, error.message);
-    }
-  }
-
-  console.error('[ETF Collector] All endpoints failed');
-  return null;
 }
 
 /**
- * Parse and normalize ETF flow data from Coinglass API response
- * Response format: { data: [{ timestamp, flow_usd, price_usd, etf_flows: [{ticker, flow_usd}] }] }
+ * Parse and normalize ETF flow data from scrape result
  */
-function parseEtfFlowData(apiResponse) {
-  if (!apiResponse) {
-    console.log('[ETF Collector] No API response');
+function parseEtfFlowData(flows) {
+  if (!flows || flows.length === 0) {
+    console.log('[ETF Collector] No flows data');
     return null;
   }
 
-  // Coinglass returns { code, msg, data: [...] }
-  const data = apiResponse.data;
+  // Get the most recent day's data (first row after sort)
+  const latest = flows[0];
 
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    console.log('[ETF Collector] No data array in response');
-    return null;
-  }
-
-  // Get the most recent day's data (first item)
-  const latestDay = data[0];
-
-  if (!latestDay) {
-    console.log('[ETF Collector] No latest day data');
-    return null;
-  }
-
-  const flows = {};
-  let netFlow = latestDay.flow_usd || 0;
-
-  // Parse individual ETF flows
-  const etfFlows = latestDay.etf_flows || latestDay.etfFlows || [];
-
-  for (const etf of etfFlows) {
-    const ticker = (etf.ticker || etf.symbol || '').toUpperCase();
-
-    if (TRACKED_ETFS.includes(ticker)) {
-      flows[ticker] = {
-        flow: etf.flow_usd || etf.flowUsd || 0
+  // Build breakdown object (values are in millions from farside)
+  const breakdown = {};
+  for (const etf of TRACKED_ETFS) {
+    if (latest[etf] !== undefined && latest[etf] !== 0) {
+      breakdown[etf] = {
+        flow: latest[etf] * 1000000  // Convert millions to USD
       };
     }
   }
 
-  // If no individual flows but we have total, use that
-  if (Object.keys(flows).length === 0 && netFlow !== 0) {
-    return {
-      today: {
-        netFlow,
-        breakdown: {},
-        source: 'aggregate'
-      },
-      lastUpdated: latestDay.timestamp || latestDay.date || new Date().toISOString()
-    };
-  }
+  // Net flow in USD (farside reports in millions)
+  const netFlow = (latest.total || 0) * 1000000;
 
-  // Calculate net from tracked ETFs if we have breakdown
-  if (Object.keys(flows).length > 0) {
-    netFlow = Object.values(flows).reduce((sum, etf) => sum + (etf.flow || 0), 0);
-  }
+  console.log(`[ETF Collector] Parsed: date=${latest.date} netFlow=$${latest.total}M`);
 
-  console.log(`[ETF Collector] Parsed: netFlow=$${(netFlow / 1e6).toFixed(1)}M, ETFs=${Object.keys(flows).join(',')}`);
+  // Log individual ETF flows
+  const etfSummary = TRACKED_ETFS
+    .filter(etf => latest[etf] !== 0)
+    .map(etf => `${etf}:$${latest[etf]}M`)
+    .join(', ');
+  if (etfSummary) {
+    console.log(`[ETF Collector] Breakdown: ${etfSummary}`);
+  }
 
   return {
     today: {
-      ...flows,
+      ...breakdown,
       netFlow,
-      source: 'detailed'
+      date: latest.date,
+      source: 'farside'
     },
-    lastUpdated: latestDay.timestamp || latestDay.date || new Date().toISOString()
+    history: flows.slice(0, 7).map(f => ({
+      date: f.date,
+      netFlow: f.total * 1000000,
+      IBIT: f.IBIT * 1000000,
+      FBTC: f.FBTC * 1000000,
+      ARKB: f.ARKB * 1000000,
+      GBTC: f.GBTC * 1000000
+    })),
+    lastUpdated: new Date().toISOString()
   };
 }
 
@@ -260,7 +257,7 @@ function parseEtfFlowData(apiResponse) {
  * Update ETF flow data in dataStore
  */
 async function updateEtfFlows() {
-  console.log('[ETF Collector] Fetching ETF flow data...');
+  console.log('[ETF Collector] Fetching ETF flow data from farside.co.uk...');
 
   const rawData = await fetchEtfFlows();
 
@@ -284,6 +281,7 @@ async function updateEtfFlows() {
     lastUpdated: now,
     marketStatus,
     today: parsedData.today,
+    history: parsedData.history,
     apiTimestamp: parsedData.lastUpdated
   });
 
@@ -330,26 +328,28 @@ function calculateEtfFlowSignal() {
   }
 
   const netFlow = etfData.today.netFlow || 0;
+  const netFlowM = netFlow / 1000000; // Convert to millions for threshold comparison
+
   let score = 0;
   let signal = 'NEUTRAL';
 
-  // Calculate score based on thresholds
-  if (netFlow >= FLOW_THRESHOLDS.STRONG) {
+  // Calculate score based on thresholds (values in millions)
+  if (netFlowM >= FLOW_THRESHOLDS.STRONG) {
     score = 0.85;
     signal = 'STRONG_INFLOW';
-  } else if (netFlow >= FLOW_THRESHOLDS.MODERATE) {
+  } else if (netFlowM >= FLOW_THRESHOLDS.MODERATE) {
     score = 0.60;
     signal = 'MODERATE_INFLOW';
-  } else if (netFlow >= FLOW_THRESHOLDS.MILD) {
+  } else if (netFlowM >= FLOW_THRESHOLDS.MILD) {
     score = 0.30;
     signal = 'MILD_INFLOW';
-  } else if (netFlow <= -FLOW_THRESHOLDS.STRONG) {
+  } else if (netFlowM <= -FLOW_THRESHOLDS.STRONG) {
     score = -0.85;
     signal = 'STRONG_OUTFLOW';
-  } else if (netFlow <= -FLOW_THRESHOLDS.MODERATE) {
+  } else if (netFlowM <= -FLOW_THRESHOLDS.MODERATE) {
     score = -0.60;
     signal = 'MODERATE_OUTFLOW';
-  } else if (netFlow <= -FLOW_THRESHOLDS.MILD) {
+  } else if (netFlowM <= -FLOW_THRESHOLDS.MILD) {
     score = -0.30;
     signal = 'MILD_OUTFLOW';
   }
@@ -358,6 +358,8 @@ function calculateEtfFlowSignal() {
     score,
     signal,
     netFlow,
+    netFlowM,
+    date: etfData.today.date,
     breakdown: extractBreakdown(etfData.today),
     dataAge: `${dataAgeMinutes} min`,
     marketStatus: etfData.marketStatus || getMarketStatus()
@@ -401,14 +403,14 @@ function formatFlowAmount(amount) {
  * Generate description for ETF flow signal
  */
 function generateFlowDescription(etfSignal) {
-  const { netFlow, breakdown, signal } = etfSignal;
+  const { netFlow, breakdown, signal, date } = etfSignal;
 
   if (signal === 'NO_DATA' || signal === 'STALE_DATA') {
     return signal === 'NO_DATA' ? 'ETF data unavailable' : 'ETF data stale - using last known';
   }
 
   const netFlowStr = formatFlowAmount(netFlow);
-  const parts = [netFlowStr];
+  const parts = [`${date}: ${netFlowStr}`];
 
   // Add breakdown if available
   const breakdownStrs = [];
@@ -429,7 +431,7 @@ function generateFlowDescription(etfSignal) {
  * Start ETF flow data collection
  */
 function startEtfFlowCollection() {
-  console.log('[ETF Collector] Starting ETF flow collection...');
+  console.log('[ETF Collector] Starting ETF flow collection (farside.co.uk)...');
   console.log(`[ETF Collector] Tracking: ${TRACKED_ETFS.join(', ')}`);
   console.log(`[ETF Collector] Poll interval: ${POLL_INTERVAL_MS / 60000} minutes`);
 
@@ -463,12 +465,21 @@ function getCollectorStatus() {
 
   return {
     running: pollInterval !== null,
+    source: 'farside.co.uk',
     lastFetch: lastSuccessfulFetch ? new Date(lastSuccessfulFetch).toISOString() : null,
     hasData: etfData !== null && etfData.today !== null && etfData.today.netFlow !== undefined,
+    latestDate: etfData?.today?.date || null,
     marketStatus: getMarketStatus(),
     trackedEtfs: TRACKED_ETFS,
     pollIntervalMinutes: POLL_INTERVAL_MS / 60000
   };
+}
+
+/**
+ * Manual trigger for testing
+ */
+async function fetchNow() {
+  return await updateEtfFlows();
 }
 
 module.exports = {
@@ -480,6 +491,7 @@ module.exports = {
   getCollectorStatus,
   isMarketOpen,
   getMarketStatus,
+  fetchNow,
   FLOW_THRESHOLDS,
   TRACKED_ETFS
 };
