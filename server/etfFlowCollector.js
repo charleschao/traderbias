@@ -394,7 +394,7 @@ function getCollectorStatus() {
   return {
     running: pollInterval !== null,
     lastFetch: lastSuccessfulFetch ? new Date(lastSuccessfulFetch).toISOString() : null,
-    hasData: etfData !== null && etfData.today !== undefined,
+    hasData: etfData !== null && etfData.today !== null && etfData.today.netFlow !== undefined,
     marketStatus: getMarketStatus(),
     trackedEtfs: TRACKED_ETFS,
     pollIntervalMinutes: POLL_INTERVAL_MS / 60000
