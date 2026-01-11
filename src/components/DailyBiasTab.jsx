@@ -40,6 +40,10 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
   }
 
   let { prediction, confidence, keyFactors, warnings = [], generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails } = dailyBias;
+
+  // Handle freshness if it's an object (backend returns { freshness: 0.xx, ... })
+  const freshnessScore = typeof freshness === 'object' ? freshness.freshness : freshness;
+
   const spotPerpDivergence = components?.spotPerpDivergence;
 
   // Inject liquidation warning if present (visual only for daily bias)
@@ -135,9 +139,9 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
               </div>
             </div>
           </InfoTooltip>
-          {freshness && (
-            <span className={`text-xs ${freshness >= 0.9 ? 'text-green-600' : freshness >= 0.75 ? 'text-neutral-600' : 'text-neutral-400'}`}>
-              {Math.round(freshness * 100)}% fresh
+          {freshnessScore !== undefined && (
+            <span className={`text-xs ${freshnessScore >= 0.9 ? 'text-green-600' : freshnessScore >= 0.75 ? 'text-neutral-600' : 'text-neutral-400'}`}>
+              {Math.round(freshnessScore * 100)}% fresh
             </span>
           )}
         </div>
