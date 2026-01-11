@@ -1,6 +1,6 @@
 # 🎯 Trader's Bias - Directional Bias for Intraday Trading
 
-Get your **directional bias for the next 8-12 hours** on BTC, ETH, and SOL. A quantitative trading intelligence dashboard that tells you whether to lean bullish or bearish before you start your trading session.
+Get your **directional bias** for BTC, ETH, and SOL. A quantitative trading intelligence dashboard that tells you whether to lean bullish or bearish before you start your trading session, with both **8-12 hour** and **Daily (24H)** outlooks.
 
 ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue)
 ![React](https://img.shields.io/badge/React-19.1-61dafb)
@@ -30,13 +30,20 @@ Instead of staring at charts trying to figure out the bias, this dashboard synth
 
 ## ✨ Key Features
 
-### 📊 8-12 Hour Bias Projection
+### 📊 Dual Bias Projections
 
-The main feature - a multi-factor quantitative projection that tells you:
+**12Hr Bias** - An 8-12 hour outlook optimized for session traders:
+- **Primary Signal**: Flow Confluence (55% weight) - Price + OI + CVD alignment
 - **Bias direction** (Bullish/Bearish/Neutral)
 - **Confidence level** (High/Medium/Low)
 - **Key factors** driving the bias
 - **Invalidation level** - the price where the thesis is wrong
+
+**Daily Bias** - A 24-hour outlook optimized for day traders:
+- **Primary Signal**: Spot/Perp CVD Divergence (35% weight) - Institutional flow detection
+- Extended lookback windows (6-8H) for noise reduction
+- 90-day funding baseline for true statistical extremes
+- Signal freshness decay over time
 
 ### 🔄 Flow Confluence Analysis
 
@@ -95,18 +102,23 @@ Open [http://localhost:5173](http://localhost:5173)
 
 ```
 src/
-├── App.jsx                       # Main application
+├── App.jsx                       # Main application (~2,008 lines)
 ├── components/
 │   ├── BiasCard.jsx              # Individual coin bias card
 │   ├── BiasProjection.jsx        # 8-12 hour outlook display
+│   ├── BiasProjectionTabs.jsx    # Tab switcher (12Hr/Daily)
+│   ├── DailyBiasTab.jsx          # 24-hour daily bias display
 │   ├── FlowConfluenceSection.jsx # Price/OI/CVD confluence
 │   ├── MegaWhaleFeed.jsx         # Large whale order feed
-│   └── OrderbookSection.jsx      # Orderbook imbalance
+│   ├── OrderbookSection.jsx      # Orderbook imbalance
+│   ├── WhaleActivityFeed.jsx     # Whale position changes
+│   └── ThemeToggle.jsx           # Light/dark mode
 ├── hooks/
 │   ├── useSignalHistory.js       # Signal tracking
 │   └── useWhaleWebSockets.js     # Multi-exchange WebSocket
 └── utils/
-    ├── biasCalculations.js       # Bias scoring algorithms
+    ├── biasCalculations.js       # Composite bias algorithms
+    ├── flowSignals.js            # Edge signal detection
     └── formatters.js             # Number formatting
 ```
 
