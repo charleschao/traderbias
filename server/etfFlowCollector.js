@@ -91,40 +91,54 @@ async function fetchEtfFlows() {
     return null;
   }
 
-  try {
-    // SoSoValue API endpoint for BTC ETF flows
-    const response = await fetch(`${SOSOVALUE_API_BASE}/v1/etf/btc/flows`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
+  // Try multiple endpoint formats
+  const endpoints = [
+    {
+      url: 'https://api.sosovalue.com/v1/etf/btc/flows',
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    },
+    {
+      url: 'https://api.sosovalue.xyz/etf/btc-spot/flow',
+      headers: { 'X-API-Key': apiKey }
+    },
+    {
+      url: 'https://data.sosovalue.xyz/api/v1/etf/btc/netflow',
+      headers: { 'apikey': apiKey }
+    }
+  ];
 
-    if (!response.ok) {
-      // Try alternative endpoint format
-      const altResponse = await fetch(`${SOSOVALUE_API_BASE}/etf/bitcoin/daily-flows`, {
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`[ETF Collector] Trying: ${endpoint.url}`);
+
+      const response = await fetch(endpoint.url, {
         method: 'GET',
         headers: {
-          'X-API-Key': apiKey,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
+          ...endpoint.headers,
+          'Content-Type': 'application/json',
+          'User-Agent': 'TraderBias/1.0'
+        }
       });
 
-      if (!altResponse.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      console.log(`[ETF Collector] Response: ${response.status} ${response.statusText}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[ETF Collector] Success! Got data from:', endpoint.url);
+        return data;
       }
 
-      return await altResponse.json();
-    }
+      // Log response body for debugging
+      const text = await response.text();
+      console.log(`[ETF Collector] Response body: ${text.substring(0, 200)}`);
 
-    return await response.json();
-  } catch (error) {
-    console.error('[ETF Collector] Fetch error:', error.message);
-    return null;
+    } catch (error) {
+      console.error(`[ETF Collector] Error with ${endpoint.url}:`, error.message);
+    }
   }
+
+  console.error('[ETF Collector] All endpoints failed');
+  return null;
 }
 
 /**
