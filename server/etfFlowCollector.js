@@ -6,6 +6,7 @@
  * Polls every 30 minutes with aggressive caching
  */
 
+const https = require('https');
 const dataStore = require('./dataStore');
 
 // Configuration
@@ -81,6 +82,55 @@ function getMarketStatus() {
 }
 
 /**
+ * Make HTTPS request (Promise wrapper)
+ */
+function httpsGet(url, headers) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'User-Agent': 'TraderBias/1.0'
+      },
+      timeout: 15000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode,
+          statusText: res.statusMessage,
+          data,
+          ok: res.statusCode >= 200 && res.statusCode < 300
+        });
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+
+    req.end();
+  });
+}
+
+/**
  * Fetch ETF flow data from SoSoValue API
  */
 async function fetchEtfFlows() {
@@ -111,26 +161,18 @@ async function fetchEtfFlows() {
     try {
       console.log(`[ETF Collector] Trying: ${endpoint.url}`);
 
-      const response = await fetch(endpoint.url, {
-        method: 'GET',
-        headers: {
-          ...endpoint.headers,
-          'Content-Type': 'application/json',
-          'User-Agent': 'TraderBias/1.0'
-        }
-      });
+      const response = await httpsGet(endpoint.url, endpoint.headers);
 
       console.log(`[ETF Collector] Response: ${response.status} ${response.statusText}`);
 
       if (response.ok) {
-        const data = await response.json();
+        const data = JSON.parse(response.data);
         console.log('[ETF Collector] Success! Got data from:', endpoint.url);
         return data;
       }
 
       // Log response body for debugging
-      const text = await response.text();
-      console.log(`[ETF Collector] Response body: ${text.substring(0, 200)}`);
+      console.log(`[ETF Collector] Response body: ${response.data.substring(0, 200)}`);
 
     } catch (error) {
       console.error(`[ETF Collector] Error with ${endpoint.url}:`, error.message);
