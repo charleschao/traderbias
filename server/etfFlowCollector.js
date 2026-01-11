@@ -132,29 +132,30 @@ function httpsGet(url, headers) {
 }
 
 /**
- * Fetch ETF flow data from SoSoValue API
+ * Fetch ETF flow data from Coinglass API
  */
 async function fetchEtfFlows() {
-  const apiKey = process.env.SOSOVALUE_API_KEY;
+  const apiKey = process.env.COINGLASS_API_KEY;
 
   if (!apiKey) {
-    console.warn('[ETF Collector] SOSOVALUE_API_KEY not set in environment');
+    console.warn('[ETF Collector] COINGLASS_API_KEY not set in environment');
     return null;
   }
 
-  // Coinglass public API for Bitcoin ETF data
+  // Coinglass v4 API for Bitcoin ETF data
+  const authHeaders = {
+    'CG-API-KEY': apiKey,
+    'Accept': 'application/json'
+  };
+
   const endpoints = [
     {
-      url: 'https://open-api.coinglass.com/public/v2/etf/bitcoin/net_flows',
-      headers: {}
+      url: 'https://open-api-v4.coinglass.com/api/bitcoin/etf/flow-history?interval=1d&limit=7',
+      headers: authHeaders
     },
     {
-      url: 'https://open-api.coinglass.com/public/v2/etf/bitcoin_spot',
-      headers: {}
-    },
-    {
-      url: 'https://open-api.coinglass.com/public/v2/indicator/etf/bitcoin',
-      headers: {}
+      url: 'https://open-api-v4.coinglass.com/api/bitcoin/etf/list',
+      headers: authHeaders
     }
   ];
 
@@ -185,53 +186,65 @@ async function fetchEtfFlows() {
 }
 
 /**
- * Parse and normalize ETF flow data from API response
+ * Parse and normalize ETF flow data from Coinglass API response
+ * Response format: { data: [{ timestamp, flow_usd, price_usd, etf_flows: [{ticker, flow_usd}] }] }
  */
 function parseEtfFlowData(apiResponse) {
-  if (!apiResponse || !apiResponse.data) {
+  if (!apiResponse) {
+    console.log('[ETF Collector] No API response');
+    return null;
+  }
+
+  // Coinglass returns { code, msg, data: [...] }
+  const data = apiResponse.data;
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    console.log('[ETF Collector] No data array in response');
+    return null;
+  }
+
+  // Get the most recent day's data (first item)
+  const latestDay = data[0];
+
+  if (!latestDay) {
+    console.log('[ETF Collector] No latest day data');
     return null;
   }
 
   const flows = {};
-  let netFlow = 0;
+  let netFlow = latestDay.flow_usd || 0;
 
-  // Handle different API response formats
-  const etfData = apiResponse.data.etfs || apiResponse.data.funds || apiResponse.data || [];
+  // Parse individual ETF flows
+  const etfFlows = latestDay.etf_flows || latestDay.etfFlows || [];
 
-  for (const etf of etfData) {
-    const ticker = etf.ticker || etf.symbol || etf.name;
+  for (const etf of etfFlows) {
+    const ticker = (etf.ticker || etf.symbol || '').toUpperCase();
 
-    if (!TRACKED_ETFS.includes(ticker?.toUpperCase())) {
-      continue;
+    if (TRACKED_ETFS.includes(ticker)) {
+      flows[ticker] = {
+        flow: etf.flow_usd || etf.flowUsd || 0
+      };
     }
-
-    const flow = parseFloat(etf.netFlow || etf.flow || etf.dailyFlow || 0);
-    const price = parseFloat(etf.price || etf.nav || 0);
-
-    flows[ticker.toUpperCase()] = {
-      flow,
-      price,
-      aum: parseFloat(etf.aum || etf.totalAssets || 0)
-    };
-
-    netFlow += flow;
   }
 
-  // If we didn't get tracked ETFs, try to extract from totals
-  if (Object.keys(flows).length === 0 && apiResponse.data.totalNetFlow !== undefined) {
+  // If no individual flows but we have total, use that
+  if (Object.keys(flows).length === 0 && netFlow !== 0) {
     return {
       today: {
-        netFlow: parseFloat(apiResponse.data.totalNetFlow),
+        netFlow,
         breakdown: {},
         source: 'aggregate'
       },
-      lastUpdated: apiResponse.data.date || new Date().toISOString()
+      lastUpdated: latestDay.timestamp || latestDay.date || new Date().toISOString()
     };
   }
 
-  if (Object.keys(flows).length === 0) {
-    return null;
+  // Calculate net from tracked ETFs if we have breakdown
+  if (Object.keys(flows).length > 0) {
+    netFlow = Object.values(flows).reduce((sum, etf) => sum + (etf.flow || 0), 0);
   }
+
+  console.log(`[ETF Collector] Parsed: netFlow=$${(netFlow / 1e6).toFixed(1)}M, ETFs=${Object.keys(flows).join(',')}`);
 
   return {
     today: {
@@ -239,7 +252,7 @@ function parseEtfFlowData(apiResponse) {
       netFlow,
       source: 'detailed'
     },
-    lastUpdated: apiResponse.data.date || apiResponse.timestamp || new Date().toISOString()
+    lastUpdated: latestDay.timestamp || latestDay.date || new Date().toISOString()
   };
 }
 
