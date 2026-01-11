@@ -116,7 +116,7 @@ const MegaWhaleFeed = ({
 
       {/* Trade List */}
       {isExpanded && (
-        <div className="max-h-[280px] overflow-y-auto">
+        <div className="max-h-[400px] overflow-y-auto">
           {filteredTrades.length === 0 ? (
             <div className="p-4 text-center text-neutral-500 dark:text-slate-400 text-sm">
               Watching for {formatThreshold(threshold)}+ trades...
