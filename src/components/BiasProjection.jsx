@@ -182,6 +182,23 @@ export default function BiasProjection({ projection, loading = false }) {
         </div>
       )}
 
+      {/* Liquidation Cascade Indicator */}
+      {projection.components?.liquidation && projection.components.liquidation.signal !== 'INSUFFICIENT_DATA' && projection.components.liquidation.signal !== 'NEUTRAL' && (
+        <div className={`mt-3 p-2 rounded border ${projection.components.liquidation.score < 0 ? 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800' : 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800'}`}>
+          <div className="flex items-center justify-between">
+            <span className={`text-sm font-semibold ${projection.components.liquidation.score < 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
+              🌊 {projection.components.liquidation.signal.replace(/_/g, ' ')}
+            </span>
+            <span className="text-xs font-mono text-neutral-600 dark:text-slate-400">
+              ${(projection.components.liquidation.velocity['1h'].total / 1000000).toFixed(1)}M / 1H
+            </span>
+          </div>
+          <div className="text-xs text-neutral-500 dark:text-slate-400 mt-1">
+            {projection.components.liquidation.description}
+          </div>
+        </div>
+      )}
+
       {/* Warnings */}
       {warnings && warnings.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">

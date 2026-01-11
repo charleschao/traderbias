@@ -39,8 +39,15 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
     );
   }
 
-  const { prediction, confidence, keyFactors, warnings, generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails } = dailyBias;
+  let { prediction, confidence, keyFactors, warnings = [], generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails } = dailyBias;
   const spotPerpDivergence = components?.spotPerpDivergence;
+
+  // Inject liquidation warning if present (visual only for daily bias)
+  if (components?.liquidation && components.liquidation.signal?.includes('CASCADE')) {
+    const type = components.liquidation.signal.includes('BEARISH') ? 'Longs' : 'Shorts';
+    const amount = (components.liquidation.velocity['1h'].total / 1000000).toFixed(1);
+    warnings = [`⚠️ Cascade: $${amount}M ${type} liquidated`, ...warnings];
+  }
 
   const getBiasColor = () => {
     const bias = prediction?.bias || 'NEUTRAL';
