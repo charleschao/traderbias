@@ -336,12 +336,12 @@ class DataStore {
     this.data.spotCvd[coin].current = cvdData;
     this.data.spotCvd[coin].history.push({
       ...cvdData,
-      timestamp: Date.now()
+      time: Date.now()  // Use 'time' to match dailyBiasProjection filter
     });
 
-    // Keep history bounded (1 hour of 5-second samples = 720 entries)
-    if (this.data.spotCvd[coin].history.length > 800) {
-      this.data.spotCvd[coin].history = this.data.spotCvd[coin].history.slice(-720);
+    // Keep history bounded (6 hours of 5-second samples = 4320 entries)
+    if (this.data.spotCvd[coin].history.length > 5000) {
+      this.data.spotCvd[coin].history = this.data.spotCvd[coin].history.slice(-4320);
     }
 
     this.isDirty = true;
