@@ -18,7 +18,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
   if (dailyBias.status === 'COLLECTING') {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-neutral-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-neutral-200 dark:border-none">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-neutral-500 text-sm font-semibold">DAILY BIAS</span>
           <span className="text-xs text-neutral-400 ml-auto">Collecting...</span>
@@ -116,7 +116,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700 p-4">
+    <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-none p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
         {/* Key Factors */}
         <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {keyFactors?.slice(0, 4).map((factor, i) => (
-            <div key={i} className="border border-neutral-200 dark:border-slate-600 rounded p-2">
+            <div key={i} className="border border-neutral-200 dark:border-none dark:bg-slate-700/50 rounded p-2">
               <div className="flex items-center gap-1 mb-1">
                 <span className={`text-xs ${getFactorColor(factor.direction)}`}>
                   {factor.direction === 'bullish' ? '▲' : factor.direction === 'bearish' ? '▼' : '─'}
@@ -191,7 +191,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
       {/* Trading Guidance */}
       {getTradingGuidance() && (
         <div className="mt-3">
-          <span className="text-xs px-2 py-1 rounded border border-neutral-200 dark:border-slate-600 text-neutral-600 dark:text-slate-300">
+          <span className="text-xs px-2 py-1 rounded border border-neutral-200 dark:border-none dark:bg-slate-700/50 text-neutral-600 dark:text-slate-300">
             {getTradingGuidance()}
           </span>
         </div>
@@ -199,7 +199,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
       {/* Range Analysis */}
       {rangeAnalysis && (prediction?.bias === 'CONSOLIDATION' || prediction?.bias === 'NEUTRAL' || prediction?.bias?.includes('MICRO')) && (
-        <div className="mt-3 p-2 rounded border border-neutral-200 dark:border-slate-600">
+        <div className="mt-3 p-2 rounded border border-neutral-200 dark:border-none dark:bg-slate-700/30">
           <div className="flex items-center justify-between text-sm">
             <span className="text-neutral-500 dark:text-slate-400">8H Range:</span>
             <span className="font-mono text-neutral-900 dark:text-white">
@@ -221,7 +221,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
       {/* Spot/Perp Divergence */}
       {spotPerpDivergence && spotPerpDivergence.signal && (
-        <div className={`mt-3 p-2 rounded border ${spotPerpDivergence.bias === 'bullish' ? 'border-green-200 bg-green-50' : spotPerpDivergence.bias === 'bearish' ? 'border-red-200 bg-red-50' : 'border-neutral-200'}`}>
+        <div className={`mt-3 p-2 rounded border ${spotPerpDivergence.bias === 'bullish' ? 'border-green-200 bg-green-50 dark:border-none dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'border-red-200 bg-red-50 dark:border-none dark:bg-red-900/20' : 'border-neutral-200 dark:border-none dark:bg-slate-700/30'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-neutral-500 font-semibold">PRIMARY</span>
