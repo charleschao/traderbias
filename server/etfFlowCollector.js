@@ -8,11 +8,14 @@
 
 const axios = require('axios');
 const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 const dataStore = require('./dataStore');
 
 // Configuration
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const FARSIDE_URL = 'https://farside.co.uk/btc/';
+const JSON_FALLBACK_PATH = path.join(__dirname, 'data', 'etf-flows.json');
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Column mapping for farside.co.uk table (0-indexed)
@@ -236,24 +239,83 @@ function parseEtfFlowData(flows) {
 }
 
 /**
+ * Load ETF data from fallback JSON file
+ */
+function loadFromJsonFallback() {
+  try {
+    if (!fs.existsSync(JSON_FALLBACK_PATH)) {
+      console.log('[ETF Collector] No JSON fallback file found');
+      return null;
+    }
+
+    const jsonData = JSON.parse(fs.readFileSync(JSON_FALLBACK_PATH, 'utf8'));
+    console.log(`[ETF Collector] Loaded from JSON fallback: ${jsonData.today?.date}`);
+
+    // Convert to same format as scraped data
+    const today = jsonData.today;
+    const breakdown = {};
+
+    for (const etf of TRACKED_ETFS) {
+      if (today[etf] !== undefined && today[etf] !== 0) {
+        breakdown[etf] = {
+          flow: today[etf] * 1000000  // Convert millions to USD
+        };
+      }
+    }
+
+    return {
+      today: {
+        ...breakdown,
+        netFlow: today.netFlowM * 1000000,
+        netFlowM: today.netFlowM,
+        date: today.date,
+        source: 'json-fallback'
+      },
+      history: (jsonData.history || []).map(h => ({
+        date: h.date,
+        netFlow: h.netFlowM * 1000000,
+        netFlowM: h.netFlowM,
+        IBIT: (h.IBIT || 0) * 1000000,
+        FBTC: (h.FBTC || 0) * 1000000,
+        ARKB: (h.ARKB || 0) * 1000000,
+        GBTC: (h.GBTC || 0) * 1000000
+      })),
+      lastUpdated: jsonData.lastUpdated
+    };
+  } catch (error) {
+    console.error('[ETF Collector] Failed to load JSON fallback:', error.message);
+    return null;
+  }
+}
+
+/**
  * Update ETF flow data in dataStore
+ * Priority: JSON file first (updated via git), scraping as fallback
  */
 async function updateEtfFlows() {
-  console.log('[ETF Collector] Fetching ETF flow data from farside.co.uk...');
+  console.log('[ETF Collector] Loading ETF flow data...');
 
-  const rawData = await fetchEtfFlows();
+  let parsedData = null;
 
-  if (!rawData) {
-    console.warn('[ETF Collector] No data received, using cached data if available');
-    return false;
+  // Try JSON file first (this is the primary source on VPS)
+  parsedData = loadFromJsonFallback();
+
+  if (parsedData) {
+    console.log('[ETF Collector] Using JSON file data');
+  } else {
+    // Only try scraping if JSON not available (for local dev)
+    console.log('[ETF Collector] No JSON file, trying farside.co.uk scrape...');
+    const rawData = await fetchEtfFlows();
+    if (rawData) {
+      parsedData = parseEtfFlowData(rawData);
+    }
   }
-
-  const parsedData = parseEtfFlowData(rawData);
 
   if (!parsedData) {
-    console.warn('[ETF Collector] Failed to parse ETF data');
+    console.warn('[ETF Collector] No data available from any source');
     return false;
   }
+
 
   const now = Date.now();
   const marketStatus = getMarketStatus();
