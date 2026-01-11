@@ -5,7 +5,7 @@ import DailyBiasTab from './DailyBiasTab';
 /**
  * BiasProjectionTabs Component
  *
- * Tab container for switching between 8-12H Outlook and Daily Bias views
+ * Tab container for switching between 12Hr Bias and Daily Bias views
  * Allows traders to choose their preferred timeframe
  */
 export default function BiasProjectionTabs({
@@ -36,7 +36,7 @@ export default function BiasProjectionTabs({
                         : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
                         }`}
                 >
-                    📊 12Hr Outlook
+                    📊 12Hr Bias
                 </button>
             </div>
 

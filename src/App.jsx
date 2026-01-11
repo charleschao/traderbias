@@ -1746,7 +1746,7 @@ export default function App({ focusCoin = null }) {
             {/* BTC Layout */}
             {!showTop10 && focusCoin === 'BTC' && (
               <div className="space-y-6">
-                {/* Daily Bias + 8-12H Outlook Tabs - Full Width at Top */}
+                {/* Daily Bias + 12Hr Bias Tabs - Full Width at Top */}
                 {isBackendEnabled() && (
                   <BiasProjectionTabs
                     projection={projections.BTC}

@@ -32,7 +32,7 @@ export default function BiasProjection({ projection, loading = false }) {
             <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 rounded-xl p-4 border border-slate-700/50">
                 <div className="flex items-center gap-2 mb-3">
                     <span className="text-lg">📊</span>
-                    <span className="text-sm font-semibold text-slate-300">12HR OUTLOOK</span>
+                    <span className="text-sm font-semibold text-slate-300">12HR BIAS</span>
                     <span className="text-xs text-slate-500 ml-auto">Collecting...</span>
                 </div>
                 <div className="bg-slate-700/30 rounded-lg p-4 text-center">
@@ -139,7 +139,7 @@ export default function BiasProjection({ projection, loading = false }) {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <span className="text-lg">📊</span>
-                    <span className="text-sm font-bold text-white">12HR OUTLOOK</span>
+                    <span className="text-sm font-bold text-white">12HR BIAS</span>
                     <InfoTooltip position="bottom-right">
                         <div className="space-y-3">
                             <div className="font-bold text-white text-sm">8-12 Hour Bias Prediction (v2)</div>
