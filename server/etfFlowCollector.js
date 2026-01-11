@@ -142,18 +142,12 @@ async function fetchEtfFlows() {
     return null;
   }
 
-  // Correct format: openapi.sosovalue.com with x-soso-api-key header
-  const authHeaders = { 'x-soso-api-key': apiKey };
-  const base = 'https://openapi.sosovalue.com/api/v1';
+  // Coinglass API for Bitcoin ETF data
   const endpoints = [
-    { url: `${base}/etf/flows`, headers: authHeaders },
-    { url: `${base}/etf/fund-flows`, headers: authHeaders },
-    { url: `${base}/etf/btc/fund-flows`, headers: authHeaders },
-    { url: `${base}/etf/bitcoin/flows`, headers: authHeaders },
-    { url: `${base}/etf/spot/btc/flows`, headers: authHeaders },
-    { url: `${base}/coin/btc/etf-flows`, headers: authHeaders },
-    { url: `${base}/market/etf/flows`, headers: authHeaders },
-    { url: `${base}/data/etf/btc/flows`, headers: authHeaders }
+    {
+      url: 'https://www.coinglass.com/api/pro/v1/bitcoin-etf',
+      headers: {}
+    }
   ];
 
   for (const endpoint of endpoints) {
