@@ -142,22 +142,22 @@ async function fetchEtfFlows() {
     return null;
   }
 
-  // Try multiple endpoint formats
+  // Try multiple endpoint formats (api.sosovalue.xyz confirmed working)
   const endpoints = [
     {
-      url: 'https://sosovalue.com/api/v1/etf/btc-spot/fund-flows-summary',
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    },
-    {
-      url: 'https://api.sosovalue.xyz/api/v1/etf/btc-spot/fund-flows-summary',
+      url: 'https://api.sosovalue.xyz/v1/etf/btc-spot/fund-flows-summary',
       headers: { 'X-API-Key': apiKey }
     },
     {
-      url: 'https://sosovalue.xyz/api/etf/btc/flows',
-      headers: { 'apikey': apiKey }
+      url: 'https://api.sosovalue.xyz/v1/etf/btc-spot/flows',
+      headers: { 'X-API-Key': apiKey }
     },
     {
-      url: 'https://data.sosovalue.com/api/v1/btc-etf/flows',
+      url: 'https://api.sosovalue.xyz/v1/etf/btc-spot/daily-flows',
+      headers: { 'X-API-Key': apiKey }
+    },
+    {
+      url: 'https://api.sosovalue.xyz/v1/btc-etf/flows',
       headers: { 'Authorization': `Bearer ${apiKey}` }
     }
   ];
