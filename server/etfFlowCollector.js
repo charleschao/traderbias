@@ -142,10 +142,18 @@ async function fetchEtfFlows() {
     return null;
   }
 
-  // Coinglass API for Bitcoin ETF data
+  // Coinglass public API for Bitcoin ETF data
   const endpoints = [
     {
-      url: 'https://www.coinglass.com/api/pro/v1/bitcoin-etf',
+      url: 'https://open-api.coinglass.com/public/v2/etf/bitcoin/net_flows',
+      headers: {}
+    },
+    {
+      url: 'https://open-api.coinglass.com/public/v2/etf/bitcoin_spot',
+      headers: {}
+    },
+    {
+      url: 'https://open-api.coinglass.com/public/v2/indicator/etf/bitcoin',
       headers: {}
     }
   ];
