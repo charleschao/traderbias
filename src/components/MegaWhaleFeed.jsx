@@ -67,7 +67,7 @@ const MegaWhaleFeed = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700 overflow-hidden h-full">
       {/* Header */}
       <div
         className="px-4 py-3 cursor-pointer border-b border-neutral-100 dark:border-slate-700"
@@ -116,7 +116,7 @@ const MegaWhaleFeed = ({
 
       {/* Trade List */}
       {isExpanded && (
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[220px] overflow-y-auto">
           {filteredTrades.length === 0 ? (
             <div className="p-4 text-center text-neutral-500 dark:text-slate-400 text-sm">
               Watching for {formatThreshold(threshold)}+ trades...

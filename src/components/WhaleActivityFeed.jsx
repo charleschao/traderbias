@@ -34,7 +34,7 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
     }).filter(Boolean);
 
     return (
-        <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-4">
+        <div className="bg-white dark:bg-slate-900/80 rounded-xl border border-neutral-200 dark:border-slate-800 p-4">
             <SectionBiasHeader
                 title="WHALE POSITIONS (BTC/ETH/SOL)"
                 icon="🐋"
@@ -42,19 +42,19 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
             />
 
             {whaleSignals.length === 0 ? (
-                <div className="text-center py-4 text-white">Loading whale data...</div>
+                <div className="text-center py-4 text-neutral-700 dark:text-white">Loading whale data...</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {whaleSignals.map((signal, i) => (
-                        <div key={i} className={`rounded-lg p-3 border ${signal.bias === 'LONG' ? 'bg-green-500/10 border-green-500/30' : signal.bias === 'SHORT' ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/50 border-slate-700'}`}>
+                        <div key={i} className={`rounded-lg p-3 border ${signal.bias === 'LONG' ? 'bg-green-500/10 border-green-500/30' : signal.bias === 'SHORT' ? 'bg-red-500/10 border-red-500/30' : 'bg-neutral-100 dark:bg-slate-800/50 border-neutral-200 dark:border-slate-700'}`}>
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-2xl font-black text-white">{signal.coin}</span>
-                                <span className={`px-2 py-1 rounded text-xs font-bold ${signal.bias === 'LONG' ? 'bg-green-500/20 text-green-400' : signal.bias === 'SHORT' ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
+                                <span className="text-2xl font-black text-neutral-900 dark:text-white">{signal.coin}</span>
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${signal.bias === 'LONG' ? 'bg-green-500/20 text-green-600 dark:text-green-400' : signal.bias === 'SHORT' ? 'bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-neutral-200 dark:bg-slate-700 text-neutral-600 dark:text-slate-400'}`}>
                                     {signal.bias === 'LONG' ? '🟢 LONG' : signal.bias === 'SHORT' ? '🔴 SHORT' : '⚪ MIXED'}
                                 </span>
                             </div>
 
-                            <div className="text-white font-bold text-lg mb-2">{formatUSD(signal.totalNotional)}</div>
+                            <div className="text-neutral-900 dark:text-white font-bold text-lg mb-2">{formatUSD(signal.totalNotional)}</div>
 
                             <div className="flex gap-2 text-xs">
                                 {signal.topLong ? (
@@ -76,7 +76,7 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
                             </div>
 
                             {signal.topTraders.length > 0 && (
-                                <div className="text-xs text-slate-400 mt-2 flex flex-wrap gap-1">
+                                <div className="text-xs text-neutral-500 dark:text-slate-400 mt-2 flex flex-wrap gap-1">
                                     {signal.topTraders.slice(0, 6).map((t, j) => (
                                         <a key={j} href={getProfileUrl(t.trader)} target="_blank" rel="noopener noreferrer"
                                             className={`hover:underline ${t.direction === 'long' ? 'text-green-400' : 'text-red-400'}`}>
@@ -91,14 +91,14 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
             )}
 
             {/* 🔔 LIVE WHALE ACTIVITY - Position Changes Feed */}
-            <div className="mt-4 pt-4 border-t border-slate-700">
+            <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-slate-700">
                 <h3 className="text-xs font-bold text-cyan-400 mb-2 flex items-center gap-2">
                     🔔 LIVE WHALE ACTIVITY
                     <span className="animate-pulse w-2 h-2 bg-green-400 rounded-full"></span>
                 </h3>
 
                 {(!positionChanges || positionChanges.length === 0) ? (
-                    <div className="text-center py-3 text-white text-xs">
+                    <div className="text-center py-3 text-neutral-700 dark:text-white text-xs">
                         Monitoring top 10 trader positions for changes...
                     </div>
                 ) : (
@@ -117,7 +117,7 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
                                 <div key={i} className={`${cfg.bg} rounded-lg px-3 py-2 flex items-center gap-2`}>
                                     <span className="text-lg">{cfg.icon}</span>
                                     <span className={`text-xs font-bold ${cfg.color} min-w-[50px]`}>{cfg.label}</span>
-                                    <span className="text-white font-bold">{change.coin}</span>
+                                    <span className="text-neutral-900 dark:text-white font-bold">{change.coin}</span>
                                     {change.direction && (
                                         <span className={`text-xs px-1.5 py-0.5 rounded ${change.direction === 'LONG' ? 'bg-green-500/30 text-green-400' : 'bg-red-500/30 text-red-400'}`}>
                                             {change.direction}
@@ -127,8 +127,8 @@ const WhaleActivityFeed = ({ consensus, positionChanges, whaleTrades }) => {
                                         className="text-cyan-400 hover:underline text-xs font-mono">
                                         #{change.rank} {formatAddress(change.trader)}
                                     </a>
-                                    <span className="text-white text-xs ml-auto">{formatUSD(change.notional)}</span>
-                                    <span className="text-white text-xs">{change.time?.toLocaleTimeString()}</span>
+                                    <span className="text-neutral-900 dark:text-white text-xs ml-auto">{formatUSD(change.notional)}</span>
+                                    <span className="text-neutral-700 dark:text-white text-xs">{change.time?.toLocaleTimeString()}</span>
                                 </div>
                             );
                         })}

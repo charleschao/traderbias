@@ -1854,28 +1854,28 @@ export default function App({ focusCoin = null }) {
 
                 {/* Top 10 Leaderboard */}
                 {EXCHANGES[activeExchange]?.features.includes('leaderboard') && (
-                  <div id="top10-section" className="pt-6 border-t border-slate-800">
+                  <div id="top10-section" className="pt-6 border-t border-neutral-200 dark:border-slate-800">
                     <div className="grid lg:grid-cols-3 gap-6">
                       <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
-                          <div className="p-4 border-b border-slate-800 bg-gradient-to-r from-yellow-500/10 to-transparent">
-                            <h2 className="font-bold flex items-center gap-2">
+                        <div className="bg-white dark:bg-slate-900/80 rounded-xl border border-neutral-200 dark:border-slate-800 overflow-hidden">
+                          <div className="p-4 border-b border-neutral-200 dark:border-slate-800 bg-gradient-to-r from-yellow-500/10 to-transparent">
+                            <h2 className="font-bold flex items-center gap-2 text-neutral-900 dark:text-white">
                               🏆 Top Weekly Performers
-                              <span className="text-xs font-normal text-slate-400">Updates every 5 min</span>
+                              <span className="text-xs font-normal text-neutral-500 dark:text-slate-400">Updates every 5 min</span>
                             </h2>
                           </div>
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm">
-                              <thead className="bg-slate-800/50">
+                              <thead className="bg-neutral-100 dark:bg-slate-800/50">
                                 <tr>
-                                  <th className="py-2 px-3 text-left text-slate-300">#</th>
-                                  <th className="py-2 px-3 text-left text-slate-300">Trader</th>
-                                  <th className="py-2 px-3 text-right text-slate-300">Account</th>
-                                  <th className="py-2 px-3 text-right text-slate-300">Week PNL</th>
-                                  <th className="py-2 px-3 text-right text-slate-300">Week %</th>
-                                  <th className="py-2 px-3 text-right text-slate-300">Month %</th>
-                                  <th className="py-2 px-3 text-right text-slate-300">All-Time %</th>
-                                  <th className="py-2 px-3 text-center text-slate-300">Pos</th>
+                                  <th className="py-2 px-3 text-left text-neutral-600 dark:text-slate-300">#</th>
+                                  <th className="py-2 px-3 text-left text-neutral-600 dark:text-slate-300">Trader</th>
+                                  <th className="py-2 px-3 text-right text-neutral-600 dark:text-slate-300">Account</th>
+                                  <th className="py-2 px-3 text-right text-neutral-600 dark:text-slate-300">Week PNL</th>
+                                  <th className="py-2 px-3 text-right text-neutral-600 dark:text-slate-300">Week %</th>
+                                  <th className="py-2 px-3 text-right text-neutral-600 dark:text-slate-300">Month %</th>
+                                  <th className="py-2 px-3 text-right text-neutral-600 dark:text-slate-300">All-Time %</th>
+                                  <th className="py-2 px-3 text-center text-neutral-600 dark:text-slate-300">Pos</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1891,17 +1891,17 @@ export default function App({ focusCoin = null }) {
                       </div>
 
                       <div className="lg:col-span-1">
-                        <div className="bg-slate-900/80 rounded-xl border border-slate-800 p-4 sticky top-4">
-                          <h3 className="font-bold mb-4">📊 Trader Positions</h3>
+                        <div className="bg-white dark:bg-slate-900/80 rounded-xl border border-neutral-200 dark:border-slate-800 p-4 sticky top-4">
+                          <h3 className="font-bold mb-4 text-neutral-900 dark:text-white">📊 Trader Positions</h3>
                           {!selectedTrader ? (
-                            <div className="text-center py-8 text-slate-300">Click a trader to view positions</div>
+                            <div className="text-center py-8 text-neutral-500 dark:text-slate-300">Click a trader to view positions</div>
                           ) : (
                             <div>
-                              <div className="mb-4 pb-4 border-b border-slate-800">
+                              <div className="mb-4 pb-4 border-b border-neutral-200 dark:border-slate-800">
                                 <a href={getProfileUrl(selectedTrader.address)} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-mono text-sm">
                                   {formatAddress(selectedTrader.address)} ↗
                                 </a>
-                                <div className="text-slate-300 text-sm mt-1">Account: {formatUSD(selectedTrader.accountValue)}</div>
+                                <div className="text-neutral-600 dark:text-slate-300 text-sm mt-1">Account: {formatUSD(selectedTrader.accountValue)}</div>
                                 <div className="flex gap-2 mt-2 flex-wrap">
                                   <span className={`text-xs px-2 py-1 rounded ${selectedTrader.weekRoi >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                     Week: {formatPercent(selectedTrader.weekRoi)}
@@ -1912,7 +1912,7 @@ export default function App({ focusCoin = null }) {
                                 </div>
                               </div>
                               {traderPositions.length === 0 ? (
-                                <div className="text-center py-6 text-slate-300">No open positions</div>
+                                <div className="text-center py-6 text-neutral-500 dark:text-slate-300">No open positions</div>
                               ) : (
                                 <div className="space-y-3 max-h-80 overflow-y-auto">
                                   {traderPositions.map((pos, i) => (
@@ -1963,7 +1963,7 @@ export default function App({ focusCoin = null }) {
                   <OrderbookSection orderbookData={orderbookData} coins={[focusCoin]} />
                 </div>
                 {/* MegaWhaleFeed - Right (2/3) */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 h-full">
                   <MegaWhaleFeed
                     trades={megaWhaleTrades}
                     isConnected={whaleWsConnected}
@@ -1980,7 +1980,7 @@ export default function App({ focusCoin = null }) {
             )}
 
             {/* Footer */}
-            <div className="mt-8 pt-6 border-t border-neutral-200 dark:border-slate-700">
+            <div className="mt-8 pt-6">
               {/* Trading Quote - Moved to footer */}
               <div className="mb-6">
                 <TradingQuote />
