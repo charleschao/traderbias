@@ -343,12 +343,17 @@ function calculateCrossExchangeConfluence(dataStore, coin = 'BTC') {
 
     const bullishCount = biases.filter(b => b.bias === 'bullish').length;
     const bearishCount = biases.filter(b => b.bias === 'bearish').length;
-    const dominantBias = bullishCount > bearishCount ? 'bullish' : bearishCount > bullishCount ? 'bearish' : 'neutral';
-    const maxCount = Math.max(bullishCount, bearishCount);
+    const neutralCount = biases.filter(b => b.bias === 'neutral').length;
+
+    // Find dominant bias (including neutral)
+    const maxCount = Math.max(bullishCount, bearishCount, neutralCount);
+    const dominantBias = maxCount === bullishCount ? 'bullish' :
+                         maxCount === bearishCount ? 'bearish' : 'neutral';
     const agreement = maxCount / biases.length;
 
     // VETO: If <70% agreement, signal is unreliable for 24H
-    const shouldVeto = agreement < 0.7;
+    // But don't veto if all exchanges agree on neutral (low volatility)
+    const shouldVeto = agreement < 0.7 && dominantBias !== 'neutral';
 
     let score = 0;
     if (agreement >= 0.9) {
