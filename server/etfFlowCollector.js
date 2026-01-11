@@ -16,14 +16,15 @@ const FARSIDE_URL = 'https://farside.co.uk/btc/';
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Column mapping for farside.co.uk table (0-indexed)
-// Columns: Date, IBIT, FBTC, BITB, ARKB, BTCO, EZBC, BRRR, HODL, BTCW, GBTC, BTC, Total
+// Columns: Date, Total, IBIT, FBTC, BITB, ARKB, BTCO, EZBC, BRRR, HODL, BTCW, GBTC, BTC
 const ETF_COLUMNS = {
-  IBIT: 1,
-  FBTC: 2,
-  BITB: 3,
-  ARKB: 4,
-  GBTC: 10,
-  TOTAL: 12  // Total net flow column
+  DATE: 0,
+  TOTAL: 1,
+  IBIT: 2,
+  FBTC: 3,
+  BITB: 4,
+  ARKB: 5,
+  GBTC: 11  // GBTC is further right
 };
 
 const TRACKED_ETFS = ['IBIT', 'FBTC', 'ARKB', 'BITB', 'GBTC'];
@@ -104,9 +105,9 @@ function parseFlowValue(text) {
   const cleaned = text.trim();
   if (cleaned === '-' || cleaned === '' || cleaned === '−') return 0;
 
-  // Check for parentheses (negative)
-  const isNegative = cleaned.startsWith('(') && cleaned.endsWith(')');
-  const numStr = cleaned.replace(/[(),$]/g, '').trim();
+  // Check for parentheses (negative) and clean
+  const isNegative = cleaned.includes('(') && cleaned.includes(')');
+  const numStr = cleaned.replace(/[\(\),]/g, '').trim();
 
   const value = parseFloat(numStr);
   if (isNaN(value)) return 0;
@@ -124,24 +125,8 @@ async function fetchEtfFlows() {
     const { data } = await axios.get(FARSIDE_URL, {
       timeout: 20000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'Connection': 'keep-alive'
-      },
-      maxRedirects: 5,
-      decompress: true
+        'User-Agent': 'Mozilla/5.0 (compatible; TraderBiasBot/1.0)'
+      }
     });
 
     const $ = cheerio.load(data);
@@ -150,28 +135,25 @@ async function fetchEtfFlows() {
     // Find the main data table
     $('table tbody tr').each((i, row) => {
       const cols = $(row).find('td');
-      if (cols.length < 13) return; // Skip incomplete rows
+      if (cols.length < 10) return; // Skip header or invalid rows
 
-      const dateText = $(cols[0]).text().trim();
+      const dateStr = $(cols[ETF_COLUMNS.DATE]).text().trim();
 
-      // Skip header rows or empty dates
-      if (!dateText || dateText.toLowerCase() === 'date' || dateText === '') return;
+      // Only rows with date like "09 Jan 2026"
+      if (!dateStr.match(/\d{2} \w{3} \d{4}/)) return;
 
-      // Parse individual ETF flows
+      // Parse individual ETF flows (values in millions USD)
       const rowData = {
-        date: dateText,
+        date: dateStr,
+        total: parseFlowValue($(cols[ETF_COLUMNS.TOTAL]).text()),
         IBIT: parseFlowValue($(cols[ETF_COLUMNS.IBIT]).text()),
         FBTC: parseFlowValue($(cols[ETF_COLUMNS.FBTC]).text()),
         BITB: parseFlowValue($(cols[ETF_COLUMNS.BITB]).text()),
         ARKB: parseFlowValue($(cols[ETF_COLUMNS.ARKB]).text()),
-        GBTC: parseFlowValue($(cols[ETF_COLUMNS.GBTC]).text()),
-        total: parseFlowValue($(cols[ETF_COLUMNS.TOTAL]).text())
+        GBTC: cols.length > ETF_COLUMNS.GBTC ? parseFlowValue($(cols[ETF_COLUMNS.GBTC]).text()) : 0
       };
 
-      // Only add rows with actual data
-      if (rowData.date && (rowData.total !== 0 || rowData.IBIT !== 0 || rowData.FBTC !== 0)) {
-        flows.push(rowData);
-      }
+      flows.push(rowData);
     });
 
     if (flows.length === 0) {
@@ -179,13 +161,8 @@ async function fetchEtfFlows() {
       return null;
     }
 
-    // Sort by date descending (most recent first)
-    // Farside dates are in format "DD Mon" e.g. "10 Jan"
-    flows.sort((a, b) => {
-      // Simple comparison - latest dates should come first
-      // This works because the table is already in chronological order
-      return -1;
-    });
+    // Reverse so newest (top of table) comes first
+    flows.reverse();
 
     console.log(`[ETF Collector] Scraped ${flows.length} rows from farside.co.uk`);
     console.log(`[ETF Collector] Latest: ${flows[0]?.date} | Total: $${flows[0]?.total}M`);
@@ -194,6 +171,9 @@ async function fetchEtfFlows() {
 
   } catch (error) {
     console.error('[ETF Collector] Scrape failed:', error.message);
+    if (error.response) {
+      console.error('[ETF Collector] HTTP status:', error.response.status);
+    }
     return null;
   }
 }
@@ -207,7 +187,7 @@ function parseEtfFlowData(flows) {
     return null;
   }
 
-  // Get the most recent day's data (first row after sort)
+  // Get the most recent day's data (first row after reverse)
   const latest = flows[0];
 
   // Build breakdown object (values are in millions from farside)
@@ -238,12 +218,14 @@ function parseEtfFlowData(flows) {
     today: {
       ...breakdown,
       netFlow,
+      netFlowM: latest.total,
       date: latest.date,
       source: 'farside'
     },
     history: flows.slice(0, 7).map(f => ({
       date: f.date,
       netFlow: f.total * 1000000,
+      netFlowM: f.total,
       IBIT: f.IBIT * 1000000,
       FBTC: f.FBTC * 1000000,
       ARKB: f.ARKB * 1000000,
@@ -287,7 +269,7 @@ async function updateEtfFlows() {
 
   lastSuccessfulFetch = now;
 
-  const netFlowM = (parsedData.today.netFlow / 1000000).toFixed(1);
+  const netFlowM = parsedData.today.netFlowM;
   console.log(`[ETF Collector] Updated: Net flow $${netFlowM}M | Market: ${marketStatus}`);
 
   return true;
