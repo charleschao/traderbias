@@ -41,8 +41,13 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
 
   let { prediction, confidence, keyFactors, warnings = [], generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails } = dailyBias;
 
-  // Handle freshness if it's an object (backend returns { freshness: 0.xx, ... })
-  const freshnessScore = typeof freshness === 'object' ? freshness.freshness : freshness;
+  // Calculate freshness properly on the client side
+  // The backend calculates it at generation time (so it's always 1.0 initially)
+  // We need to calculate it relative to NOW
+  const now = Date.now();
+  const ageMs = now - (generatedAt || now);
+  const ageHours = ageMs / (60 * 60 * 1000);
+  const freshnessScore = Math.max(0.60, Math.min(1.0, Math.exp(-0.025 * ageHours)));
 
   const spotPerpDivergence = components?.spotPerpDivergence;
 
