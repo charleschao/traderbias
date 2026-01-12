@@ -260,32 +260,19 @@ Collects Bitcoin ETF flow data for use in the Daily Bias algorithm. Due to Cloud
 │                  ETF FLOW DATA PIPELINE                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  LOCAL MACHINE (Windows)                                    │
-│  ┌─────────────────────────────────────┐                    │
-│  │  node update-etf-flows.js           │                    │
-│  │  - Scrapes farside.co.uk            │                    │
-│  │  - Writes to data/etf-flows.json    │                    │
-│  └───────────────┬─────────────────────┘                    │
-│                  │                                          │
-│                  ▼                                          │
-│  ┌─────────────────────────────────────┐                    │
-│  │  git commit && git push             │                    │
-│  └───────────────┬─────────────────────┘                    │
-│                  │                                          │
-├──────────────────┼──────────────────────────────────────────┤
-│                  ▼                                          │
 │  VPS (Docker)                                               │
 │  ┌─────────────────────────────────────┐                    │
-│  │  git pull                           │                    │
-│  │  - Gets updated etf-flows.json      │                    │
+│  │  Scheduled Job / Manual Trigger     │                    │
+│  │  - Runs `node update-etf-flows.js`  │                    │
+│  │  - Scrapes farside.co.uk direct     │                    │
+│  │  - Updates data/etf-flows.json      │                    │
 │  └───────────────┬─────────────────────┘                    │
 │                  │                                          │
 │                  ▼                                          │
 │  ┌─────────────────────────────────────┐                    │
 │  │  etfFlowCollector.js                │                    │
-│  │  - Reads from JSON file (primary)   │                    │
-│  │  - Falls back to scrape if missing  │                    │
-│  │  - Polls every 30 minutes           │                    │
+│  │  - Reads updated JSON file          │                    │
+│  │  - Provides current flow data       │                    │
 │  └───────────────┬─────────────────────┘                    │
 │                  │                                          │
 │                  ▼                                          │
@@ -326,12 +313,10 @@ Collects Bitcoin ETF flow data for use in the Daily Bias algorithm. Due to Cloud
 
 **Update Workflow:**
 ```bash
-# Local machine
-cd server && node update-etf-flows.js
-git add data/etf-flows.json && git commit -m "update etf" && git push
-
-# VPS
-git pull && docker compose restart traderbias-backend
+# VPS (Manual Update)
+cd /var/www/traderbias/server
+node update-etf-flows.js
+# No restart needed as file is watched/read on demand
 ```
 
 ---
