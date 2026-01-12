@@ -26,6 +26,11 @@ const MegaWhaleTradeRow = ({ trade }) => {
       </span>
       <span className={`font-semibold font-mono ${isBuy ? 'text-green-600' : 'text-red-600'}`}>
         {formatUSD(trade.notional)}
+        {trade.aggregated && trade.fillCount > 1 && (
+          <span className="ml-1 text-xs text-neutral-400 dark:text-slate-500 font-normal">
+            ({trade.fillCount}x)
+          </span>
+        )}
       </span>
       <span className="text-neutral-400 dark:text-slate-400 text-sm hidden sm:block">
         {trade.size.toLocaleString(undefined, { maximumFractionDigits: 2 })} @ ${formatPrice(trade.price)}

@@ -4,6 +4,8 @@ const dataStore = require('./dataStore');
 const CONFIG = {
     // Threshold to keep in memory (lower than frontend to allow filtering)
     MIN_STORE_THRESHOLD: 500_000,
+    // Aggregation window for spot exchanges (ms)
+    SPOT_AGGREGATION_WINDOW: 500,
 
     EXCHANGES: {
         binanceSpot: {
@@ -186,6 +188,69 @@ const CONFIG = {
 const connections = {};
 const reconnectTimeouts = {};
 
+// Spot trade aggregation buffer: key = "exchange:symbol:side"
+const spotAggBuffer = {};
+const spotAggTimers = {};
+
+function flushSpotAgg(key) {
+    const agg = spotAggBuffer[key];
+    if (!agg || agg.trades.length === 0) return;
+
+    const notional = agg.totalNotional;
+    if (notional >= CONFIG.MIN_STORE_THRESHOLD) {
+        const vwap = agg.totalNotional / agg.totalSize;
+        dataStore.addWhaleTrade({
+            symbol: agg.symbol,
+            price: vwap,
+            size: agg.totalSize,
+            notional,
+            side: agg.side,
+            timestamp: agg.lastTimestamp,
+            tradeId: `agg_${agg.firstTradeId}_${agg.trades.length}`,
+            exchange: agg.exchange,
+            type: 'SPOT',
+            aggregated: true,
+            fillCount: agg.trades.length,
+            receivedAt: Date.now()
+        });
+        console.log(`[WhaleWatcher] Aggregated ${agg.exchange} ${agg.side}: ${agg.trades.length} fills = $${(notional/1e6).toFixed(2)}M`);
+    }
+
+    delete spotAggBuffer[key];
+    if (spotAggTimers[key]) {
+        clearTimeout(spotAggTimers[key]);
+        delete spotAggTimers[key];
+    }
+}
+
+function addToSpotAgg(trade) {
+    const key = `${trade.exchange}:${trade.symbol}:${trade.side}`;
+    const notional = trade.price * trade.size;
+
+    if (!spotAggBuffer[key]) {
+        spotAggBuffer[key] = {
+            exchange: trade.exchange,
+            symbol: trade.symbol,
+            side: trade.side,
+            trades: [],
+            totalSize: 0,
+            totalNotional: 0,
+            firstTradeId: trade.tradeId,
+            lastTimestamp: trade.timestamp
+        };
+    }
+
+    const agg = spotAggBuffer[key];
+    agg.trades.push(trade);
+    agg.totalSize += trade.size;
+    agg.totalNotional += notional;
+    agg.lastTimestamp = trade.timestamp;
+
+    // Reset flush timer
+    if (spotAggTimers[key]) clearTimeout(spotAggTimers[key]);
+    spotAggTimers[key] = setTimeout(() => flushSpotAgg(key), CONFIG.SPOT_AGGREGATION_WINDOW);
+}
+
 function start() {
     console.log('[WhaleWatcher] Starting exchange connections...');
     Object.keys(CONFIG.EXCHANGES).forEach(key => {
@@ -238,15 +303,21 @@ function connect(key) {
                 if (!parsed) return;
 
                 const trades = Array.isArray(parsed) ? parsed : [parsed];
+                const useAggregation = key === 'coinbase' || key === 'kraken';
 
                 trades.forEach(trade => {
-                    const notional = trade.price * trade.size;
-                    if (notional >= CONFIG.MIN_STORE_THRESHOLD) {
-                        dataStore.addWhaleTrade({
-                            ...trade,
-                            notional,
-                            receivedAt: Date.now()
-                        });
+                    if (useAggregation) {
+                        // Aggregate spot fills for exchanges without aggTrade
+                        addToSpotAgg(trade);
+                    } else {
+                        const notional = trade.price * trade.size;
+                        if (notional >= CONFIG.MIN_STORE_THRESHOLD) {
+                            dataStore.addWhaleTrade({
+                                ...trade,
+                                notional,
+                                receivedAt: Date.now()
+                            });
+                        }
                     }
                 });
 
