@@ -1448,8 +1448,8 @@ export default function App({ focusCoin = null }) {
     fetchProjections();
     fetchDailyBias();
 
-    // Refresh projections every 30 minutes
-    const projectionInterval = setInterval(fetchProjections, 30 * 60 * 1000);
+    // Refresh projections every 1 hour (8-12hr outlook doesn't need 30min updates)
+    const projectionInterval = setInterval(fetchProjections, 60 * 60 * 1000);
     // Refresh daily bias every 2 hours (longer timeframe = less frequent updates)
     const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
 
