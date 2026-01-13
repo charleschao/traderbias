@@ -747,38 +747,57 @@ function generateDailyBias(coin, dataStore, consensus = null) {
 
     const confidenceLevel = confidenceScore >= 0.70 ? 'HIGH' : confidenceScore >= 0.50 ? 'MEDIUM' : 'LOW';
 
-    // Build key drivers
-    const keyDrivers = [
+    // Build key factors (matching 12hr bias format)
+    const keyFactors = [
         {
-            name: spotPerpDivergence.signal === 'SPOT_ACCUMULATION' ? 'Spot Accumulation' :
-                  spotPerpDivergence.signal === 'FAKE_PUMP' ? 'Fake Pump Warning' :
-                  spotPerpDivergence.signal === 'DISTRIBUTION' ? 'Distribution' :
-                  'Spot/Perp Flow',
-            weight: WEIGHTS_24H.spotPerpDivergence,
-            signal: spotPerpDivergence.score > 0.1 ? 'bullish' : spotPerpDivergence.score < -0.1 ? 'bearish' : 'neutral',
-            description: spotPerpDivergence.description
+            name: '⭐ Spot/Perp Divergence',
+            direction: spotPerpDivergence.score > 0.1 ? 'bullish' : spotPerpDivergence.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(spotPerpDivergence.score),
+            impact: Math.abs(spotPerpDivergence.score) > 0.5 ? 'high' : Math.abs(spotPerpDivergence.score) > 0.2 ? 'medium' : 'low',
+            detail: `${spotPerpDivergence.signal.replace(/_/g, ' ')} - Spot:${spotPerpDivergence.spotTrend || '?'} Perp:${spotPerpDivergence.perpTrend || '?'}`
         },
         {
-            name: `Funding Z=${fundingMeanReversion.zScore?.toFixed(1) || '0'}`,
-            weight: WEIGHTS_24H.fundingMeanReversion,
-            signal: fundingMeanReversion.score > 0.1 ? 'bullish' : fundingMeanReversion.score < -0.1 ? 'bearish' : 'neutral',
-            description: fundingMeanReversion.description
+            name: 'Funding Z-Score',
+            direction: fundingMeanReversion.score > 0.1 ? 'bullish' : fundingMeanReversion.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(fundingMeanReversion.score),
+            impact: Math.abs(fundingMeanReversion.zScore || 0) > 2 ? 'high' : Math.abs(fundingMeanReversion.zScore || 0) > 1 ? 'medium' : 'low',
+            detail: `${fundingMeanReversion.mode || 'unknown'} - Z=${(fundingMeanReversion.zScore || 0).toFixed(2)}`
         },
         {
-            name: '8H Momentum',
-            weight: WEIGHTS_24H.oiPriceMomentum,
-            signal: oiPriceMomentum.score > 0.1 ? 'bullish' : oiPriceMomentum.score < -0.1 ? 'bearish' : 'neutral',
-            description: oiPriceMomentum.description
+            name: 'OI + Price Momentum',
+            direction: oiPriceMomentum.score > 0.1 ? 'bullish' : oiPriceMomentum.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(oiPriceMomentum.score),
+            impact: Math.abs(oiPriceMomentum.score) > 0.5 ? 'high' : Math.abs(oiPriceMomentum.score) > 0.2 ? 'medium' : 'low',
+            detail: `${oiPriceMomentum.trend || 'unknown'} - OI:${oiPriceMomentum.oiChange > 0 ? '+' : ''}${(oiPriceMomentum.oiChange || 0).toFixed(2)}% Price:${oiPriceMomentum.priceChange > 0 ? '+' : ''}${(oiPriceMomentum.priceChange || 0).toFixed(2)}%`
+        },
+        {
+            name: 'Exchange Confluence',
+            direction: confluence.score > 0.1 ? 'bullish' : confluence.score < -0.1 ? 'bearish' : 'neutral',
+            score: confluence.agreement || 0,
+            impact: (confluence.agreement || 0) > 0.8 ? 'high' : (confluence.agreement || 0) > 0.6 ? 'medium' : 'low',
+            detail: `${Math.round((confluence.agreement || 0) * 100)}% aligned`
         }
     ];
 
-    // Add ETF flows to key drivers (BTC only)
+    // Add ETF flows (BTC only)
     if (coin === 'BTC' && etfFlows.signal !== 'NOT_APPLICABLE') {
-        keyDrivers.push({
+        keyFactors.push({
             name: 'ETF Flows',
-            weight: WEIGHTS_24H.etfFlows,
-            signal: etfFlows.score > 0.1 ? 'bullish' : etfFlows.score < -0.1 ? 'bearish' : 'neutral',
-            description: generateFlowDescription(etfFlows)
+            direction: etfFlows.score > 0.1 ? 'bullish' : etfFlows.score < -0.1 ? 'bearish' : 'neutral',
+            score: Math.abs(etfFlows.score),
+            impact: Math.abs(etfFlows.score) > 0.5 ? 'high' : Math.abs(etfFlows.score) > 0.2 ? 'medium' : 'low',
+            detail: generateFlowDescription(etfFlows)
+        });
+    }
+
+    // Add Whale alignment if data available
+    if (whales.hasData) {
+        keyFactors.push({
+            name: 'Whale Consensus',
+            direction: whales.score > 0.2 ? 'bullish' : whales.score < -0.2 ? 'bearish' : 'neutral',
+            score: Math.abs(whales.score),
+            impact: Math.abs(whales.score) > 0.5 ? 'high' : Math.abs(whales.score) > 0.2 ? 'medium' : 'low',
+            detail: `${Math.round(whales.longPct * 100)}% long`
         });
     }
 
@@ -834,7 +853,7 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         },
         invalidation,
         rangeAnalysis,
-        keyDrivers,
+        keyFactors,
         dataCompleteness: {
             percentComplete: dataCompleteness.percentComplete,
             status: dataCompleteness.status
