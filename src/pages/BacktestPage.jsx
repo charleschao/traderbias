@@ -310,7 +310,14 @@ const PredictionTable = ({ predictions }) => {
             {predictions.map((pred, i) => (
               <tr key={pred.id || i} className="border-b border-slate-800">
                 <td className="py-2 px-3 text-slate-300">
-                  {new Date(pred.timestamp).toLocaleDateString()}
+                  {new Date(pred.timestamp).toLocaleString('en-US', {
+                    timeZone: 'America/New_York',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
                 </td>
                 <td className="py-2 px-3 text-white font-medium">{pred.coin}</td>
                 <td className="py-2 px-3 text-slate-300">{pred.projectionType || '12hr'}</td>
