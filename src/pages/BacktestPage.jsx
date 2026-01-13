@@ -171,6 +171,20 @@ const WinRateDashboard = ({ stats, streaks }) => {
         </div>
       </div>
 
+      {/* Breakdown by market regime */}
+      <div className="col-span-full">
+        <h3 className="text-lg font-semibold mb-3">By Market Regime</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {['trending', 'ranging'].map(regime => (
+            <div key={regime} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+              <div className="text-sm text-slate-400 uppercase">{regime}</div>
+              <div className="text-2xl font-bold">{stats.byRegime?.[regime]?.winRate || 0}%</div>
+              <div className="text-xs text-slate-500">{stats.byRegime?.[regime]?.total || 0} predictions</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 };
@@ -334,6 +348,7 @@ const PredictionTable = ({ predictions }) => {
               <th className="py-2 px-3 text-slate-400">Type</th>
               <th className="py-2 px-3 text-slate-400">Predicted</th>
               <th className="py-2 px-3 text-slate-400">Strength</th>
+              <th className="py-2 px-3 text-slate-400">Regime</th>
               <th className="py-2 px-3 text-slate-400">Signals</th>
               <th className="py-2 px-3 text-slate-400">Price Change</th>
               <th className="py-2 px-3 text-slate-400">Outcome</th>
@@ -364,6 +379,17 @@ const PredictionTable = ({ predictions }) => {
                   </span>
                 </td>
                 <td className="py-2 px-3 text-slate-300">{pred.strength}</td>
+                <td className="py-2 px-3">
+                  {pred.regime ? (
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      pred.regime === 'trending' ? 'bg-blue-900/50 text-blue-400' : 'bg-amber-900/50 text-amber-400'
+                    }`}>
+                      {pred.regime}
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">-</span>
+                  )}
+                </td>
                 <td className="py-2 px-3">
                   <SignalBadges signals={pred.signals} />
                 </td>

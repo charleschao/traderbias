@@ -1,6 +1,8 @@
 // ============== BACKTESTING ENGINE ==============
 // Historical signal performance analysis for Trader Bias
 
+import { getRegimeAtIndex } from './regimeDetector.js';
+
 // ============== DATA STRUCTURES ==============
 
 // Trade signal structure
@@ -22,7 +24,8 @@ export const createSignal = (timestamp, coin, signal, confidence, components) =>
     pnlPercent: 0, // Profit/Loss in percentage
     duration: null, // Trade duration in minutes
     status: 'pending', // 'pending', 'active', 'closed'
-    exitReason: null // 'take_profit', 'stop_loss', 'timeout', 'signal_reverse'
+    exitReason: null, // 'take_profit', 'stop_loss', 'timeout', 'signal_reverse'
+    regime: null // 'trending' | 'ranging' - set by backtest engine
 });
 
 // Backtest configuration
@@ -361,13 +364,25 @@ const generateSignalAtTime = async (coin, timePoint, historicalData, currentInde
 
     const confidence = Math.abs(biasResult.normalizedScore);
 
-    return createSignal(
+    // Detect market regime at this point
+    const prices = getHistoricalContext(historicalData, currentIndex, coin, 20)
+        .map(d => d.price)
+        .filter(p => p !== undefined);
+    prices.push(currentData.price);
+
+    const { detectRegime } = await import('./regimeDetector.js');
+    const regimeResult = detectRegime(prices, 20);
+
+    const signalObj = createSignal(
         timePoint.timestamp,
         coin,
         signal,
         confidence,
         biasResult.components
     );
+    signalObj.regime = regimeResult.regime;
+
+    return signalObj;
 };
 
 // Get historical context for bias calculations

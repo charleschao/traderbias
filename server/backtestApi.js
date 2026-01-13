@@ -87,7 +87,13 @@ function calculateStats({ coin, type, from, to }) {
     byType[t] = calcWinRate(evaluated.filter(p => p.projectionType === t));
   }
 
-  return { overall, byStrength, byConfidence, byCoin, byType };
+  // By regime (trending vs ranging)
+  const byRegime = {};
+  for (const regime of ['trending', 'ranging']) {
+    byRegime[regime] = calcWinRate(evaluated.filter(p => p.regime === regime));
+  }
+
+  return { overall, byStrength, byConfidence, byCoin, byType, byRegime };
 }
 
 /**
