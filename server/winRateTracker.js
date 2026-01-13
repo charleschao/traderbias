@@ -12,12 +12,12 @@ const dataStore = require('./dataStore');
 const WIN_RATE_FILE = path.join(__dirname, 'data', 'winrates.json');
 const MAX_HISTORY_DAYS = 365;
 const EVALUATION_DELAYS = {
-  '12hr': 10 * 60 * 60 * 1000,  // 10 hours
-  'daily': 20 * 60 * 60 * 1000  // 20 hours
+  '12hr': 8 * 60 * 60 * 1000,   // 8 hours
+  'daily': 16 * 60 * 60 * 1000  // 16 hours
 };
 // Minimum time between recording same coin+type predictions
 const RECORD_COOLDOWNS = {
-  '12hr': 60 * 60 * 1000,       // 1 hour cooldown for 12hr projections
+  '12hr': 4 * 60 * 60 * 1000,   // 4 hour cooldown for 12hr projections
   'daily': 4 * 60 * 60 * 1000   // 4 hour cooldown for daily projections
 };
 
