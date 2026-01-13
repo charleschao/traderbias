@@ -1,0 +1,27 @@
+{
+  "predictions": [],
+  "stats": {
+    "BTC": {
+      "total": 0,
+      "correct": 0,
+      "winRate": 0,
+      "strongCorrect": 0,
+      "strongTotal": 0
+    },
+    "ETH": {
+      "total": 0,
+      "correct": 0,
+      "winRate": 0,
+      "strongCorrect": 0,
+      "strongTotal": 0
+    },
+    "SOL": {
+      "total": 0,
+      "correct": 0,
+      "winRate": 0,
+      "strongCorrect": 0,
+      "strongTotal": 0
+    }
+  },
+  "savedAt": 1768268430904
+}
