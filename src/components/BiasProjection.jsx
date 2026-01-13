@@ -97,12 +97,16 @@ export default function BiasProjection({ projection, loading = false }) {
           <span className="text-sm font-semibold text-neutral-900 dark:text-white">12HR BIAS</span>
           <InfoTooltip position="bottom-right">
             <div className="space-y-2 text-xs">
-              <div className="font-bold text-neutral-900 dark:text-white">12 Hour Bias Prediction</div>
+              <div className="font-bold text-neutral-900 dark:text-white">8-12 Hour Bias Prediction</div>
               <div className="text-neutral-600 dark:text-slate-300">
-                Combines Funding Z-Score (20%), OI Rate of Change (20%), CVD Flow (20%), Market Regime (20%), Whales + Confluence (20%)
+                Flow Confluence (55%) - Price + OI + CVD alignment<br/>
+                Funding Z-Score (17%) - Extreme positioning detection<br/>
+                Cross-Exchange Confluence (13%) - HL/Binance/Bybit agreement<br/>
+                Liquidation Momentum (10%) - Cascade detection<br/>
+                Whale Positioning (5%) - Hyperliquid whales
               </div>
               <div className="text-neutral-500 dark:text-slate-400 pt-2 border-t border-neutral-200 dark:border-slate-600">
-                Updates every 30 minutes
+                Valid for 4 hours, refreshes continuously
               </div>
             </div>
           </InfoTooltip>
