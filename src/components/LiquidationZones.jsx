@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatPrice, formatLargeNumber } from '../utils/formatters';
+import { formatPrice } from '../utils/formatters';
 
 /**
  * LiquidationZones Component
