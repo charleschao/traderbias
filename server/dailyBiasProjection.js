@@ -748,14 +748,8 @@ function generateDailyBias(coin, dataStore, consensus = null) {
     const confidenceLevel = confidenceScore >= 0.70 ? 'HIGH' : confidenceScore >= 0.50 ? 'MEDIUM' : 'LOW';
 
     // Build key factors (matching 12hr bias format)
+    // NOTE: Spot/Perp Divergence is NOT included here because it has its own dedicated section in the UI
     const keyFactors = [
-        {
-            name: '⭐ Spot/Perp Divergence',
-            direction: spotPerpDivergence.score > 0.1 ? 'bullish' : spotPerpDivergence.score < -0.1 ? 'bearish' : 'neutral',
-            score: Math.abs(spotPerpDivergence.score),
-            impact: Math.abs(spotPerpDivergence.score) > 0.5 ? 'high' : Math.abs(spotPerpDivergence.score) > 0.2 ? 'medium' : 'low',
-            detail: `${spotPerpDivergence.signal.replace(/_/g, ' ')} - Spot:${spotPerpDivergence.spotTrend || '?'} Perp:${spotPerpDivergence.perpTrend || '?'}`
-        },
         {
             name: 'Funding Z-Score',
             direction: fundingMeanReversion.score > 0.1 ? 'bullish' : fundingMeanReversion.score < -0.1 ? 'bearish' : 'neutral',
