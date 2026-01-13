@@ -1779,8 +1779,10 @@ export default function App({ focusCoin = null }) {
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
                     projection={projections.BTC}
+                    onTimeframeChange={setDashboardTimeframe}
+                    hasEnoughData={hasEnoughHistoricalData}
                   />
-                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} onTimeframeChange={setDashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} />
+                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} getSparklineData={getSparklineData} />
                 </div>
               </div>
             )}
@@ -1806,8 +1808,10 @@ export default function App({ focusCoin = null }) {
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
                     projection={projections[focusCoin]}
+                    onTimeframeChange={setDashboardTimeframe}
+                    hasEnoughData={hasEnoughHistoricalData}
                   />
-                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} onTimeframeChange={setDashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} />
+                  <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} getSparklineData={getSparklineData} />
                 </div>
               </div>
             )}

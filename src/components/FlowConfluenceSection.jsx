@@ -1,8 +1,9 @@
 import React from 'react';
 import { calculateFlowConfluence } from '../utils/biasCalculations';
 import { formatUSD } from '../utils/formatters';
+import Sparkline from './Sparkline';
 
-const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', onTimeframeChange, hasEnoughData = true, coins = ['BTC', 'ETH', 'SOL'] }) => {
+const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', hasEnoughData = true, coins = ['BTC', 'ETH', 'SOL'], getSparklineData = null }) => {
 
   const getCoinDataStatus = (coin) => {
     const hasOiData = oiData?.[coin]?.hasTimeframeData !== false;
@@ -72,26 +73,11 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-neutral-200 dark:border-slate-700">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-neutral-900 dark:text-white">FLOW CONFLUENCE</span>
-          <span className="text-xs text-neutral-400 dark:text-slate-500">
-            {hasEnoughData ? `${timeframe.toUpperCase()} rolling` : 'Collecting...'}
-          </span>
-        </div>
-        {onTimeframeChange && (
-          <div className="flex items-center gap-1">
-            {['5m', '15m', '1h'].map(tf => (
-              <button
-                key={tf}
-                onClick={() => onTimeframeChange(tf)}
-                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${timeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
-              >
-                {tf.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-sm font-semibold text-neutral-900 dark:text-white">FLOW CONFLUENCE</span>
+        <span className="text-xs text-neutral-400 dark:text-slate-500">
+          {hasEnoughData ? `${timeframe.toUpperCase()} rolling` : 'Collecting...'}
+        </span>
       </div>
 
       {/* Data Warning */}
@@ -137,9 +123,12 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
                     </span>
                     <span className="text-neutral-500 dark:text-slate-400">Price</span>
                   </div>
-                  <span className={`font-mono ${(confluence.priceChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(confluence.priceChange || 0) >= 0 ? '+' : ''}{(confluence.priceChange || 0).toFixed(2)}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {getSparklineData && <Sparkline data={getSparklineData(coin, 'price')} width={40} height={14} strokeWidth={1} />}
+                    <span className={`font-mono ${(confluence.priceChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {(confluence.priceChange || 0) >= 0 ? '+' : ''}{(confluence.priceChange || 0).toFixed(2)}%
+                    </span>
+                  </div>
                 </div>
                 {/* OI */}
                 <div className="flex items-center justify-between text-sm">
@@ -149,9 +138,12 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
                     </span>
                     <span className="text-neutral-500 dark:text-slate-400">OI</span>
                   </div>
-                  <span className={`font-mono ${(oi?.oiDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatUSD(oi?.oiDelta || 0)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {getSparklineData && <Sparkline data={getSparklineData(coin, 'oi')} width={40} height={14} strokeWidth={1} />}
+                    <span className={`font-mono ${(oi?.oiDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatUSD(oi?.oiDelta || 0)}
+                    </span>
+                  </div>
                 </div>
                 {/* CVD */}
                 <div className="flex items-center justify-between text-sm">
@@ -161,9 +153,12 @@ const FlowConfluenceSection = ({ oiData, cvdData, priceData, timeframe = '5m', o
                     </span>
                     <span className="text-neutral-500 dark:text-slate-400">CVD</span>
                   </div>
-                  <span className={`font-mono ${(confluence.cvdDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatUSD(confluence.cvdDelta || 0)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {getSparklineData && <Sparkline data={getSparklineData(coin, 'cvd')} width={40} height={14} strokeWidth={1} />}
+                    <span className={`font-mono ${(confluence.cvdDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatUSD(confluence.cvdDelta || 0)}
+                    </span>
+                  </div>
                 </div>
               </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { WHALE_WS_CONFIG } from '../config/whaleWsConfig';
 import { formatUSD, formatPrice } from '../utils/formatters';
 import NotificationToggle from './NotificationToggle';
@@ -54,8 +54,6 @@ const MegaWhaleFeed = ({
   notificationSupported = true,
   onNotificationToggle = () => { }
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-
   const filteredTrades = useMemo(() =>
     trades.filter(t => t.notional >= threshold),
     [trades, threshold]
@@ -74,10 +72,7 @@ const MegaWhaleFeed = ({
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg border border-neutral-200 dark:border-slate-700 overflow-hidden h-full">
       {/* Header */}
-      <div
-        className="px-4 py-3 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <div className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
@@ -113,28 +108,24 @@ const MegaWhaleFeed = ({
                 {netFlow >= 0 ? '+' : ''}{formatUSD(netFlow)}
               </span>
             </div>
-
-            <span className="text-neutral-400 dark:text-slate-400 text-sm">{isExpanded ? '−' : '+'}</span>
           </div>
         </div>
       </div>
 
       {/* Trade List */}
-      {isExpanded && (
-        <div className="max-h-[220px] overflow-y-auto">
-          {filteredTrades.length === 0 ? (
-            <div className="p-4 text-center text-neutral-500 dark:text-slate-400 text-sm">
-              Watching for {formatThreshold(threshold)}+ trades...
-            </div>
-          ) : (
-            <div>
-              {filteredTrades.slice(0, 50).map((trade, i) => (
-                <MegaWhaleTradeRow key={`${trade.exchange}-${trade.tradeId}-${i}`} trade={trade} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="max-h-[220px] overflow-y-auto">
+        {filteredTrades.length === 0 ? (
+          <div className="p-4 text-center text-neutral-500 dark:text-slate-400 text-sm">
+            Watching for {formatThreshold(threshold)}+ trades...
+          </div>
+        ) : (
+          <div>
+            {filteredTrades.slice(0, 50).map((trade, i) => (
+              <MegaWhaleTradeRow key={`${trade.exchange}-${trade.tradeId}-${i}`} trade={trade} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

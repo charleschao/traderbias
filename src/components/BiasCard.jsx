@@ -6,7 +6,6 @@ import {
   calculateOIVelocity
 } from '../utils/biasCalculations';
 import { detectEdgeSignals, getPrioritySignal } from '../utils/flowSignals';
-import Sparkline from './Sparkline';
 import BiasHistoryBar from './BiasHistoryBar';
 import InfoTooltip from './InfoTooltip';
 
@@ -43,7 +42,9 @@ const BiasCard = ({
   timeframe = '5m',
   timeframeMinutes = 5,
   hasWhaleData: hasWhaleDataProp = true,
-  projection = null
+  projection = null,
+  onTimeframeChange = null,
+  hasEnoughData = true
 }) => {
   const hasWhaleData = biasData?.hasWhaleData ?? hasWhaleDataProp;
   const [isExpanded, setIsExpanded] = useState(() => loadExpandedState()[coin] || false);
@@ -123,13 +124,15 @@ const BiasCard = ({
   return (
     <div className="bg-white dark:bg-slate-800 border border-neutral-200 dark:border-slate-700 rounded-lg p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xl font-bold text-neutral-900 dark:text-white">{coin}</span>
-        {priceData && (
-          <span className="text-neutral-500 dark:text-slate-400 font-mono text-sm">
-            ${formatPrice(priceData.markPx)}
-          </span>
-        )}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-bold text-neutral-900 dark:text-white">{coin}</span>
+          {priceData && (
+            <span className="text-neutral-500 dark:text-slate-400 font-mono text-sm">
+              ${formatPrice(priceData.markPx)}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <span className={`font-semibold text-sm ${getBiasStyle(biasSignal)}`}>
             {biasData.label}
@@ -187,6 +190,26 @@ const BiasCard = ({
         </div>
       </div>
 
+      {/* Timeframe Selector */}
+      {onTimeframeChange && (
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs text-neutral-400 dark:text-slate-500">
+            {hasEnoughData ? `${timeframe.toUpperCase()} rolling` : 'Collecting...'}
+          </span>
+          <div className="flex items-center gap-1">
+            {['5m', '15m', '1h'].map(tf => (
+              <button
+                key={tf}
+                onClick={() => onTimeframeChange(tf)}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${timeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
+              >
+                {tf.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Event Alert */}
       {hasEventAlert && (
         <div className={`mb-3 p-2 rounded border-l-4 ${prioritySignal.type === 'bullish' ? 'border-l-green-500' : prioritySignal.type === 'bearish' ? 'border-l-red-500' : 'border-l-neutral-400'} bg-white dark:bg-slate-800`}>
@@ -205,32 +228,6 @@ const BiasCard = ({
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-neutral-500 dark:text-slate-400">OI</span>
-            <Sparkline data={oiHistory} width={40} height={14} strokeWidth={1} />
-          </div>
-          <div className={`font-mono font-semibold ${(oiData?.oiDelta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {formatUSD(oiData?.oiDelta || 0)}
-          </div>
-        </div>
-        <div className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-neutral-500 dark:text-slate-400">CVD</span>
-            <Sparkline data={cvdHistory} width={40} height={14} strokeWidth={1} />
-          </div>
-          <div className={`font-mono font-semibold ${(cvdData?.rolling5mDelta || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {formatUSD(cvdData?.rolling5mDelta || 0)}
-          </div>
-        </div>
-        <div className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2">
-          <span className="text-neutral-500 dark:text-slate-400 block mb-1">Flow</span>
-          <span className={`font-semibold ${getBiasStyle(confluence.signal)}`}>
-            {confluence.confluenceType.replace('_', ' ')}
-          </span>
-        </div>
-      </div>
 
       {/* Expanded Details */}
       {
