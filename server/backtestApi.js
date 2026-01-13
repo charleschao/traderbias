@@ -13,11 +13,9 @@ const winRateTracker = require('./winRateTracker');
 function filterPredictions({ coin, type, from, to, outcome, limit = 1000 }) {
   let predictions = winRateTracker.predictions || [];
 
-  // Only return evaluated predictions (exclude pending)
-  predictions = predictions.filter(p => p.evaluated && p.outcome !== 'inconclusive');
+  // Return all predictions (including pending) so they appear in the table
+  // Filter by coin if specified
 
-  // BTC only - filter out ETH and SOL
-  predictions = predictions.filter(p => p.coin === 'BTC');
 
   if (coin) {
     predictions = predictions.filter(p => p.coin === coin.toUpperCase());
