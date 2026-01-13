@@ -472,8 +472,9 @@ class DataStore {
 
     let totalRemoved = 0;
 
-    Object.keys(this.data).forEach(exchange => {
-      if (exchange === 'whaleTrades') return;
+    const exchanges = ['hyperliquid', 'binance', 'bybit', 'nado', 'asterdex'];
+    exchanges.forEach(exchange => {
+      if (!this.data[exchange]) return;
       ['BTC', 'ETH', 'SOL'].forEach(coin => {
         // Clean price
         const priceBefore = this.data[exchange].price[coin].length;
