@@ -11,6 +11,7 @@ import ExchangeComingSoon from './components/ExchangeComingSoon';
 import ExchangeSelector from './components/ExchangeSelector';
 import FlowConfluenceSection from './components/FlowConfluenceSection';
 import FlowSignalsSection from './components/FlowSignalsSection';
+import LiquidationZones from './components/LiquidationZones';
 
 
 import MegaWhaleFeed from './components/MegaWhaleFeed';
@@ -38,7 +39,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, getLiquidationZones } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -247,6 +248,13 @@ export default function App({ focusCoin = null }) {
     BTC: false,
     ETH: false,
     SOL: false
+  });
+
+  // Liquidation Zones state
+  const [liquidationZonesData, setLiquidationZonesData] = useState({
+    BTC: null,
+    ETH: null,
+    SOL: null
   });
 
   // Backtesting state
@@ -1444,18 +1452,34 @@ export default function App({ focusCoin = null }) {
       }
     };
 
-    // Initial fetch for both
+    // Fetch liquidation zones for BTC (primary focus)
+    const fetchLiquidationZones = async () => {
+      try {
+        const zones = await getLiquidationZones('BTC');
+        if (zones) {
+          setLiquidationZonesData(prev => ({ ...prev, BTC: zones }));
+        }
+      } catch (error) {
+        console.error('[LiqZones] Failed to fetch BTC:', error);
+      }
+    };
+
+    // Initial fetch for all
     fetchProjections();
     fetchDailyBias();
+    fetchLiquidationZones();
 
     // Refresh projections every 1 hour (8-12hr outlook doesn't need 30min updates)
     const projectionInterval = setInterval(fetchProjections, 60 * 60 * 1000);
     // Refresh daily bias every 2 hours (longer timeframe = less frequent updates)
     const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
+    // Refresh liquidation zones every 5 minutes (real-time zone updates)
+    const liqZonesInterval = setInterval(fetchLiquidationZones, 5 * 60 * 1000);
 
     return () => {
       clearInterval(projectionInterval);
       clearInterval(dailyBiasInterval);
+      clearInterval(liqZonesInterval);
     };
   }, []); // No dependencies - fetch all coins on mount and at intervals
 
@@ -1760,8 +1784,12 @@ export default function App({ focusCoin = null }) {
                   />
                 )}
 
-                {/* BiasCard (left) + Flow Confluence (right) - 2 column grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Liquidation Zones + BiasCard + Flow Confluence - 3 column grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Liquidation Zones - Left */}
+                  {isBackendEnabled() && (
+                    <LiquidationZones zonesData={liquidationZonesData.BTC} coin="BTC" />
+                  )}
                   <BiasCard
                     coin="BTC"
                     biasData={biasScores.BTC}

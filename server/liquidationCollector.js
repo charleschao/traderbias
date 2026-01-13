@@ -1,9 +1,13 @@
 /**
  * Liquidation Collector Module
- * 
- * Collects forced liquidation data from Binance Futures
+ *
+ * Collects forced liquidation data from Binance + Bybit Futures
  * Calculates velocity, directional pressure, and cascade detection
  * Used for 8-12H bias projection (10% weight)
+ *
+ * Multi-exchange aggregation for better accuracy:
+ * - Binance: ~40% of BTC perp volume
+ * - Bybit: ~30% of BTC perp volume
  */
 
 const WebSocket = require('ws');
@@ -11,6 +15,7 @@ const dataStore = require('./dataStore');
 
 // Configuration
 const BINANCE_LIQ_URL = 'wss://fstream.binance.com/ws/!forceOrder@arr';
+const BYBIT_LIQ_URL = 'wss://stream.bybit.com/v5/public/linear';
 const TRACKED_COINS = ['BTC', 'ETH', 'SOL'];
 
 // Velocity thresholds (USD)
@@ -28,67 +33,134 @@ const WINDOWS = {
     TWO_HOUR: 2 * 60 * 60 * 1000
 };
 
+// WebSocket connections
+let binanceWs = null;
+let bybitWs = null;
+let binanceReconnectTimeout = null;
+let bybitReconnectTimeout = null;
+let binancePingInterval = null;
+let bybitPingInterval = null;
+
+// Legacy aliases for backward compatibility
 let ws = null;
 let reconnectTimeout = null;
 let pingInterval = null;
 
 /**
- * Start liquidation collection
+ * Start liquidation collection from all exchanges
  */
 function start() {
-    console.log('[LiqCollector] Starting Binance liquidation collection...');
-    connect();
+    console.log('[LiqCollector] Starting multi-exchange liquidation collection...');
+    connectBinance();
+    connectBybit();
 }
 
 /**
  * Connect to Binance liquidation stream
  */
-function connect() {
+function connectBinance() {
     try {
-        ws = new WebSocket(BINANCE_LIQ_URL);
+        binanceWs = new WebSocket(BINANCE_LIQ_URL);
+        ws = binanceWs; // Legacy alias
 
-        ws.on('open', () => {
+        binanceWs.on('open', () => {
             console.log('[LiqCollector] Connected to Binance liquidation stream');
 
-            // Keep-alive ping
-            pingInterval = setInterval(() => {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.ping();
+            binancePingInterval = setInterval(() => {
+                if (binanceWs.readyState === WebSocket.OPEN) {
+                    binanceWs.ping();
                 }
             }, 30000);
+            pingInterval = binancePingInterval; // Legacy alias
         });
 
-        ws.on('message', (data) => {
+        binanceWs.on('message', (data) => {
             try {
                 const msg = JSON.parse(data.toString());
-                handleLiquidation(msg);
+                handleBinanceLiquidation(msg);
             } catch (e) {
                 // Silent catch
             }
         });
 
-        ws.on('error', (err) => {
-            console.error('[LiqCollector] WebSocket error:', err.message);
+        binanceWs.on('error', (err) => {
+            console.error('[LiqCollector] Binance WebSocket error:', err.message);
         });
 
-        ws.on('close', () => {
-            console.log('[LiqCollector] Disconnected, reconnecting in 5s...');
-            if (pingInterval) clearInterval(pingInterval);
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = setTimeout(connect, 5000);
+        binanceWs.on('close', () => {
+            console.log('[LiqCollector] Binance disconnected, reconnecting in 5s...');
+            if (binancePingInterval) clearInterval(binancePingInterval);
+            clearTimeout(binanceReconnectTimeout);
+            binanceReconnectTimeout = setTimeout(connectBinance, 5000);
+            reconnectTimeout = binanceReconnectTimeout; // Legacy alias
         });
 
     } catch (err) {
-        console.error('[LiqCollector] Connection error:', err.message);
-        reconnectTimeout = setTimeout(connect, 5000);
+        console.error('[LiqCollector] Binance connection error:', err.message);
+        binanceReconnectTimeout = setTimeout(connectBinance, 5000);
     }
 }
 
 /**
- * Handle incoming liquidation event
+ * Connect to Bybit liquidation stream
+ */
+function connectBybit() {
+    try {
+        bybitWs = new WebSocket(BYBIT_LIQ_URL);
+
+        bybitWs.on('open', () => {
+            console.log('[LiqCollector] Connected to Bybit liquidation stream');
+
+            // Subscribe to liquidation topics for tracked coins
+            const subscribeMsg = {
+                op: 'subscribe',
+                args: TRACKED_COINS.map(coin => `liquidation.${coin}USDT`)
+            };
+            bybitWs.send(JSON.stringify(subscribeMsg));
+
+            bybitPingInterval = setInterval(() => {
+                if (bybitWs.readyState === WebSocket.OPEN) {
+                    bybitWs.send(JSON.stringify({ op: 'ping' }));
+                }
+            }, 20000);
+        });
+
+        bybitWs.on('message', (data) => {
+            try {
+                const msg = JSON.parse(data.toString());
+                handleBybitLiquidation(msg);
+            } catch (e) {
+                // Silent catch
+            }
+        });
+
+        bybitWs.on('error', (err) => {
+            console.error('[LiqCollector] Bybit WebSocket error:', err.message);
+        });
+
+        bybitWs.on('close', () => {
+            console.log('[LiqCollector] Bybit disconnected, reconnecting in 5s...');
+            if (bybitPingInterval) clearInterval(bybitPingInterval);
+            clearTimeout(bybitReconnectTimeout);
+            bybitReconnectTimeout = setTimeout(connectBybit, 5000);
+        });
+
+    } catch (err) {
+        console.error('[LiqCollector] Bybit connection error:', err.message);
+        bybitReconnectTimeout = setTimeout(connectBybit, 5000);
+    }
+}
+
+// Legacy connect function for backward compatibility
+function connect() {
+    connectBinance();
+}
+
+/**
+ * Handle incoming Binance liquidation event
  * Binance format: { e: 'forceOrder', o: { s: 'BTCUSDT', S: 'SELL', p: '50000', q: '0.5', ... } }
  */
-function handleLiquidation(msg) {
+function handleBinanceLiquidation(msg) {
     if (msg.e !== 'forceOrder' || !msg.o) return;
 
     const order = msg.o;
@@ -108,6 +180,39 @@ function handleLiquidation(msg) {
 
     // Store liquidation
     dataStore.addLiquidation(liq);
+}
+
+/**
+ * Handle incoming Bybit liquidation event
+ * Bybit format: { topic: 'liquidation.BTCUSDT', data: { symbol, side, price, size, ... } }
+ */
+function handleBybitLiquidation(msg) {
+    // Skip pong responses and subscription confirmations
+    if (msg.op === 'pong' || msg.success !== undefined) return;
+    if (!msg.topic || !msg.data) return;
+
+    const data = msg.data;
+    const symbol = data.symbol?.replace('USDT', '');
+
+    if (!symbol || !TRACKED_COINS.includes(symbol)) return;
+
+    const liq = {
+        symbol,
+        side: data.side === 'Buy' ? 'BUY' : 'SELL',  // Buy = short liq, Sell = long liq
+        price: parseFloat(data.price),
+        quantity: parseFloat(data.size),
+        notional: parseFloat(data.price) * parseFloat(data.size),
+        timestamp: data.updatedTime || Date.now(),
+        exchange: 'bybit'
+    };
+
+    // Store liquidation
+    dataStore.addLiquidation(liq);
+}
+
+// Legacy handler for backward compatibility
+function handleLiquidation(msg) {
+    handleBinanceLiquidation(msg);
 }
 
 /**
@@ -293,8 +398,11 @@ function generateLiqDescription(liqSignal) {
  */
 function getStatus() {
     return {
-        running: ws !== null && ws.readyState === WebSocket.OPEN,
-        source: 'binance',
+        running: {
+            binance: binanceWs !== null && binanceWs.readyState === WebSocket.OPEN,
+            bybit: bybitWs !== null && bybitWs.readyState === WebSocket.OPEN
+        },
+        sources: ['binance', 'bybit'],
         trackedCoins: TRACKED_COINS,
         thresholds: THRESHOLDS
     };
@@ -304,10 +412,17 @@ function getStatus() {
  * Stop collector
  */
 function stop() {
-    if (pingInterval) clearInterval(pingInterval);
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    if (ws) ws.close();
-    console.log('[LiqCollector] Stopped');
+    // Stop Binance
+    if (binancePingInterval) clearInterval(binancePingInterval);
+    if (binanceReconnectTimeout) clearTimeout(binanceReconnectTimeout);
+    if (binanceWs) binanceWs.close();
+
+    // Stop Bybit
+    if (bybitPingInterval) clearInterval(bybitPingInterval);
+    if (bybitReconnectTimeout) clearTimeout(bybitReconnectTimeout);
+    if (bybitWs) bybitWs.close();
+
+    console.log('[LiqCollector] Stopped all connections');
 }
 
 module.exports = {

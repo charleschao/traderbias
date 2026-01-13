@@ -164,6 +164,29 @@ export const getDailyBias = async (coin = 'BTC') => {
   }
 };
 
+/**
+ * Get liquidation zones for a coin
+ * Returns estimated cascade zones based on OI clustering and leverage estimates
+ */
+export const getLiquidationZones = async (coin = 'BTC') => {
+  if (!USE_BACKEND) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/${coin.toLowerCase()}/liquidation-zones`);
+    if (!response.ok) {
+      console.error(`[BackendAPI] Liquidation zones error for ${coin}: ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`[BackendAPI] Failed to fetch ${coin} liquidation zones:`, error);
+    return null;
+  }
+};
+
 // ============== BACKTEST API ==============
 
 /**
@@ -262,6 +285,7 @@ export default {
   getBTCProjection,
   getCoinProjection,
   getDailyBias,
+  getLiquidationZones,
   getBacktestPredictions,
   getBacktestStats,
   getBacktestEquityCurve,

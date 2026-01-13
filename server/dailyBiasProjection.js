@@ -7,19 +7,23 @@
  * Key differences from 8-12H algorithm:
  * - Spot/Perp CVD Divergence is PRIMARY signal (30% weight)
  * - ETF Flows from SoSoValue (10% weight) - BTC only
+ * - Liquidation Cascade prediction (10% weight)
  * - Extended lookback windows (8H momentum, 6H spot/perp, 90-day funding)
  * - Signal freshness decay over time
  * - Multi-timeframe RSI divergence (4H + 1D)
  */
 
 const { calculateEtfFlowSignal, generateFlowDescription } = require('./etfFlowCollector');
+const liquidationCollector = require('./liquidationCollector');
+const { calculateZoneSignal } = require('./liquidationZoneCalculator');
 
 // Weight distribution optimized for 24H prediction
 const WEIGHTS_24H = {
-    spotPerpDivergence: 0.30,      // PRIMARY - institutional flows (reduced from 0.35)
-    fundingMeanReversion: 0.20,    // Extended 90-day baseline (reduced from 0.25)
-    oiPriceMomentum: 0.20,         // 8H window momentum
-    etfFlows: 0.10,                // NEW - Bitcoin ETF flows (IBIT, FBTC, ARKB)
+    spotPerpDivergence: 0.25,      // PRIMARY - institutional flows
+    fundingMeanReversion: 0.18,    // Extended 90-day baseline
+    oiPriceMomentum: 0.17,         // 8H window momentum
+    liquidationCascade: 0.10,      // Cascade prediction (zone proximity + flow)
+    etfFlows: 0.10,                // Bitcoin ETF flows (IBIT, FBTC, ARKB)
     crossExchangeConfluence: 0.10, // Veto mechanism
     whales: 0.05                   // Limited data quality
 };
@@ -610,6 +614,10 @@ function generateDailyBias(coin, dataStore, consensus = null) {
     // ETF flows (BTC only)
     const etfFlows = coin === 'BTC' ? calculateEtfFlowSignal() : { score: 0, signal: 'NOT_APPLICABLE' };
 
+    // Liquidation cascade signal (zone proximity + actual liq flow)
+    const liqZoneSignal = calculateZoneSignal(coin);
+    const liqFlowSignal = liquidationCollector.calculateLiquidationSignal(coin);
+
     // Check for veto condition
     if (confluence.shouldVeto) {
         return {
@@ -646,6 +654,16 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         (oiPriceMomentum.score * WEIGHTS_24H.oiPriceMomentum) +
         (confluence.score * WEIGHTS_24H.crossExchangeConfluence)
     );
+
+    // Add liquidation cascade signal (combined zone + flow)
+    // Blend zone prediction with actual liquidation flow data
+    const liqCombinedScore = liqZoneSignal.signal !== 'INSUFFICIENT_DATA'
+        ? (liqZoneSignal.score * 0.6 + liqFlowSignal.score * 0.4)  // 60% zone prediction, 40% actual flow
+        : liqFlowSignal.score;
+    if (liqZoneSignal.signal !== 'INSUFFICIENT_DATA' || liqFlowSignal.signal !== 'INSUFFICIENT_DATA') {
+        totalWeight += WEIGHTS_24H.liquidationCascade;
+        weightedScore += liqCombinedScore * WEIGHTS_24H.liquidationCascade;
+    }
 
     // Add ETF flows if available (BTC only)
     if (coin === 'BTC' && etfFlows.signal !== 'NO_DATA' && etfFlows.signal !== 'STALE_DATA' && etfFlows.signal !== 'NOT_APPLICABLE') {
@@ -795,6 +813,18 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         });
     }
 
+    // Add Liquidation Cascade signal
+    if (liqZoneSignal.signal !== 'INSUFFICIENT_DATA' || liqFlowSignal.signal !== 'INSUFFICIENT_DATA') {
+        const liqProbability = liqZoneSignal.zones?.probability || 'LOW';
+        keyFactors.push({
+            name: 'Liq Cascade',
+            direction: liqCombinedScore > 0.2 ? 'bullish' : liqCombinedScore < -0.2 ? 'bearish' : 'neutral',
+            score: Math.abs(liqCombinedScore),
+            impact: liqProbability === 'HIGH' ? 'high' : liqProbability === 'MEDIUM' ? 'medium' : 'low',
+            detail: liqZoneSignal.description || liqFlowSignal.description || 'Monitoring cascade risk'
+        });
+    }
+
     // Calculate invalidation
     const invalidation = calculateInvalidation24H(hlData.price?.[coin], bias);
 
@@ -858,7 +888,12 @@ function generateDailyBias(coin, dataStore, consensus = null) {
             oiPriceMomentum,
             etfFlows,
             confluence,
-            whales
+            whales,
+            liquidation: {
+                zoneSignal: liqZoneSignal,
+                flowSignal: liqFlowSignal,
+                combinedScore: liqCombinedScore
+            }
         },
         generatedAt: now,
         validUntil: now + TIMEFRAMES_24H.SIGNAL_VALIDITY,

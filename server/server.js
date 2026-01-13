@@ -12,6 +12,7 @@ const { startDataCollection } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
 const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
 const liquidationCollector = require('./liquidationCollector');
+const liquidationZoneCalculator = require('./liquidationZoneCalculator');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
 const dailyBiasProjection = require('./dailyBiasProjection');
@@ -260,6 +261,52 @@ app.get('/api/:coin/daily-bias', (req, res) => {
     console.error('[Daily Bias Error]', error);
     res.status(500).json({
       error: 'Failed to generate daily bias',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get liquidation zones for a coin
+ * GET /api/:coin/liquidation-zones
+ *
+ * Returns estimated liquidation cascade zones with:
+ * - Long liquidation zone (price level where long cascade triggers)
+ * - Short liquidation zone (price level where short squeeze triggers)
+ * - Probability assessment (LOW/MEDIUM/HIGH)
+ * - OI at risk estimates
+ */
+app.get('/api/:coin/liquidation-zones', (req, res) => {
+  const { coin } = req.params;
+  const upperCoin = coin.toUpperCase();
+  const validCoins = ['btc', 'eth', 'sol'];
+
+  if (!validCoins.includes(coin.toLowerCase())) {
+    return res.status(400).json({
+      error: 'Invalid coin',
+      validCoins: validCoins.map(c => c.toUpperCase())
+    });
+  }
+
+  try {
+    const zones = liquidationZoneCalculator.calculateLiquidationZones(upperCoin);
+    const liqSignal = liquidationCollector.calculateLiquidationSignal(upperCoin);
+    const collectorStatus = liquidationCollector.getStatus();
+
+    res.json({
+      ...zones,
+      realtimeLiquidations: {
+        signal: liqSignal.signal,
+        velocity: liqSignal.velocity,
+        cascade: liqSignal.cascade,
+        description: liqSignal.description
+      },
+      collectorStatus
+    });
+  } catch (error) {
+    console.error('[Liquidation Zones Error]', error);
+    res.status(500).json({
+      error: 'Failed to calculate liquidation zones',
       message: error.message
     });
   }
