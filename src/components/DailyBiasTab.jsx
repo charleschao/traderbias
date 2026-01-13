@@ -144,9 +144,9 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
               </div>
             </div>
           </InfoTooltip>
-          {freshnessScore !== undefined && (
-            <span className={`text-xs ${freshnessScore >= 0.9 ? 'text-green-600' : freshnessScore >= 0.75 ? 'text-neutral-600' : 'text-neutral-400'}`}>
-              {Math.round(freshnessScore * 100)}% fresh
+          {generatedAt && (
+            <span className={`text-xs ${ageHours < 1 ? 'text-green-600' : ageHours < 4 ? 'text-neutral-600' : 'text-neutral-400'}`}>
+              {formatTimeAgo(generatedAt)}
             </span>
           )}
         </div>

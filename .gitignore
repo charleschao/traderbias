@@ -2,6 +2,7 @@
 logs
 *.log
 *.old.jsx
+/.opencode/*
 deploy-dev.ps1
 deploy-prod.ps1
 .env
