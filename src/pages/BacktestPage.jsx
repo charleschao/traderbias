@@ -11,7 +11,7 @@ import {
 const getDefaultFilters = () => {
   const now = Date.now();
   return {
-    coin: '',
+    coin: 'BTC',
     type: '',
     from: new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     to: new Date(now).toISOString().split('T')[0]
@@ -87,10 +87,7 @@ const FilterBar = ({ filters, setFilters }) => {
             onChange={(e) => handleChange('coin', e.target.value)}
             className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white"
           >
-            <option value="">All</option>
             <option value="BTC">BTC</option>
-            <option value="ETH">ETH</option>
-            <option value="SOL">SOL</option>
           </select>
         </div>
         <div>
@@ -174,19 +171,6 @@ const WinRateDashboard = ({ stats, streaks }) => {
         </div>
       </div>
 
-      {/* Breakdown by coin */}
-      <div className="col-span-full">
-        <h3 className="text-lg font-semibold mb-3">By Coin</h3>
-        <div className="grid grid-cols-3 gap-4">
-          {['BTC', 'ETH', 'SOL'].map(coin => (
-            <div key={coin} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
-              <div className="text-sm text-slate-400">{coin}</div>
-              <div className="text-2xl font-bold">{stats.byCoin?.[coin]?.winRate || 0}%</div>
-              <div className="text-xs text-slate-500">{stats.byCoin?.[coin]?.total || 0} predictions</div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
@@ -278,6 +262,54 @@ const EquityCurveChart = ({ curve }) => {
   );
 };
 
+// ============== SIGNAL BADGES ==============
+
+const SignalBadges = ({ signals }) => {
+  if (!signals) return <span className="text-slate-500">-</span>;
+
+  const getBadgeColor = (score) => {
+    if (score === null || score === undefined) return 'bg-slate-700 text-slate-400';
+    if (score > 0.3) return 'bg-green-900/50 text-green-400';
+    if (score < -0.3) return 'bg-red-900/50 text-red-400';
+    return 'bg-slate-700 text-slate-300';
+  };
+
+  const formatScore = (score) => {
+    if (score === null || score === undefined) return '-';
+    return score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {signals.flowConfluence !== null && (
+        <span className={`px-1.5 py-0.5 rounded text-xs ${getBadgeColor(signals.flowConfluence)}`} title="Flow Confluence">
+          FC:{formatScore(signals.flowConfluence)}
+        </span>
+      )}
+      {signals.fundingZScore !== null && (
+        <span className={`px-1.5 py-0.5 rounded text-xs ${getBadgeColor(signals.fundingZScore)}`} title={`Funding Z=${signals.fundingZ?.toFixed(1) || '?'}`}>
+          FZ:{formatScore(signals.fundingZScore)}
+        </span>
+      )}
+      {signals.confluence !== null && (
+        <span className={`px-1.5 py-0.5 rounded text-xs ${signals.confluence > 0.7 ? 'bg-blue-900/50 text-blue-400' : 'bg-slate-700 text-slate-300'}`} title="Exchange Confluence">
+          XC:{(signals.confluence * 100).toFixed(0)}%
+        </span>
+      )}
+      {signals.cvdFlow !== null && (
+        <span className={`px-1.5 py-0.5 rounded text-xs ${getBadgeColor(signals.cvdFlow)}`} title="CVD Flow">
+          CVD:{formatScore(signals.cvdFlow)}
+        </span>
+      )}
+      {signals.whales !== null && signals.whales !== 0 && (
+        <span className={`px-1.5 py-0.5 rounded text-xs ${getBadgeColor(signals.whales)}`} title="Whale Consensus">
+          WH:{formatScore(signals.whales)}
+        </span>
+      )}
+    </div>
+  );
+};
+
 // ============== PREDICTION TABLE ==============
 
 const PredictionTable = ({ predictions }) => {
@@ -302,6 +334,7 @@ const PredictionTable = ({ predictions }) => {
               <th className="py-2 px-3 text-slate-400">Type</th>
               <th className="py-2 px-3 text-slate-400">Predicted</th>
               <th className="py-2 px-3 text-slate-400">Strength</th>
+              <th className="py-2 px-3 text-slate-400">Signals</th>
               <th className="py-2 px-3 text-slate-400">Price Change</th>
               <th className="py-2 px-3 text-slate-400">Outcome</th>
             </tr>
@@ -331,6 +364,9 @@ const PredictionTable = ({ predictions }) => {
                   </span>
                 </td>
                 <td className="py-2 px-3 text-slate-300">{pred.strength}</td>
+                <td className="py-2 px-3">
+                  <SignalBadges signals={pred.signals} />
+                </td>
                 <td className="py-2 px-3">
                   {pred.actualPriceChange !== undefined ? (
                     <span className={pred.actualPriceChange >= 0 ? 'text-green-400' : 'text-red-400'}>

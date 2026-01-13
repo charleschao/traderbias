@@ -7,12 +7,18 @@
 
 const fs = require('fs');
 const path = require('path');
+const dataStore = require('./dataStore');
 
 const WIN_RATE_FILE = path.join(__dirname, 'data', 'winrates.json');
 const MAX_HISTORY_DAYS = 365;
 const EVALUATION_DELAYS = {
   '12hr': 10 * 60 * 60 * 1000,  // 10 hours
   'daily': 20 * 60 * 60 * 1000  // 20 hours
+};
+// Minimum time between recording same coin+type predictions
+const RECORD_COOLDOWNS = {
+  '12hr': 60 * 60 * 1000,       // 1 hour cooldown for 12hr projections
+  'daily': 4 * 60 * 60 * 1000   // 4 hour cooldown for daily projections
 };
 
 class WinRateTracker {
@@ -81,9 +87,37 @@ class WinRateTracker {
     }
 
     /**
-     * Record a new prediction
+     * Record a new prediction (with cooldown to prevent duplicates)
      */
     recordPrediction(coin, projection, projectionType = '12hr') {
+        // Check cooldown - don't record if we have a recent prediction for same coin+type
+        const cooldown = RECORD_COOLDOWNS[projectionType] || RECORD_COOLDOWNS['12hr'];
+        const cutoff = Date.now() - cooldown;
+        const recentPrediction = this.predictions.find(p =>
+            p.coin === coin &&
+            p.projectionType === projectionType &&
+            p.timestamp > cutoff
+        );
+        if (recentPrediction) {
+            return; // Skip - already have a recent prediction
+        }
+
+        // Extract signal scores from components (if available)
+        const c = projection.components || {};
+        const signals = {
+            flowConfluence: c.flowConfluence?.score ?? null,
+            flowSignal: c.flowConfluence?.signal ?? null,
+            fundingZScore: c.fundingZScore?.score ?? null,
+            fundingZ: c.fundingZScore?.zScore ?? null,
+            oiRoC: c.oiRoC?.score ?? null,
+            oiFourHr: c.oiRoC?.fourHourRoC ?? null,
+            cvdFlow: c.cvdPersistence?.score ?? null,
+            regime: c.regime?.regime ?? null,
+            regimeScore: c.regime?.score ?? null,
+            confluence: c.confluence?.agreement ?? null,
+            whales: c.whales?.score ?? null
+        };
+
         const prediction = {
             id: `${coin}_${projectionType}_${Date.now()}`,
             coin,
@@ -96,12 +130,27 @@ class WinRateTracker {
             strength: projection.prediction.strength,
             grade: projection.prediction.grade,
             confidence: projection.confidence.level,
+            signals,
             evaluated: false,
             outcome: null
         };
 
         this.predictions.push(prediction);
         console.log(`[WinRateTracker] Recorded ${coin} ${projectionType} prediction: ${prediction.predictedBias} @ $${projection.currentPrice}`);
+    }
+
+    /**
+     * Get current price for a coin from dataStore (prefer Binance, fallback to others)
+     */
+    getCurrentPrice(coin) {
+        const exchanges = ['binance', 'hyperliquid', 'bybit'];
+        for (const exchange of exchanges) {
+            const price = dataStore.data[exchange]?.current?.price?.[coin];
+            if (price && price > 0) {
+                return price;
+            }
+        }
+        return null;
     }
 
     /**
@@ -124,7 +173,8 @@ class WinRateTracker {
         console.log(`[WinRateTracker] Evaluating ${duePredictions.length} predictions...`);
 
         for (const pred of duePredictions) {
-            this.evaluateSinglePrediction(pred);
+            const currentPrice = this.getCurrentPrice(pred.coin);
+            this.evaluateSinglePrediction(pred, currentPrice);
         }
 
         this.recalculateStats();

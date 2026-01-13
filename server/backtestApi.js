@@ -8,9 +8,16 @@ const winRateTracker = require('./winRateTracker');
 
 /**
  * Filter predictions by criteria
+ * Only returns evaluated predictions (not pending)
  */
 function filterPredictions({ coin, type, from, to, outcome, limit = 1000 }) {
   let predictions = winRateTracker.predictions || [];
+
+  // Only return evaluated predictions (exclude pending)
+  predictions = predictions.filter(p => p.evaluated && p.outcome !== 'inconclusive');
+
+  // BTC only - filter out ETH and SOL
+  predictions = predictions.filter(p => p.coin === 'BTC');
 
   if (coin) {
     predictions = predictions.filter(p => p.coin === coin.toUpperCase());
@@ -72,11 +79,9 @@ function calculateStats({ coin, type, from, to }) {
     byConfidence[conf] = calcWinRate(evaluated.filter(p => p.confidence === conf));
   }
 
-  // By coin
+  // By coin (BTC only)
   const byCoin = {};
-  for (const c of ['BTC', 'ETH', 'SOL']) {
-    byCoin[c] = calcWinRate(evaluated.filter(p => p.coin === c));
-  }
+  byCoin['BTC'] = calcWinRate(evaluated.filter(p => p.coin === 'BTC'));
 
   // By type
   const byType = {};

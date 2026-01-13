@@ -21,6 +21,18 @@ const backtestApi = require('./backtestApi');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// ============== BIAS PROJECTION CACHE ==============
+// Cache bias projections to avoid regenerating on every request
+// Daily bias: 4hr cache, 12hr bias: 1hr cache
+const biasCache = {
+  daily: {}, // { BTC: { data: {...}, generatedAt: timestamp }, ... }
+  '12hr': {}
+};
+const CACHE_TTL = {
+  daily: 4 * 60 * 60 * 1000,  // 4 hours
+  '12hr': 60 * 60 * 1000      // 1 hour
+};
+
 // ============== MIDDLEWARE ==============
 
 app.use(cors());
@@ -151,10 +163,11 @@ app.get('/api/stats', (req, res) => {
  * GET /api/:coin/projection
  *
  * Returns predictive bias analysis for BTC, ETH, or SOL
- * Now tracks predictions for win rate calculation
+ * Cached for 1 hour to preserve accurate generatedAt timestamps
  */
 app.get('/api/:coin/projection', (req, res) => {
   const { coin } = req.params;
+  const upperCoin = coin.toUpperCase();
   const validCoins = ['btc', 'eth', 'sol'];
 
   if (!validCoins.includes(coin.toLowerCase())) {
@@ -165,15 +178,31 @@ app.get('/api/:coin/projection', (req, res) => {
   }
 
   try {
-    const projection = biasProjection.generateProjection(coin.toUpperCase(), dataStore);
+    const now = Date.now();
+    const cached = biasCache['12hr'][upperCoin];
 
-    // Record prediction for win rate tracking (only if status is ACTIVE)
+    // Check if cache is valid
+    if (cached && (now - cached.generatedAt) < CACHE_TTL['12hr']) {
+      // Return cached projection with updated freshness info
+      const projection = { ...cached.data };
+      projection.historicalPerformance = winRateTracker.getStats(upperCoin);
+      return res.json(projection);
+    }
+
+    // Generate new projection
+    const projection = biasProjection.generateProjection(upperCoin, dataStore);
+
+    // Cache the projection (only if ACTIVE status)
     if (projection.status === 'ACTIVE') {
-      winRateTracker.recordPrediction(coin.toUpperCase(), projection);
+      biasCache['12hr'][upperCoin] = {
+        data: projection,
+        generatedAt: projection.generatedAt || now
+      };
+      winRateTracker.recordPrediction(upperCoin, projection);
     }
 
     // Add win rate stats to response
-    projection.historicalPerformance = winRateTracker.getStats(coin.toUpperCase());
+    projection.historicalPerformance = winRateTracker.getStats(upperCoin);
 
     res.json(projection);
   } catch (error) {
@@ -190,10 +219,11 @@ app.get('/api/:coin/projection', (req, res) => {
  * GET /api/:coin/daily-bias
  *
  * Returns daily directional bias optimized for day traders
- * Uses extended lookback windows and spot/perp CVD as primary signal
+ * Cached for 4 hours to preserve accurate generatedAt timestamps
  */
 app.get('/api/:coin/daily-bias', (req, res) => {
   const { coin } = req.params;
+  const upperCoin = coin.toUpperCase();
   const validCoins = ['btc', 'eth', 'sol'];
 
   if (!validCoins.includes(coin.toLowerCase())) {
@@ -204,11 +234,25 @@ app.get('/api/:coin/daily-bias', (req, res) => {
   }
 
   try {
-    const dailyBias = dailyBiasProjection.generateDailyBias(coin.toUpperCase(), dataStore);
+    const now = Date.now();
+    const cached = biasCache.daily[upperCoin];
 
-    // Record prediction for win rate tracking (only if status is ACTIVE)
+    // Check if cache is valid
+    if (cached && (now - cached.generatedAt) < CACHE_TTL.daily) {
+      // Return cached daily bias
+      return res.json(cached.data);
+    }
+
+    // Generate new daily bias
+    const dailyBias = dailyBiasProjection.generateDailyBias(upperCoin, dataStore);
+
+    // Cache the bias (only if ACTIVE status)
     if (dailyBias.status === 'ACTIVE') {
-      winRateTracker.recordPrediction(coin.toUpperCase(), dailyBias, 'daily');
+      biasCache.daily[upperCoin] = {
+        data: dailyBias,
+        generatedAt: dailyBias.generatedAt || now
+      };
+      winRateTracker.recordPrediction(upperCoin, dailyBias, 'daily');
     }
 
     res.json(dailyBias);
