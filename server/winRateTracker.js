@@ -2,15 +2,18 @@
  * Win Rate Tracker for Bias Projections
  *
  * Tracks prediction accuracy over time to validate algorithm performance
- * Stores predictions and evaluates outcome after 8-12 hours
+ * Stores predictions and evaluates outcome after 10-20 hours (type-dependent)
  */
 
 const fs = require('fs');
 const path = require('path');
 
 const WIN_RATE_FILE = path.join(__dirname, 'data', 'winrates.json');
-const EVALUATION_DELAY_MS = 10 * 60 * 60 * 1000; // 10 hours
-const MAX_HISTORY_DAYS = 30;
+const MAX_HISTORY_DAYS = 365;
+const EVALUATION_DELAYS = {
+  '12hr': 10 * 60 * 60 * 1000,  // 10 hours
+  'daily': 20 * 60 * 60 * 1000  // 20 hours
+};
 
 class WinRateTracker {
     constructor() {
@@ -61,7 +64,7 @@ class WinRateTracker {
                 fs.mkdirSync(dataDir, { recursive: true });
             }
 
-            // Clean old predictions (> 30 days)
+            // Clean old predictions (> 365 days)
             const cutoff = Date.now() - (MAX_HISTORY_DAYS * 24 * 60 * 60 * 1000);
             this.predictions = this.predictions.filter(p => p.timestamp >= cutoff);
 
@@ -80,10 +83,11 @@ class WinRateTracker {
     /**
      * Record a new prediction
      */
-    recordPrediction(coin, projection) {
+    recordPrediction(coin, projection, projectionType = '12hr') {
         const prediction = {
-            id: `${coin}_${Date.now()}`,
+            id: `${coin}_${projectionType}_${Date.now()}`,
             coin,
+            projectionType,
             timestamp: Date.now(),
             initialPrice: projection.currentPrice,
             predictedBias: projection.prediction.bias,
@@ -97,21 +101,21 @@ class WinRateTracker {
         };
 
         this.predictions.push(prediction);
-        console.log(`[WinRateTracker] Recorded ${coin} prediction: ${prediction.predictedBias} @ $${projection.currentPrice}`);
+        console.log(`[WinRateTracker] Recorded ${coin} ${projectionType} prediction: ${prediction.predictedBias} @ $${projection.currentPrice}`);
     }
 
     /**
-     * Evaluate predictions that are due (10 hours old)
+     * Evaluate predictions that are due based on their type
      */
     evaluatePredictions() {
         const now = Date.now();
-        const dueTime = now - EVALUATION_DELAY_MS;
 
-        // Find unevaluated predictions that are due
-        const duePredictions = this.predictions.filter(p =>
-            !p.evaluated &&
-            p.timestamp <= dueTime
-        );
+        // Find unevaluated predictions that are due based on their type
+        const duePredictions = this.predictions.filter(p => {
+            if (p.evaluated) return false;
+            const delay = EVALUATION_DELAYS[p.projectionType] || EVALUATION_DELAYS['12hr'];
+            return p.timestamp <= (now - delay);
+        });
 
         if (duePredictions.length === 0) {
             return;
@@ -123,7 +127,6 @@ class WinRateTracker {
             this.evaluateSinglePrediction(pred);
         }
 
-        // Recalculate stats
         this.recalculateStats();
         this.saveToFile();
     }
