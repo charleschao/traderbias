@@ -779,8 +779,8 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         }
     ];
 
-    // Add ETF flows (BTC only)
-    if (coin === 'BTC' && etfFlows.signal !== 'NOT_APPLICABLE') {
+    // Add ETF flows (BTC only, when we have valid data)
+    if (coin === 'BTC' && etfFlows.signal !== 'NOT_APPLICABLE' && etfFlows.signal !== 'NO_DATA' && etfFlows.signal !== 'STALE_DATA') {
         keyFactors.push({
             name: 'ETF Flows',
             direction: etfFlows.score > 0.1 ? 'bullish' : etfFlows.score < -0.1 ? 'bearish' : 'neutral',

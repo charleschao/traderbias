@@ -182,8 +182,8 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
         </div>
 
         {/* Key Factors */}
-        <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-2">
-          {keyFactors?.slice(0, 4).map((factor, i) => (
+        <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-2">
+          {keyFactors?.map((factor, i) => (
             <div key={i} className="bg-neutral-50 dark:bg-slate-700/50 rounded p-2">
               <div className="flex items-center gap-1 mb-1">
                 <span className={`text-xs ${getFactorColor(factor.direction)}`}>
