@@ -166,8 +166,8 @@ export default function BiasProjection({ projection, loading = false }) {
         </div>
       )}
 
-      {/* Spot/Perp Divergence */}
-      {spotPerpDivergence && spotPerpDivergence.signal && (
+      {/* Spot/Perp Divergence - only show when we have actual signal data */}
+      {spotPerpDivergence && spotPerpDivergence.signal && spotPerpDivergence.signal !== 'INSUFFICIENT_DATA' && spotPerpDivergence.signal !== 'NEUTRAL' && (
         <div className={`mt-3 p-2 rounded ${spotPerpDivergence.bias === 'bullish' ? 'bg-green-50 dark:bg-green-900/20' : spotPerpDivergence.bias === 'bearish' ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
           <div className="flex items-center justify-between">
             <span className={`text-sm font-semibold ${spotPerpDivergence.bias === 'bullish' ? 'text-green-700' : spotPerpDivergence.bias === 'bearish' ? 'text-red-700' : 'text-neutral-600'}`}>
