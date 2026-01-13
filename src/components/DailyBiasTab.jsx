@@ -39,7 +39,7 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
     );
   }
 
-  let { prediction, confidence, keyFactors, warnings = [], generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails } = dailyBias;
+  let { prediction, confidence, keyFactors, warnings = [], generatedAt, invalidation, currentPrice, components, dataQuality, nextUpdate, freshness, rangeAnalysis, vetoDetails, validUntil } = dailyBias;
 
   // Calculate freshness properly on the client side
   // The backend calculates it at generation time (so it's always 1.0 initially)
@@ -157,7 +157,9 @@ export default function DailyBiasTab({ dailyBias, loading = false }) {
             </span>
           )}
           <span className="text-xs text-neutral-400 dark:text-slate-500">
-            {nextUpdate ? `Next: ${new Date(nextUpdate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : formatTimeAgo(generatedAt)}
+            {validUntil
+              ? `Valid until ${new Date(validUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : formatTimeAgo(generatedAt)}
           </span>
         </div>
       </div>
