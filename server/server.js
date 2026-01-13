@@ -16,6 +16,7 @@ const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
 const dailyBiasProjection = require('./dailyBiasProjection');
 const winRateTracker = require('./winRateTracker');
+const backtestApi = require('./backtestApi');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -390,6 +391,87 @@ app.get('/api/liquidations/:coin?', (req, res) => {
     signals: allSignals,
     status: liquidationCollector.getStatus()
   });
+});
+
+// ============== BACKTEST API ENDPOINTS ==============
+
+/**
+ * Get filtered predictions for backtest analysis
+ * GET /api/backtest/predictions
+ */
+app.get('/api/backtest/predictions', (req, res) => {
+  try {
+    const { coin, type, from, to, outcome, limit } = req.query;
+    const predictions = backtestApi.filterPredictions({
+      coin,
+      type,
+      from,
+      to,
+      outcome,
+      limit: limit ? parseInt(limit, 10) : 1000
+    });
+    res.json({
+      count: predictions.length,
+      predictions
+    });
+  } catch (error) {
+    console.error('[Backtest Error]', error);
+    res.status(500).json({ error: 'Failed to fetch predictions', message: error.message });
+  }
+});
+
+/**
+ * Get aggregated backtest statistics
+ * GET /api/backtest/stats
+ */
+app.get('/api/backtest/stats', (req, res) => {
+  try {
+    const { coin, type, from, to } = req.query;
+    const stats = backtestApi.calculateStats({ coin, type, from, to });
+    res.json(stats);
+  } catch (error) {
+    console.error('[Backtest Error]', error);
+    res.status(500).json({ error: 'Failed to fetch stats', message: error.message });
+  }
+});
+
+/**
+ * Get equity curve for charting
+ * GET /api/backtest/equity-curve
+ */
+app.get('/api/backtest/equity-curve', (req, res) => {
+  try {
+    const { coin, type, from, to, initialCapital } = req.query;
+    const curve = backtestApi.generateEquityCurve({
+      coin,
+      type,
+      from,
+      to,
+      initialCapital: initialCapital ? parseFloat(initialCapital) : 10000
+    });
+    res.json({
+      points: curve.length,
+      curve
+    });
+  } catch (error) {
+    console.error('[Backtest Error]', error);
+    res.status(500).json({ error: 'Failed to generate equity curve', message: error.message });
+  }
+});
+
+/**
+ * Get win/loss streak analysis
+ * GET /api/backtest/streaks
+ */
+app.get('/api/backtest/streaks', (req, res) => {
+  try {
+    const { coin, type, from, to } = req.query;
+    const streaks = backtestApi.calculateStreaks({ coin, type, from, to });
+    res.json(streaks);
+  } catch (error) {
+    console.error('[Backtest Error]', error);
+    res.status(500).json({ error: 'Failed to fetch streaks', message: error.message });
+  }
 });
 
 // ============== ERROR HANDLING ==============
