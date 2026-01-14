@@ -22,7 +22,8 @@ const DEFAULT_FLOW_WINDOW_MS = 15 * 60 * 1000; // 15 minutes default
 
 const perpFlowState = {
   hyperliquid: { buys: [], sells: [], lastTradeIds: new Set() },
-  binance: { buys: [], sells: [], lastTradeIds: new Set() }
+  binance: { buys: [], sells: [], lastTradeIds: new Set() },
+  bybit: { buys: [], sells: [], lastTradeIds: new Set() }
 };
 
 /**
@@ -306,6 +307,8 @@ async function fetchBybitData() {
       const tradesData = await tradesRes.json();
 
       let buyVol = 0, sellVol = 0;
+      const now = Date.now();
+
       if (tradesData.retCode === 0 && tradesData.result?.list) {
         tradesData.result.list.forEach(trade => {
           const vol = parseFloat(trade.price) * parseFloat(trade.size);
@@ -314,18 +317,35 @@ async function fetchBybitData() {
           } else {
             sellVol += vol;
           }
+
+          // Accumulate flow history for BTC (with deduplication)
+          if (coin === 'BTC' && trade.execId) {
+            const tradeId = String(trade.execId);
+            if (!perpFlowState.bybit.lastTradeIds.has(tradeId)) {
+              perpFlowState.bybit.lastTradeIds.add(tradeId);
+              const entry = { timestamp: now, value: vol };
+              if (trade.side === 'Buy') {
+                perpFlowState.bybit.buys.push(entry);
+              } else {
+                perpFlowState.bybit.sells.push(entry);
+              }
+            }
+          }
         });
       }
       const delta = buyVol - sellVol;
       dataStore.addCVD('bybit', coin, delta);
 
-      // Update exchange flow for BTC perp
+      // Prune old flow data for BTC
       if (coin === 'BTC') {
-        dataStore.updateExchangeFlow('BTC', 'bybit', 'perp', {
-          buyVol,
-          sellVol,
-          timestamp: Date.now()
-        });
+        const cutoff = now - MAX_FLOW_HISTORY_MS;
+        perpFlowState.bybit.buys = perpFlowState.bybit.buys.filter(e => e.timestamp >= cutoff);
+        perpFlowState.bybit.sells = perpFlowState.bybit.sells.filter(e => e.timestamp >= cutoff);
+        // Prune old trade IDs (keep last 10000 to bound memory)
+        if (perpFlowState.bybit.lastTradeIds.size > 10000) {
+          const idsArray = [...perpFlowState.bybit.lastTradeIds];
+          perpFlowState.bybit.lastTradeIds = new Set(idsArray.slice(-5000));
+        }
       }
     }
 
@@ -539,8 +559,27 @@ function getBinancePerpFlow(windowMs = DEFAULT_FLOW_WINDOW_MS) {
   return { buyVol, sellVol, timestamp: now };
 }
 
+/**
+ * Get flow data for Bybit perp
+ * @param {number} windowMs - Rolling window in ms (default 15m)
+ */
+function getBybitPerpFlow(windowMs = DEFAULT_FLOW_WINDOW_MS) {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+
+  const buyVol = perpFlowState.bybit.buys
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+  const sellVol = perpFlowState.bybit.sells
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+
+  return { buyVol, sellVol, timestamp: now };
+}
+
 module.exports = {
   startDataCollection,
   getHyperliquidFlow,
-  getBinancePerpFlow
+  getBinancePerpFlow,
+  getBybitPerpFlow
 };

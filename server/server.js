@@ -8,7 +8,7 @@
 const express = require('express');
 const cors = require('cors');
 const dataStore = require('./dataStore');
-const { startDataCollection, getHyperliquidFlow, getBinancePerpFlow } = require('./dataCollector');
+const { startDataCollection, getHyperliquidFlow, getBinancePerpFlow, getBybitPerpFlow } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence, getFlow: getBinanceSpotFlow } = require('./spotDataCollector');
 const coinbaseSpotCollector = require('./coinbaseSpotCollector');
 const bybitSpotCollector = require('./bybitSpotCollector');
@@ -461,6 +461,7 @@ app.get('/api/exchange-flow/:coin?', (req, res) => {
   const bybitSpotFlow = bybitSpotCollector.getFlow(windowMs);
   const binanceSpotFlow = getBinanceSpotFlow(windowMs);
   const binancePerpFlow = getBinancePerpFlow(windowMs);
+  const bybitPerpFlow = getBybitPerpFlow(windowMs);
   const hyperliquidFlow = getHyperliquidFlow(windowMs);
 
   res.json({
@@ -478,7 +479,7 @@ app.get('/api/exchange-flow/:coin?', (req, res) => {
       },
       bybit: {
         spot: bybitSpotFlow,
-        perp: { buyVol: 0, sellVol: 0, timestamp: Date.now() } // TODO: Add Bybit perp tracking
+        perp: bybitPerpFlow
       },
       hyperliquid: {
         spot: { buyVol: 0, sellVol: 0, timestamp: Date.now() }, // Hyperliquid has no spot
