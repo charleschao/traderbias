@@ -297,6 +297,31 @@ export const getBacktestStreaks = async ({ coin, type, from, to } = {}) => {
   }
 };
 
+/**
+ * Get VWAP levels for a coin
+ * Returns calendar-anchored VWAP prices (daily, weekly, monthly, quarterly, yearly)
+ */
+export const getVwapLevels = async (coin = 'btc') => {
+  if (!USE_BACKEND) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/vwap/${coin.toLowerCase()}`);
+    if (!response.ok) {
+      if (response.status === 503) {
+        // Data not ready yet
+        return null;
+      }
+      throw new Error(`VWAP API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[BackendAPI] Failed to fetch VWAP levels:', error);
+    return null;
+  }
+};
+
 // Backwards compatibility alias
 export const getBTCProjection = () => getCoinProjection('BTC');
 
@@ -315,5 +340,6 @@ export default {
   getBacktestPredictions,
   getBacktestStats,
   getBacktestEquityCurve,
-  getBacktestStreaks
+  getBacktestStreaks,
+  getVwapLevels
 };
