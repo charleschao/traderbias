@@ -27,9 +27,10 @@ const cvdState = {
     SOL: { cumulative: 0, rolling5m: [], rolling15m: [], rolling1h: [] }
 };
 
-// Flow tracking for exchange flow feature (BTC only, rolling 5m)
+// Flow tracking for exchange flow feature (BTC only)
 const flowState = { buys: [], sells: [] };
-const FLOW_WINDOW_MS = 5 * 60 * 1000;
+const MAX_FLOW_HISTORY_MS = 60 * 60 * 1000; // 1 hour max storage
+const DEFAULT_FLOW_WINDOW_MS = 15 * 60 * 1000; // 15 minutes default
 
 let ws = null;
 let reconnectAttempts = 0;
@@ -137,11 +138,33 @@ function processTrade(trade) {
             flowState.buys.push(flowEntry);
         }
 
-        // Trim flow state
-        const flowCutoff = now - FLOW_WINDOW_MS;
+        // Trim flow state (keep 1h for all timeframes)
+        const flowCutoff = now - MAX_FLOW_HISTORY_MS;
         flowState.buys = flowState.buys.filter(e => e.timestamp >= flowCutoff);
         flowState.sells = flowState.sells.filter(e => e.timestamp >= flowCutoff);
     }
+}
+
+/**
+ * Get flow data for BTC (Binance spot)
+ * @param {number} windowMs - Rolling window in ms (default 15m)
+ */
+function getFlow(windowMs = DEFAULT_FLOW_WINDOW_MS) {
+    const now = Date.now();
+    const cutoff = now - windowMs;
+
+    const buyVol = flowState.buys
+        .filter(e => e.timestamp >= cutoff)
+        .reduce((sum, e) => sum + e.value, 0);
+    const sellVol = flowState.sells
+        .filter(e => e.timestamp >= cutoff)
+        .reduce((sum, e) => sum + e.value, 0);
+
+    return {
+        buyVol,
+        sellVol,
+        timestamp: now
+    };
 }
 
 /**
@@ -287,5 +310,6 @@ module.exports = {
     startSpotDataCollection,
     getSpotCvd,
     getAllSpotCvd,
-    detectSpotPerpDivergence
+    detectSpotPerpDivergence,
+    getFlow
 };

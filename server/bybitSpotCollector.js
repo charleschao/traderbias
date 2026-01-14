@@ -2,7 +2,7 @@
  * Bybit Spot CVD Collector
  *
  * Connects to Bybit spot WebSocket for trade data
- * Tracks rolling 5m buy/sell volumes for exchange flow breakdown
+ * Tracks rolling buy/sell volumes for exchange flow breakdown
  * BTC only
  */
 
@@ -12,14 +12,15 @@ const dataStore = require('./dataStore');
 const BYBIT_WS = 'wss://stream.bybit.com/v5/public/spot';
 const SYMBOL = 'BTCUSDT';
 
-// Flow tracking (rolling 5m window)
+// Flow tracking - store 1h of trades to support all timeframes
 const flowState = { buys: [], sells: [] };
 
 let ws = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_DELAY_MS = 5000;
-const ROLLING_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_HISTORY_MS = 60 * 60 * 1000; // 1 hour max storage
+const DEFAULT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes default
 
 /**
  * Connect to Bybit WebSocket
@@ -106,8 +107,8 @@ function processTrade(trade) {
     flowState.sells.push(entry);
   }
 
-  // Trim old entries
-  const cutoff = now - ROLLING_WINDOW_MS;
+  // Trim entries older than 1h
+  const cutoff = now - MAX_HISTORY_MS;
   flowState.buys = flowState.buys.filter(e => e.timestamp >= cutoff);
   flowState.sells = flowState.sells.filter(e => e.timestamp >= cutoff);
 }
@@ -130,15 +131,23 @@ function scheduleReconnect() {
 
 /**
  * Get flow data for BTC
+ * @param {number} windowMs - Rolling window in ms (default 15m)
  */
-function getFlow() {
-  const buyVol = flowState.buys.reduce((sum, e) => sum + e.value, 0);
-  const sellVol = flowState.sells.reduce((sum, e) => sum + e.value, 0);
+function getFlow(windowMs = DEFAULT_WINDOW_MS) {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+
+  const buyVol = flowState.buys
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+  const sellVol = flowState.sells
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
 
   return {
     buyVol,
     sellVol,
-    timestamp: Date.now()
+    timestamp: now
   };
 }
 

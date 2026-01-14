@@ -190,14 +190,16 @@ export const getLiquidationZones = async (coin = 'BTC') => {
 /**
  * Get per-exchange flow data (buy/sell volumes)
  * Returns spot and perp buy/sell volumes for Coinbase, Binance, Bybit, Hyperliquid
+ * @param {string} coin - Coin symbol (BTC)
+ * @param {number} windowMinutes - Rolling window in minutes (5, 15, or 60)
  */
-export const getExchangeFlow = async (coin = 'BTC') => {
+export const getExchangeFlow = async (coin = 'BTC', windowMinutes = 15) => {
   if (!USE_BACKEND) {
     return null;
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/exchange-flow/${coin.toLowerCase()}`);
+    const response = await fetch(`${BACKEND_URL}/api/exchange-flow/${coin.toLowerCase()}?window=${windowMinutes}`);
     if (!response.ok) {
       console.error(`[BackendAPI] Exchange flow error for ${coin}: ${response.status}`);
       return null;

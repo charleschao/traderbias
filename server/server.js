@@ -8,8 +8,8 @@
 const express = require('express');
 const cors = require('cors');
 const dataStore = require('./dataStore');
-const { startDataCollection } = require('./dataCollector');
-const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
+const { startDataCollection, getHyperliquidFlow, getBinancePerpFlow } = require('./dataCollector');
+const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence, getFlow: getBinanceSpotFlow } = require('./spotDataCollector');
 const coinbaseSpotCollector = require('./coinbaseSpotCollector');
 const bybitSpotCollector = require('./bybitSpotCollector');
 const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
@@ -434,6 +434,9 @@ app.get('/api/spot-cvd/:coin?', (req, res) => {
  * Get per-exchange flow data (buy/sell volumes)
  * GET /api/exchange-flow/:coin?
  *
+ * Query params:
+ *   window: 5, 15, or 60 (minutes) - defaults to 15
+ *
  * Returns spot and perp buy/sell volumes per exchange (BTC only for now)
  */
 app.get('/api/exchange-flow/:coin?', (req, res) => {
@@ -446,12 +449,42 @@ app.get('/api/exchange-flow/:coin?', (req, res) => {
     });
   }
 
-  const exchangeFlow = dataStore.getExchangeFlow(coin);
+  // Parse window parameter (5, 15, or 60 minutes)
+  const windowMinutes = parseInt(req.query.window) || 15;
+  const validWindows = [5, 15, 60];
+  const windowMs = validWindows.includes(windowMinutes)
+    ? windowMinutes * 60 * 1000
+    : 15 * 60 * 1000;
+
+  // Get flow data from each collector with the specified window
+  const coinbaseFlow = coinbaseSpotCollector.getFlow(windowMs);
+  const bybitSpotFlow = bybitSpotCollector.getFlow(windowMs);
+  const binanceSpotFlow = getBinanceSpotFlow(windowMs);
+  const binancePerpFlow = getBinancePerpFlow(windowMs);
+  const hyperliquidFlow = getHyperliquidFlow(windowMs);
 
   res.json({
     coin,
     timestamp: Date.now(),
-    exchanges: exchangeFlow
+    window: windowMinutes,
+    exchanges: {
+      coinbase: {
+        spot: coinbaseFlow,
+        perp: { buyVol: 0, sellVol: 0, timestamp: Date.now() } // Coinbase has no perp
+      },
+      binance: {
+        spot: binanceSpotFlow,
+        perp: binancePerpFlow
+      },
+      bybit: {
+        spot: bybitSpotFlow,
+        perp: { buyVol: 0, sellVol: 0, timestamp: Date.now() } // TODO: Add Bybit perp tracking
+      },
+      hyperliquid: {
+        spot: { buyVol: 0, sellVol: 0, timestamp: Date.now() }, // Hyperliquid has no spot
+        perp: hyperliquidFlow
+      }
+    }
   });
 });
 

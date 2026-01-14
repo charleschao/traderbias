@@ -16,6 +16,15 @@ const ASTERDEX_API = 'https://fapi.asterdex.com';
 const COINS = ['BTC', 'ETH', 'SOL'];
 const FETCH_TIMEOUT_MS = 15000; // 15 second timeout
 
+// Flow tracking for perp exchanges (BTC only)
+const MAX_FLOW_HISTORY_MS = 60 * 60 * 1000; // 1 hour max storage
+const DEFAULT_FLOW_WINDOW_MS = 15 * 60 * 1000; // 15 minutes default
+
+const perpFlowState = {
+  hyperliquid: { buys: [], sells: [], lastTradeIds: new Set() },
+  binance: { buys: [], sells: [], lastTradeIds: new Set() }
+};
+
 /**
  * Fetch with timeout wrapper to prevent hung requests
  */
@@ -103,22 +112,41 @@ async function fetchHyperliquidData() {
       const trades = await tradesRes.json();
 
       let buyVol = 0, sellVol = 0;
+      const now = Date.now();
+
       (trades || []).forEach(trade => {
         const vol = parseFloat(trade.sz) * parseFloat(trade.px);
         if (trade.side === 'B') buyVol += vol;
         else if (trade.side === 'A') sellVol += vol;
+
+        // Accumulate flow history for BTC (with deduplication)
+        if (coin === 'BTC' && trade.tid) {
+          const tradeId = String(trade.tid);
+          if (!perpFlowState.hyperliquid.lastTradeIds.has(tradeId)) {
+            perpFlowState.hyperliquid.lastTradeIds.add(tradeId);
+            const entry = { timestamp: now, value: vol };
+            if (trade.side === 'B') {
+              perpFlowState.hyperliquid.buys.push(entry);
+            } else if (trade.side === 'A') {
+              perpFlowState.hyperliquid.sells.push(entry);
+            }
+          }
+        }
       });
 
       const delta = buyVol - sellVol;
       dataStore.addCVD('hyperliquid', coin, delta);
 
-      // Update exchange flow for BTC perp
+      // Prune old flow data for BTC
       if (coin === 'BTC') {
-        dataStore.updateExchangeFlow('BTC', 'hyperliquid', 'perp', {
-          buyVol,
-          sellVol,
-          timestamp: Date.now()
-        });
+        const cutoff = now - MAX_FLOW_HISTORY_MS;
+        perpFlowState.hyperliquid.buys = perpFlowState.hyperliquid.buys.filter(e => e.timestamp >= cutoff);
+        perpFlowState.hyperliquid.sells = perpFlowState.hyperliquid.sells.filter(e => e.timestamp >= cutoff);
+        // Prune old trade IDs (keep last 10000 to bound memory)
+        if (perpFlowState.hyperliquid.lastTradeIds.size > 10000) {
+          const idsArray = [...perpFlowState.hyperliquid.lastTradeIds];
+          perpFlowState.hyperliquid.lastTradeIds = new Set(idsArray.slice(-5000));
+        }
       }
     }
 
@@ -180,6 +208,8 @@ async function fetchBinanceData() {
       const trades = await tradesRes.json();
 
       let buyVol = 0, sellVol = 0;
+      const now = Date.now();
+
       if (Array.isArray(trades)) {
         trades.forEach(trade => {
           const vol = parseFloat(trade.price) * parseFloat(trade.qty);
@@ -189,18 +219,35 @@ async function fetchBinanceData() {
           } else {
             buyVol += vol;
           }
+
+          // Accumulate flow history for BTC (with deduplication)
+          if (coin === 'BTC' && trade.id) {
+            const tradeId = String(trade.id);
+            if (!perpFlowState.binance.lastTradeIds.has(tradeId)) {
+              perpFlowState.binance.lastTradeIds.add(tradeId);
+              const entry = { timestamp: now, value: vol };
+              if (trade.isBuyerMaker) {
+                perpFlowState.binance.sells.push(entry);
+              } else {
+                perpFlowState.binance.buys.push(entry);
+              }
+            }
+          }
         });
       }
       const delta = buyVol - sellVol;
       dataStore.addCVD('binance', coin, delta);
 
-      // Update exchange flow for BTC perp
+      // Prune old flow data for BTC
       if (coin === 'BTC') {
-        dataStore.updateExchangeFlow('BTC', 'binance', 'perp', {
-          buyVol,
-          sellVol,
-          timestamp: Date.now()
-        });
+        const cutoff = now - MAX_FLOW_HISTORY_MS;
+        perpFlowState.binance.buys = perpFlowState.binance.buys.filter(e => e.timestamp >= cutoff);
+        perpFlowState.binance.sells = perpFlowState.binance.sells.filter(e => e.timestamp >= cutoff);
+        // Prune old trade IDs (keep last 10000 to bound memory)
+        if (perpFlowState.binance.lastTradeIds.size > 10000) {
+          const idsArray = [...perpFlowState.binance.lastTradeIds];
+          perpFlowState.binance.lastTradeIds = new Set(idsArray.slice(-5000));
+        }
       }
     }
 
@@ -456,6 +503,44 @@ function startDataCollection() {
   console.log('[DataCollector] Workers started successfully');
 }
 
+/**
+ * Get flow data for Hyperliquid perp
+ * @param {number} windowMs - Rolling window in ms (default 15m)
+ */
+function getHyperliquidFlow(windowMs = DEFAULT_FLOW_WINDOW_MS) {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+
+  const buyVol = perpFlowState.hyperliquid.buys
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+  const sellVol = perpFlowState.hyperliquid.sells
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+
+  return { buyVol, sellVol, timestamp: now };
+}
+
+/**
+ * Get flow data for Binance perp
+ * @param {number} windowMs - Rolling window in ms (default 15m)
+ */
+function getBinancePerpFlow(windowMs = DEFAULT_FLOW_WINDOW_MS) {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+
+  const buyVol = perpFlowState.binance.buys
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+  const sellVol = perpFlowState.binance.sells
+    .filter(e => e.timestamp >= cutoff)
+    .reduce((sum, e) => sum + e.value, 0);
+
+  return { buyVol, sellVol, timestamp: now };
+}
+
 module.exports = {
-  startDataCollection
+  startDataCollection,
+  getHyperliquidFlow,
+  getBinancePerpFlow
 };

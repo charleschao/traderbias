@@ -8,7 +8,7 @@ const EXCHANGE_CONFIG = {
   hyperliquid: { name: 'Hyperliquid', hasSpot: false, hasPerp: true }
 };
 
-const ExchangeFlowSection = ({ exchangeFlowData }) => {
+const ExchangeFlowSection = ({ exchangeFlowData, timeframe = '15m' }) => {
   const exchanges = exchangeFlowData?.exchanges || {};
 
   const renderFlowBar = (data, label) => {
@@ -58,6 +58,22 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
     );
   };
 
+  const getExchangeTotals = (key) => {
+    const data = exchanges[key];
+    if (!data) return null;
+
+    let totalBuy = 0;
+    let totalSell = 0;
+
+    if (data.spot?.buyVol) totalBuy += data.spot.buyVol;
+    if (data.spot?.sellVol) totalSell += data.spot.sellVol;
+    if (data.perp?.buyVol) totalBuy += data.perp.buyVol;
+    if (data.perp?.sellVol) totalSell += data.perp.sellVol;
+
+    if (totalBuy === 0 && totalSell === 0) return null;
+    return { totalBuy, totalSell };
+  };
+
   const renderNaBar = (label) => (
     <div className="mb-2">
       <div className="text-[10px] text-neutral-400 dark:text-slate-500 mb-1">{label}</div>
@@ -71,19 +87,27 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-neutral-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-semibold text-neutral-900 dark:text-white">EXCHANGE FLOW</span>
-        <span className="text-xs text-neutral-400 dark:text-slate-500">5m rolling</span>
+        <span className="text-xs text-neutral-400 dark:text-slate-500">{timeframe.toUpperCase()} rolling</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {Object.entries(EXCHANGE_CONFIG).map(([key, config]) => (
+        {Object.entries(EXCHANGE_CONFIG).map(([key, config]) => {
+          const totals = getExchangeTotals(key);
+          return (
             <div
               key={key}
               className="bg-neutral-50 dark:bg-slate-700/50 rounded-lg p-3"
             >
-              <div className="mb-2">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-neutral-900 dark:text-white">
                   {config.name}
                 </span>
+                {totals && (
+                  <div className="flex gap-2 text-xs font-mono">
+                    <span className="text-green-600 dark:text-green-400">{formatUSD(totals.totalBuy)}</span>
+                    <span className="text-red-600 dark:text-red-400">{formatUSD(totals.totalSell)}</span>
+                  </div>
+                )}
               </div>
 
               {config.hasSpot
@@ -94,7 +118,8 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
                 ? renderFlowBar(exchanges[key]?.perp, 'PERP')
                 : renderNaBar('PERP')}
             </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

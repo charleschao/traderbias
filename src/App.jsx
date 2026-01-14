@@ -200,7 +200,7 @@ export default function App({ focusCoin = null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeExchange, setActiveExchange] = useState('hyperliquid');
-  const [dashboardTimeframe, setDashboardTimeframe] = useState('5m');
+  const [dashboardTimeframe, setDashboardTimeframe] = useState('15m');
   const [expandedCoin, setExpandedCoin] = useState(null);
   const [showTop10, setShowTop10] = useState(false); // Toggle for Top10/whale sections
 
@@ -1466,10 +1466,32 @@ export default function App({ focusCoin = null }) {
       }
     };
 
-    // Fetch per-exchange flow data (BTC only)
+    // Initial fetch for all
+    fetchProjections();
+    fetchDailyBias();
+    fetchLiquidationZones();
+
+    // Refresh projections every 1 hour (8-12hr outlook doesn't need 30min updates)
+    const projectionInterval = setInterval(fetchProjections, 60 * 60 * 1000);
+    // Refresh daily bias every 2 hours (longer timeframe = less frequent updates)
+    const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
+    // Refresh liquidation zones every 5 minutes (real-time zone updates)
+    const liqZonesInterval = setInterval(fetchLiquidationZones, 5 * 60 * 1000);
+
+    return () => {
+      clearInterval(projectionInterval);
+      clearInterval(dailyBiasInterval);
+      clearInterval(liqZonesInterval);
+    };
+  }, []); // No dependencies - fetch all coins on mount and at intervals
+
+  // Fetch exchange flow data - uses dashboardTimeframe
+  useEffect(() => {
+    const windowMinutes = timeframeToMinutes(dashboardTimeframe);
+
     const fetchExchangeFlowData = async () => {
       try {
-        const flow = await getExchangeFlow('BTC');
+        const flow = await getExchangeFlow('BTC', windowMinutes);
         if (flow) {
           setExchangeFlowData(flow);
         }
@@ -1478,28 +1500,11 @@ export default function App({ focusCoin = null }) {
       }
     };
 
-    // Initial fetch for all
-    fetchProjections();
-    fetchDailyBias();
-    fetchLiquidationZones();
     fetchExchangeFlowData();
-
-    // Refresh projections every 1 hour (8-12hr outlook doesn't need 30min updates)
-    const projectionInterval = setInterval(fetchProjections, 60 * 60 * 1000);
-    // Refresh daily bias every 2 hours (longer timeframe = less frequent updates)
-    const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
-    // Refresh liquidation zones every 5 minutes (real-time zone updates)
-    const liqZonesInterval = setInterval(fetchLiquidationZones, 5 * 60 * 1000);
-    // Refresh exchange flow every 10 seconds (rolling 5m window)
     const exchangeFlowInterval = setInterval(fetchExchangeFlowData, 10 * 1000);
 
-    return () => {
-      clearInterval(projectionInterval);
-      clearInterval(dailyBiasInterval);
-      clearInterval(liqZonesInterval);
-      clearInterval(exchangeFlowInterval);
-    };
-  }, []); // No dependencies - fetch all coins on mount and at intervals
+    return () => clearInterval(exchangeFlowInterval);
+  }, [dashboardTimeframe]);
 
   // Notify on new whale trades
   useEffect(() => {
@@ -1833,7 +1838,7 @@ export default function App({ focusCoin = null }) {
 
                 {/* Exchange Flow - Per-exchange spot/perp buy/sell breakdown */}
                 {isBackendEnabled() && exchangeFlowData && (
-                  <ExchangeFlowSection exchangeFlowData={exchangeFlowData} />
+                  <ExchangeFlowSection exchangeFlowData={exchangeFlowData} timeframe={dashboardTimeframe} />
                 )}
               </div>
             )}
