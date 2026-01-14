@@ -670,16 +670,17 @@ class DataStore {
    * Get memory usage statistics
    */
   getStats() {
+    const EXCHANGES = ['hyperliquid', 'binance', 'bybit', 'nado', 'asterdex'];
     let totalDataPoints = 0;
 
-    Object.keys(this.data).forEach(exchange => {
-      if (exchange === 'whaleTrades') return;
+    EXCHANGES.forEach(exchange => {
+      if (!this.data[exchange]?.price) return;
       ['BTC', 'ETH', 'SOL'].forEach(coin => {
-        totalDataPoints += this.data[exchange].price[coin].length;
-        totalDataPoints += this.data[exchange].oi[coin].length;
-        totalDataPoints += this.data[exchange].orderbook[coin].length;
-        totalDataPoints += this.data[exchange].cvd[coin].length;
-        totalDataPoints += this.data[exchange].funding[coin].length;
+        totalDataPoints += this.data[exchange].price[coin]?.length || 0;
+        totalDataPoints += this.data[exchange].oi[coin]?.length || 0;
+        totalDataPoints += this.data[exchange].orderbook[coin]?.length || 0;
+        totalDataPoints += this.data[exchange].cvd[coin]?.length || 0;
+        totalDataPoints += this.data[exchange].funding[coin]?.length || 0;
       });
     });
 
@@ -690,18 +691,18 @@ class DataStore {
       totalDataPoints,
       memoryUsageMB,
       persistenceFile: DATA_FILE,
-      exchanges: Object.keys(this.data)
-        .filter(ex => ex !== 'whaleTrades')
+      exchanges: EXCHANGES
+        .filter(ex => this.data[ex]?.price)
         .map(ex => ({
           name: ex,
           lastUpdate: this.lastUpdate[ex] ? new Date(this.lastUpdate[ex]).toISOString() : 'Never',
           dataPoints: ['BTC', 'ETH', 'SOL'].reduce((sum, coin) => {
             return sum +
-              this.data[ex].price[coin].length +
-              this.data[ex].oi[coin].length +
-              this.data[ex].orderbook[coin].length +
-              this.data[ex].cvd[coin].length +
-              this.data[ex].funding[coin].length;
+              (this.data[ex].price[coin]?.length || 0) +
+              (this.data[ex].oi[coin]?.length || 0) +
+              (this.data[ex].orderbook[coin]?.length || 0) +
+              (this.data[ex].cvd[coin]?.length || 0) +
+              (this.data[ex].funding[coin]?.length || 0);
           }, 0)
         }))
     };
