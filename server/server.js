@@ -12,6 +12,8 @@ const { startDataCollection, getHyperliquidFlow, getBinancePerpFlow, getBybitPer
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence, getFlow: getBinanceSpotFlow } = require('./spotDataCollector');
 const coinbaseSpotCollector = require('./coinbaseSpotCollector');
 const bybitSpotCollector = require('./bybitSpotCollector');
+const binancePerpCollector = require('./binancePerpCollector');
+const bybitPerpCollector = require('./bybitPerpCollector');
 const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
 const liquidationCollector = require('./liquidationCollector');
 const liquidationZoneCalculator = require('./liquidationZoneCalculator');
@@ -671,6 +673,12 @@ function startServer() {
 
   // Start Bybit spot collector
   bybitSpotCollector.start();
+
+  // Start Binance perp CVD collector
+  binancePerpCollector.start();
+
+  // Start Bybit perp CVD collector
+  bybitPerpCollector.start();
 
   // Start ETF flow collector (SoSoValue API)
   startEtfFlowCollection();

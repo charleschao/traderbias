@@ -14,6 +14,14 @@ const PRODUCT = 'BTC-USD';
 // Flow tracking - store 1h of trades to support all timeframes
 const flowState = { buys: [], sells: [] };
 
+// CVD tracking with rolling windows
+const cvdState = {
+  cumulative: 0,
+  rolling5m: [],
+  rolling15m: [],
+  rolling1h: []
+};
+
 let ws = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -100,16 +108,33 @@ function processTrade(trade) {
   const side = trade.side?.toUpperCase();
   const entry = { timestamp: now, value };
 
+  // CVD delta: positive for buys, negative for sells
+  const cvdDelta = side === 'BUY' ? value : -value;
+
+  // Update CVD tracking
+  cvdState.cumulative += cvdDelta;
+  const cvdEntry = { timestamp: now, delta: cvdDelta };
+  cvdState.rolling5m.push(cvdEntry);
+  cvdState.rolling15m.push(cvdEntry);
+  cvdState.rolling1h.push(cvdEntry);
+
+  // Flow tracking
   if (side === 'BUY') {
     flowState.buys.push(entry);
   } else if (side === 'SELL') {
     flowState.sells.push(entry);
   }
 
-  // Trim entries older than 1h
-  const cutoff = now - MAX_HISTORY_MS;
-  flowState.buys = flowState.buys.filter(e => e.timestamp >= cutoff);
-  flowState.sells = flowState.sells.filter(e => e.timestamp >= cutoff);
+  // Trim entries older than their windows
+  const cutoff1h = now - MAX_HISTORY_MS;
+  const cutoff15m = now - 15 * 60 * 1000;
+  const cutoff5m = now - 5 * 60 * 1000;
+
+  flowState.buys = flowState.buys.filter(e => e.timestamp >= cutoff1h);
+  flowState.sells = flowState.sells.filter(e => e.timestamp >= cutoff1h);
+  cvdState.rolling1h = cvdState.rolling1h.filter(e => e.timestamp >= cutoff1h);
+  cvdState.rolling15m = cvdState.rolling15m.filter(e => e.timestamp >= cutoff15m);
+  cvdState.rolling5m = cvdState.rolling5m.filter(e => e.timestamp >= cutoff5m);
 }
 
 /**
@@ -151,11 +176,36 @@ function getFlow(windowMs = DEFAULT_WINDOW_MS) {
 }
 
 /**
- * Update dataStore with flow data
+ * Get spot CVD data for BTC
+ */
+function getSpotCvd() {
+  const sum5m = cvdState.rolling5m.reduce((acc, e) => acc + e.delta, 0);
+  const sum15m = cvdState.rolling15m.reduce((acc, e) => acc + e.delta, 0);
+  const sum1h = cvdState.rolling1h.reduce((acc, e) => acc + e.delta, 0);
+
+  return {
+    cumulative: cvdState.cumulative,
+    delta: sum5m,
+    rolling5mDelta: sum5m,
+    rolling15mDelta: sum15m,
+    rolling1hDelta: sum1h,
+    dataPoints5m: cvdState.rolling5m.length,
+    dataPoints15m: cvdState.rolling15m.length,
+    dataPoints1h: cvdState.rolling1h.length,
+    timestamp: Date.now()
+  };
+}
+
+/**
+ * Update dataStore with flow and CVD data
  */
 function updateDataStore() {
   const flow = getFlow();
   dataStore.updateExchangeFlow('BTC', 'coinbase', 'spot', flow);
+
+  // Update spot CVD
+  const spotCvd = getSpotCvd();
+  dataStore.updateSpotCvd('coinbase', 'BTC', spotCvd);
 }
 
 /**
@@ -171,5 +221,6 @@ function start() {
 
 module.exports = {
   start,
-  getFlow
+  getFlow,
+  getSpotCvd
 };

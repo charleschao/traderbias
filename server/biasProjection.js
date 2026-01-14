@@ -1029,8 +1029,12 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
 
     // Spot vs Perp CVD divergence bonus (Phase 2: Both use 2H timeframe now)
+    // Uses aggregated CVD across all exchanges:
+    // - Spot: Binance + Bybit + Coinbase
+    // - Perp: Hyperliquid + Binance + Bybit
     let spotPerpDivergence = null;
-    const spotCvdHistory = dataStore.getSpotCvdHistory(coin);
+    const spotCvdHistory = dataStore.getAggregatedSpotCvdHistory ? dataStore.getAggregatedSpotCvdHistory(coin) : [];
+    const perpCvdHistory = dataStore.getAggregatedPerpCvdHistory ? dataStore.getAggregatedPerpCvdHistory(coin) : [];
     if (spotCvdHistory && spotCvdHistory.length > 0) {
         const now = Date.now();
         const twoHoursAgo = now - TIMEFRAMES.TWO_HOURS;
@@ -1038,7 +1042,10 @@ function generateProjection(coin, dataStore, consensus = null) {
         // Calculate spot CVD delta over 2H (matches perp timeframe)
         const spotCvd2H = spotCvdHistory.filter(e => e && e.time >= twoHoursAgo);
         const spotDelta = spotCvd2H.reduce((sum, e) => sum + (e.delta || 0), 0);
-        const perpCvdDelta = cvdPersistence.twoHourDelta || 0;
+
+        // Calculate perp CVD delta over 2H from aggregated history
+        const perpCvd2H = perpCvdHistory.filter(e => e && e.time >= twoHoursAgo);
+        const perpCvdDelta = perpCvd2H.reduce((sum, e) => sum + (e.delta || 0), 0);
 
         // Get coin-specific thresholds for trend detection
         const thresholds = CVD_THRESHOLDS[coin] || CVD_THRESHOLDS.BTC;

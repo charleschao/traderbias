@@ -1,19 +1,16 @@
 /**
- * Bybit Spot CVD Collector
+ * Bybit Perp CVD Collector
  *
- * Connects to Bybit spot WebSocket for trade data
- * Tracks rolling buy/sell volumes for exchange flow breakdown
- * BTC only
+ * Connects to Bybit Linear WebSocket for perpetual trade data
+ * Tracks CVD (Cumulative Volume Delta) for spot/perp divergence signals
+ * BTC only for now
  */
 
 const WebSocket = require('ws');
 const dataStore = require('./dataStore');
 
-const BYBIT_WS = 'wss://stream.bybit.com/v5/public/spot';
+const BYBIT_WS = 'wss://stream.bybit.com/v5/public/linear';
 const SYMBOL = 'BTCUSDT';
-
-// Flow tracking - store 1h of trades to support all timeframes
-const flowState = { buys: [], sells: [] };
 
 // CVD tracking with rolling windows
 const cvdState = {
@@ -23,23 +20,25 @@ const cvdState = {
   rolling1h: []
 };
 
+// Flow tracking for exchange flow feature
+const flowState = { buys: [], sells: [] };
+
 let ws = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_DELAY_MS = 5000;
 const MAX_HISTORY_MS = 60 * 60 * 1000; // 1 hour max storage
-const DEFAULT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes default
 
 /**
  * Connect to Bybit WebSocket
  */
 function connectWebsocket() {
-  console.log('[BybitSpot] Connecting to Bybit spot stream...');
+  console.log('[BybitPerp] Connecting to Bybit Linear stream...');
 
   ws = new WebSocket(BYBIT_WS);
 
   ws.on('open', () => {
-    console.log('[BybitSpot] Connected, subscribing to publicTrade...');
+    console.log('[BybitPerp] Connected, subscribing to publicTrade...');
     reconnectAttempts = 0;
 
     // Subscribe to public trades
@@ -60,12 +59,12 @@ function connectWebsocket() {
   });
 
   ws.on('close', () => {
-    console.log('[BybitSpot] WebSocket closed, reconnecting...');
+    console.log('[BybitPerp] WebSocket closed, reconnecting...');
     scheduleReconnect();
   });
 
   ws.on('error', (err) => {
-    console.error('[BybitSpot] WebSocket error:', err.message);
+    console.error('[BybitPerp] WebSocket error:', err.message);
   });
 
   // Ping to keep alive
@@ -82,7 +81,7 @@ function connectWebsocket() {
 function processMessage(msg) {
   // Handle subscription confirmations
   if (msg.op === 'subscribe' && msg.success) {
-    console.log('[BybitSpot] Subscribed successfully');
+    console.log('[BybitPerp] Subscribed successfully');
     return;
   }
 
@@ -106,11 +105,8 @@ function processTrade(trade) {
   if (value <= 0) return;
 
   // Bybit trade.S: 'Buy' or 'Sell' (taker side)
-  const side = trade.S;
-  const entry = { timestamp: now, value };
-
-  // CVD delta: positive for buys, negative for sells
-  const cvdDelta = side === 'Buy' ? value : -value;
+  const isBuy = trade.S === 'Buy';
+  const cvdDelta = isBuy ? value : -value;
 
   // Update CVD tracking
   cvdState.cumulative += cvdDelta;
@@ -120,10 +116,11 @@ function processTrade(trade) {
   cvdState.rolling1h.push(cvdEntry);
 
   // Flow tracking
-  if (side === 'Buy') {
-    flowState.buys.push(entry);
-  } else if (side === 'Sell') {
-    flowState.sells.push(entry);
+  const flowEntry = { timestamp: now, value };
+  if (isBuy) {
+    flowState.buys.push(flowEntry);
+  } else {
+    flowState.sells.push(flowEntry);
   }
 
   // Trim entries older than their windows
@@ -131,11 +128,11 @@ function processTrade(trade) {
   const cutoff15m = now - 15 * 60 * 1000;
   const cutoff5m = now - 5 * 60 * 1000;
 
-  flowState.buys = flowState.buys.filter(e => e.timestamp >= cutoff1h);
-  flowState.sells = flowState.sells.filter(e => e.timestamp >= cutoff1h);
   cvdState.rolling1h = cvdState.rolling1h.filter(e => e.timestamp >= cutoff1h);
   cvdState.rolling15m = cvdState.rolling15m.filter(e => e.timestamp >= cutoff15m);
   cvdState.rolling5m = cvdState.rolling5m.filter(e => e.timestamp >= cutoff5m);
+  flowState.buys = flowState.buys.filter(e => e.timestamp >= cutoff1h);
+  flowState.sells = flowState.sells.filter(e => e.timestamp >= cutoff1h);
 }
 
 /**
@@ -143,22 +140,43 @@ function processTrade(trade) {
  */
 function scheduleReconnect() {
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error('[BybitSpot] Max reconnect attempts reached');
+    console.error('[BybitPerp] Max reconnect attempts reached');
     return;
   }
 
   reconnectAttempts++;
   const delay = RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempts - 1);
-  console.log(`[BybitSpot] Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
+  console.log(`[BybitPerp] Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
 
   setTimeout(connectWebsocket, delay);
 }
 
 /**
- * Get flow data for BTC
+ * Get CVD data for BTC
+ */
+function getCvd() {
+  const sum5m = cvdState.rolling5m.reduce((acc, e) => acc + e.delta, 0);
+  const sum15m = cvdState.rolling15m.reduce((acc, e) => acc + e.delta, 0);
+  const sum1h = cvdState.rolling1h.reduce((acc, e) => acc + e.delta, 0);
+
+  return {
+    cumulative: cvdState.cumulative,
+    delta: sum5m,
+    rolling5mDelta: sum5m,
+    rolling15mDelta: sum15m,
+    rolling1hDelta: sum1h,
+    dataPoints5m: cvdState.rolling5m.length,
+    dataPoints15m: cvdState.rolling15m.length,
+    dataPoints1h: cvdState.rolling1h.length,
+    timestamp: Date.now()
+  };
+}
+
+/**
+ * Get flow data for BTC perp
  * @param {number} windowMs - Rolling window in ms (default 15m)
  */
-function getFlow(windowMs = DEFAULT_WINDOW_MS) {
+function getFlow(windowMs = 15 * 60 * 1000) {
   const now = Date.now();
   const cutoff = now - windowMs;
 
@@ -177,43 +195,23 @@ function getFlow(windowMs = DEFAULT_WINDOW_MS) {
 }
 
 /**
- * Get spot CVD data for BTC
- */
-function getSpotCvd() {
-  const sum5m = cvdState.rolling5m.reduce((acc, e) => acc + e.delta, 0);
-  const sum15m = cvdState.rolling15m.reduce((acc, e) => acc + e.delta, 0);
-  const sum1h = cvdState.rolling1h.reduce((acc, e) => acc + e.delta, 0);
-
-  return {
-    cumulative: cvdState.cumulative,
-    delta: sum5m, // Use 5m delta as the primary delta for aggregation
-    rolling5mDelta: sum5m,
-    rolling15mDelta: sum15m,
-    rolling1hDelta: sum1h,
-    dataPoints5m: cvdState.rolling5m.length,
-    dataPoints15m: cvdState.rolling15m.length,
-    dataPoints1h: cvdState.rolling1h.length,
-    timestamp: Date.now()
-  };
-}
-
-/**
- * Update dataStore with flow and CVD data
+ * Update dataStore with CVD and flow data
  */
 function updateDataStore() {
-  const flow = getFlow();
-  dataStore.updateExchangeFlow('BTC', 'bybit', 'spot', flow);
+  // Update perp CVD using the existing exchange CVD method
+  const cvd = getCvd();
+  dataStore.addCVD('bybit', 'BTC', cvd.delta);
 
-  // Update spot CVD
-  const spotCvd = getSpotCvd();
-  dataStore.updateSpotCvd('bybit', 'BTC', spotCvd);
+  // Update exchange flow
+  const flow = getFlow();
+  dataStore.updateExchangeFlow('BTC', 'bybit', 'perp', flow);
 }
 
 /**
  * Start collection
  */
 function start() {
-  console.log('[BybitSpot] Starting Bybit spot flow collection...');
+  console.log('[BybitPerp] Starting Bybit Linear CVD collection...');
   connectWebsocket();
 
   // Update dataStore every 5 seconds
@@ -222,6 +220,6 @@ function start() {
 
 module.exports = {
   start,
-  getFlow,
-  getSpotCvd
+  getCvd,
+  getFlow
 };

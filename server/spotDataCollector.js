@@ -281,7 +281,7 @@ function updateDataStore() {
     for (const coin of COINS) {
         const spotCvd = getSpotCvd(coin);
         if (spotCvd) {
-            dataStore.updateSpotCvd(coin, spotCvd);
+            dataStore.updateSpotCvd('binance', coin, spotCvd);
         }
     }
 

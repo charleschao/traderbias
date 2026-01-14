@@ -22,11 +22,23 @@ class DataStore {
       nado: this.createEmptyExchangeData(),
       asterdex: this.createEmptyExchangeData(),
       whaleTrades: [],
-      // Spot CVD from Binance (separate from perp data)
+      // Spot CVD per exchange (for aggregation)
       spotCvd: {
-        BTC: { current: null, history: [] },
-        ETH: { current: null, history: [] },
-        SOL: { current: null, history: [] }
+        binance: {
+          BTC: { current: null, history: [] },
+          ETH: { current: null, history: [] },
+          SOL: { current: null, history: [] }
+        },
+        bybit: {
+          BTC: { current: null, history: [] },
+          ETH: { current: null, history: [] },
+          SOL: { current: null, history: [] }
+        },
+        coinbase: {
+          BTC: { current: null, history: [] },
+          ETH: { current: null, history: [] },
+          SOL: { current: null, history: [] }
+        }
       },
       // ETF flow data from SoSoValue (BTC only)
       etfFlows: {
@@ -346,57 +358,118 @@ class DataStore {
   }
 
   /**
-   * Update spot CVD data (from Binance spot trades)
+   * Update spot CVD data for a specific exchange
+   * @param {string} exchange - binance, bybit, coinbase
+   * @param {string} coin - BTC, ETH, SOL
+   * @param {object} cvdData - CVD data with delta field
    */
-  updateSpotCvd(coin, cvdData) {
-    if (!this.data.spotCvd[coin]) {
+  updateSpotCvd(exchange, coin, cvdData) {
+    if (!this.data.spotCvd[exchange]) {
+      console.warn(`[DataStore] Unknown exchange for spot CVD: ${exchange}`);
+      return;
+    }
+    if (!this.data.spotCvd[exchange][coin]) {
       console.warn(`[DataStore] Unknown coin for spot CVD: ${coin}`);
       return;
     }
 
-    this.data.spotCvd[coin].current = cvdData;
-    this.data.spotCvd[coin].history.push({
+    this.data.spotCvd[exchange][coin].current = cvdData;
+    this.data.spotCvd[exchange][coin].history.push({
       ...cvdData,
-      time: Date.now()  // Use 'time' to match dailyBiasProjection filter
+      time: Date.now()
     });
 
     // Keep history bounded (6 hours of 5-second samples = 4320 entries)
-    if (this.data.spotCvd[coin].history.length > 5000) {
-      this.data.spotCvd[coin].history = this.data.spotCvd[coin].history.slice(-4320);
+    if (this.data.spotCvd[exchange][coin].history.length > 5000) {
+      this.data.spotCvd[exchange][coin].history = this.data.spotCvd[exchange][coin].history.slice(-4320);
     }
 
     this.isDirty = true;
   }
 
   /**
-   * Get spot CVD data for a coin
+   * Get spot CVD data for a coin from a specific exchange
    */
-  getSpotCvd(coin) {
-    if (!this.data.spotCvd[coin]) {
+  getSpotCvd(exchange, coin) {
+    if (!this.data.spotCvd[exchange]?.[coin]) {
       return null;
     }
-    return this.data.spotCvd[coin].current;
+    return this.data.spotCvd[exchange][coin].current;
   }
 
   /**
-   * Get spot CVD history for a coin (Phase 2: for 2H calculations)
+   * Get spot CVD history for a coin from a specific exchange
    */
-  getSpotCvdHistory(coin) {
-    if (!this.data.spotCvd[coin]) {
+  getSpotCvdHistory(exchange, coin) {
+    if (!this.data.spotCvd[exchange]?.[coin]) {
       return [];
     }
-    return this.data.spotCvd[coin].history || [];
+    return this.data.spotCvd[exchange][coin].history || [];
   }
 
   /**
-   * Get all spot CVD data
+   * Get aggregated spot CVD history across all spot exchanges
+   * Merges Binance, Bybit, Coinbase spot CVD into time-bucketed deltas
+   * @param {string} coin - BTC, ETH, SOL
+   * @returns {Array} - [{ time, delta }, ...] aggregated across exchanges
+   */
+  getAggregatedSpotCvdHistory(coin) {
+    const exchanges = ['binance', 'bybit', 'coinbase'];
+    const bucketMs = 5000; // 5-second buckets
+    const buckets = new Map();
+
+    for (const exchange of exchanges) {
+      const history = this.data.spotCvd[exchange]?.[coin]?.history || [];
+      for (const entry of history) {
+        if (!entry || !entry.time) continue;
+        const bucketKey = Math.floor(entry.time / bucketMs) * bucketMs;
+        const existing = buckets.get(bucketKey) || { time: bucketKey, delta: 0 };
+        existing.delta += entry.delta || 0;
+        buckets.set(bucketKey, existing);
+      }
+    }
+
+    return Array.from(buckets.values()).sort((a, b) => a.time - b.time);
+  }
+
+  /**
+   * Get aggregated perp CVD history across all perp exchanges
+   * Merges Hyperliquid, Binance, Bybit perp CVD into time-bucketed deltas
+   * @param {string} coin - BTC, ETH, SOL
+   * @returns {Array} - [{ time, delta }, ...] aggregated across exchanges
+   */
+  getAggregatedPerpCvdHistory(coin) {
+    const exchanges = ['hyperliquid', 'binance', 'bybit'];
+    const bucketMs = 5000; // 5-second buckets
+    const buckets = new Map();
+
+    for (const exchange of exchanges) {
+      const history = this.data[exchange]?.cvd?.[coin] || [];
+      for (const entry of history) {
+        if (!entry || !entry.time) continue;
+        const bucketKey = Math.floor(entry.time / bucketMs) * bucketMs;
+        const existing = buckets.get(bucketKey) || { time: bucketKey, delta: 0 };
+        existing.delta += entry.delta || 0;
+        buckets.set(bucketKey, existing);
+      }
+    }
+
+    return Array.from(buckets.values()).sort((a, b) => a.time - b.time);
+  }
+
+  /**
+   * Get all spot CVD data (current values from all exchanges)
    */
   getAllSpotCvd() {
-    return {
-      BTC: this.data.spotCvd.BTC.current,
-      ETH: this.data.spotCvd.ETH.current,
-      SOL: this.data.spotCvd.SOL.current
-    };
+    const result = {};
+    for (const coin of ['BTC', 'ETH', 'SOL']) {
+      result[coin] = {
+        binance: this.data.spotCvd.binance[coin]?.current,
+        bybit: this.data.spotCvd.bybit[coin]?.current,
+        coinbase: this.data.spotCvd.coinbase[coin]?.current
+      };
+    }
+    return result;
   }
 
   /**

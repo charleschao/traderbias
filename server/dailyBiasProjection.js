@@ -600,9 +600,10 @@ function generateDailyBias(coin, dataStore, consensus = null) {
         };
     }
 
-    // Get spot CVD history
-    const spotCvdHistory = dataStore.getSpotCvdHistory ? dataStore.getSpotCvdHistory(coin) : [];
-    const perpCvdHistory = hlData.cvd?.[coin] || [];
+    // Get aggregated spot and perp CVD history across all exchanges
+    // Spot: Binance + Bybit + Coinbase, Perp: Hyperliquid + Binance + Bybit
+    const spotCvdHistory = dataStore.getAggregatedSpotCvdHistory ? dataStore.getAggregatedSpotCvdHistory(coin) : [];
+    const perpCvdHistory = dataStore.getAggregatedPerpCvdHistory ? dataStore.getAggregatedPerpCvdHistory(coin) : [];
 
     // Calculate all components
     const spotPerpDivergence = calculateSpotPerpDivergence(spotCvdHistory, perpCvdHistory, coin);
