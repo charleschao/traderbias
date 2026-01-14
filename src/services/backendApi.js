@@ -187,6 +187,29 @@ export const getLiquidationZones = async (coin = 'BTC') => {
   }
 };
 
+/**
+ * Get per-exchange flow data (buy/sell volumes)
+ * Returns spot and perp buy/sell volumes for Coinbase, Binance, Bybit, Hyperliquid
+ */
+export const getExchangeFlow = async (coin = 'BTC') => {
+  if (!USE_BACKEND) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/exchange-flow/${coin.toLowerCase()}`);
+    if (!response.ok) {
+      console.error(`[BackendAPI] Exchange flow error for ${coin}: ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`[BackendAPI] Failed to fetch ${coin} exchange flow:`, error);
+    return null;
+  }
+};
+
 // ============== BACKTEST API ==============
 
 /**
@@ -286,6 +309,7 @@ export default {
   getCoinProjection,
   getDailyBias,
   getLiquidationZones,
+  getExchangeFlow,
   getBacktestPredictions,
   getBacktestStats,
   getBacktestEquityCurve,

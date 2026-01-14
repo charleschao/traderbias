@@ -9,6 +9,7 @@ import ConsensusSection from './components/ConsensusSection';
 import DetailModal from './components/DetailModal';
 import ExchangeComingSoon from './components/ExchangeComingSoon';
 import ExchangeSelector from './components/ExchangeSelector';
+import ExchangeFlowSection from './components/ExchangeFlowSection';
 import FlowConfluenceSection from './components/FlowConfluenceSection';
 import FlowSignalsSection from './components/FlowSignalsSection';
 import LiquidationZones from './components/LiquidationZones';
@@ -39,7 +40,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, getLiquidationZones } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, getLiquidationZones, getExchangeFlow } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -209,6 +210,7 @@ export default function App({ focusCoin = null }) {
   const [fundingData, setFundingData] = useState({});
   const [orderbookData, setOrderbookData] = useState({});
   const [cvdData, setCvdData] = useState({});
+  const [exchangeFlowData, setExchangeFlowData] = useState(null);
 
   // Trader/Whale state
   const [traders, setTraders] = useState([]);
@@ -1464,10 +1466,23 @@ export default function App({ focusCoin = null }) {
       }
     };
 
+    // Fetch per-exchange flow data (BTC only)
+    const fetchExchangeFlowData = async () => {
+      try {
+        const flow = await getExchangeFlow('BTC');
+        if (flow) {
+          setExchangeFlowData(flow);
+        }
+      } catch (error) {
+        console.error('[ExchangeFlow] Failed to fetch:', error);
+      }
+    };
+
     // Initial fetch for all
     fetchProjections();
     fetchDailyBias();
     fetchLiquidationZones();
+    fetchExchangeFlowData();
 
     // Refresh projections every 1 hour (8-12hr outlook doesn't need 30min updates)
     const projectionInterval = setInterval(fetchProjections, 60 * 60 * 1000);
@@ -1475,11 +1490,14 @@ export default function App({ focusCoin = null }) {
     const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
     // Refresh liquidation zones every 5 minutes (real-time zone updates)
     const liqZonesInterval = setInterval(fetchLiquidationZones, 5 * 60 * 1000);
+    // Refresh exchange flow every 10 seconds (rolling 5m window)
+    const exchangeFlowInterval = setInterval(fetchExchangeFlowData, 10 * 1000);
 
     return () => {
       clearInterval(projectionInterval);
       clearInterval(dailyBiasInterval);
       clearInterval(liqZonesInterval);
+      clearInterval(exchangeFlowInterval);
     };
   }, []); // No dependencies - fetch all coins on mount and at intervals
 
@@ -1812,6 +1830,11 @@ export default function App({ focusCoin = null }) {
                   />
                   <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} getSparklineData={getSparklineData} />
                 </div>
+
+                {/* Exchange Flow - Per-exchange spot/perp buy/sell breakdown */}
+                {isBackendEnabled() && exchangeFlowData && (
+                  <ExchangeFlowSection exchangeFlowData={exchangeFlowData} />
+                )}
               </div>
             )}
 

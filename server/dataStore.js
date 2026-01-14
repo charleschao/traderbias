@@ -40,6 +40,12 @@ class DataStore {
         BTC: [],
         ETH: [],
         SOL: []
+      },
+      // Per-exchange flow data (buy/sell volumes for spot and perp)
+      exchangeFlow: {
+        BTC: this.createEmptyExchangeFlow(),
+        ETH: this.createEmptyExchangeFlow(),
+        SOL: this.createEmptyExchangeFlow()
       }
     };
 
@@ -82,6 +88,15 @@ class DataStore {
         orderbook: { BTC: null, ETH: null, SOL: null },
         cvd: { BTC: null, ETH: null, SOL: null }
       }
+    };
+  }
+
+  createEmptyExchangeFlow() {
+    return {
+      coinbase: { spot: null },
+      binance: { spot: null, perp: null },
+      bybit: { spot: null, perp: null },
+      hyperliquid: { perp: null }
     };
   }
 
@@ -462,6 +477,47 @@ class DataStore {
     return this.data.liquidations[coin];
   }
 
+  /**
+   * Update exchange flow data (buy/sell volumes)
+   * @param {string} coin - BTC, ETH, SOL
+   * @param {string} exchange - coinbase, binance, bybit, hyperliquid
+   * @param {string} type - spot or perp
+   * @param {object} flowData - { buyVol, sellVol, timestamp }
+   */
+  updateExchangeFlow(coin, exchange, type, flowData) {
+    if (!this.data.exchangeFlow[coin]) {
+      console.warn(`[DataStore] Unknown coin for exchange flow: ${coin}`);
+      return;
+    }
+    if (!this.data.exchangeFlow[coin][exchange]) {
+      console.warn(`[DataStore] Unknown exchange for flow: ${exchange}`);
+      return;
+    }
+
+    this.data.exchangeFlow[coin][exchange][type] = {
+      buyVol: flowData.buyVol || 0,
+      sellVol: flowData.sellVol || 0,
+      timestamp: flowData.timestamp || Date.now()
+    };
+    this.isDirty = true;
+  }
+
+  /**
+   * Get exchange flow for a coin (all exchanges)
+   */
+  getExchangeFlow(coin) {
+    if (!this.data.exchangeFlow[coin]) {
+      return this.createEmptyExchangeFlow();
+    }
+    return this.data.exchangeFlow[coin];
+  }
+
+  /**
+   * Get all exchange flow data
+   */
+  getAllExchangeFlow() {
+    return this.data.exchangeFlow;
+  }
 
   /**
    * Cleanup old data points (older than 24 hours)

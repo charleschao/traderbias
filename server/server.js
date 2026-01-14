@@ -10,6 +10,8 @@ const cors = require('cors');
 const dataStore = require('./dataStore');
 const { startDataCollection } = require('./dataCollector');
 const { startSpotDataCollection, getSpotCvd, getAllSpotCvd, detectSpotPerpDivergence } = require('./spotDataCollector');
+const coinbaseSpotCollector = require('./coinbaseSpotCollector');
+const bybitSpotCollector = require('./bybitSpotCollector');
 const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
 const liquidationCollector = require('./liquidationCollector');
 const liquidationZoneCalculator = require('./liquidationZoneCalculator');
@@ -429,6 +431,31 @@ app.get('/api/spot-cvd/:coin?', (req, res) => {
 });
 
 /**
+ * Get per-exchange flow data (buy/sell volumes)
+ * GET /api/exchange-flow/:coin?
+ *
+ * Returns spot and perp buy/sell volumes per exchange (BTC only for now)
+ */
+app.get('/api/exchange-flow/:coin?', (req, res) => {
+  const coin = (req.params.coin || 'BTC').toUpperCase();
+
+  if (coin !== 'BTC') {
+    return res.status(400).json({
+      error: 'Only BTC supported for exchange flow',
+      validCoins: ['BTC']
+    });
+  }
+
+  const exchangeFlow = dataStore.getExchangeFlow(coin);
+
+  res.json({
+    coin,
+    timestamp: Date.now(),
+    exchanges: exchangeFlow
+  });
+});
+
+/**
  * Get ETF flow data
  * GET /api/etf-flows
  *
@@ -604,6 +631,12 @@ function startServer() {
 
   // Start spot CVD collector (Binance spot trades)
   startSpotDataCollection();
+
+  // Start Coinbase spot collector
+  coinbaseSpotCollector.start();
+
+  // Start Bybit spot collector
+  bybitSpotCollector.start();
 
   // Start ETF flow collector (SoSoValue API)
   startEtfFlowCollection();

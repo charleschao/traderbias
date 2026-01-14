@@ -27,6 +27,10 @@ const cvdState = {
     SOL: { cumulative: 0, rolling5m: [], rolling15m: [], rolling1h: [] }
 };
 
+// Flow tracking for exchange flow feature (BTC only, rolling 5m)
+const flowState = { buys: [], sells: [] };
+const FLOW_WINDOW_MS = 5 * 60 * 1000;
+
 let ws = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -118,6 +122,26 @@ function processTrade(trade) {
     cvdState[coin].rolling5m = cvdState[coin].rolling5m.filter(e => e.timestamp >= fiveMinAgo);
     cvdState[coin].rolling15m = cvdState[coin].rolling15m.filter(e => e.timestamp >= fifteenMinAgo);
     cvdState[coin].rolling1h = cvdState[coin].rolling1h.filter(e => e.timestamp >= oneHourAgo);
+
+    // Track buy/sell volumes for BTC exchange flow
+    if (coin === 'BTC') {
+        const qty = parseFloat(trade.q);
+        const price = parseFloat(trade.p);
+        const value = qty * price;
+        const flowEntry = { timestamp: now, value };
+
+        if (trade.m) {
+            // isBuyerMaker = true means seller initiated (sell)
+            flowState.sells.push(flowEntry);
+        } else {
+            flowState.buys.push(flowEntry);
+        }
+
+        // Trim flow state
+        const flowCutoff = now - FLOW_WINDOW_MS;
+        flowState.buys = flowState.buys.filter(e => e.timestamp >= flowCutoff);
+        flowState.sells = flowState.sells.filter(e => e.timestamp >= flowCutoff);
+    }
 }
 
 /**
@@ -237,6 +261,15 @@ function updateDataStore() {
             dataStore.updateSpotCvd(coin, spotCvd);
         }
     }
+
+    // Update exchange flow for BTC
+    const buyVol = flowState.buys.reduce((sum, e) => sum + e.value, 0);
+    const sellVol = flowState.sells.reduce((sum, e) => sum + e.value, 0);
+    dataStore.updateExchangeFlow('BTC', 'binance', 'spot', {
+        buyVol,
+        sellVol,
+        timestamp: Date.now()
+    });
 }
 
 /**

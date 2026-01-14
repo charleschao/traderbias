@@ -111,6 +111,15 @@ async function fetchHyperliquidData() {
 
       const delta = buyVol - sellVol;
       dataStore.addCVD('hyperliquid', coin, delta);
+
+      // Update exchange flow for BTC perp
+      if (coin === 'BTC') {
+        dataStore.updateExchangeFlow('BTC', 'hyperliquid', 'perp', {
+          buyVol,
+          sellVol,
+          timestamp: Date.now()
+        });
+      }
     }
 
     console.log('[Hyperliquid] Data fetched successfully');
@@ -184,6 +193,15 @@ async function fetchBinanceData() {
       }
       const delta = buyVol - sellVol;
       dataStore.addCVD('binance', coin, delta);
+
+      // Update exchange flow for BTC perp
+      if (coin === 'BTC') {
+        dataStore.updateExchangeFlow('BTC', 'binance', 'perp', {
+          buyVol,
+          sellVol,
+          timestamp: Date.now()
+        });
+      }
     }
 
     console.log('[Binance] Data fetched successfully');
@@ -253,6 +271,15 @@ async function fetchBybitData() {
       }
       const delta = buyVol - sellVol;
       dataStore.addCVD('bybit', coin, delta);
+
+      // Update exchange flow for BTC perp
+      if (coin === 'BTC') {
+        dataStore.updateExchangeFlow('BTC', 'bybit', 'perp', {
+          buyVol,
+          sellVol,
+          timestamp: Date.now()
+        });
+      }
     }
 
     console.log('[Bybit] Data fetched successfully');
