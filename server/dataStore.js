@@ -602,7 +602,7 @@ class DataStore {
    * Update VWAP levels for a coin
    */
   updateVwap(coin, vwapData) {
-    if (!this.data.vwap[coin] && coin !== 'BTC') {
+    if (this.data.vwap[coin] === undefined) {
       console.warn(`[DataStore] Unknown coin for VWAP: ${coin}`);
       return;
     }
