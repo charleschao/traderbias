@@ -148,12 +148,12 @@ app.get('/api/whale-trades', (req, res) => {
  */
 app.get('/api/vwap/:coin', (req, res) => {
   const { coin } = req.params;
-  const validCoins = ['btc', 'eth', 'sol'];
+  const validCoins = ['btc'];
 
   if (!validCoins.includes(coin.toLowerCase())) {
     return res.status(400).json({
       error: 'Invalid coin',
-      validCoins: ['btc', 'eth', 'sol']
+      validCoins: ['btc']
     });
   }
 
