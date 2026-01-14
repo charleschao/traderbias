@@ -41,16 +41,16 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
             className="bg-green-500 transition-all duration-500 flex items-center justify-center"
             style={{ width: `${buyPct}%` }}
           >
-            {buyPct >= 20 && (
-              <span className="text-[10px] text-white font-bold">{buyPct.toFixed(0)}%</span>
+            {buyPct >= 25 && (
+              <span className="text-xs text-white font-bold">{formatUSD(data.buyVol)}</span>
             )}
           </div>
           <div
             className="bg-red-500 transition-all duration-500 flex items-center justify-center"
             style={{ width: `${sellPct}%` }}
           >
-            {sellPct >= 20 && (
-              <span className="text-[10px] text-white font-bold">{sellPct.toFixed(0)}%</span>
+            {sellPct >= 25 && (
+              <span className="text-xs text-white font-bold">{formatUSD(data.sellVol)}</span>
             )}
           </div>
         </div>
@@ -67,27 +67,6 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
     </div>
   );
 
-  const getNetBias = (exchange) => {
-    const data = exchanges[exchange];
-    if (!data) return null;
-
-    let totalBuy = 0;
-    let totalSell = 0;
-
-    if (data.spot?.buyVol) totalBuy += data.spot.buyVol;
-    if (data.spot?.sellVol) totalSell += data.spot.sellVol;
-    if (data.perp?.buyVol) totalBuy += data.perp.buyVol;
-    if (data.perp?.sellVol) totalSell += data.perp.sellVol;
-
-    if (totalBuy === 0 && totalSell === 0) return null;
-
-    const net = totalBuy - totalSell;
-    const total = totalBuy + totalSell;
-    const buyPct = (totalBuy / total) * 100;
-
-    return { net, buyPct };
-  };
-
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-neutral-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
@@ -96,23 +75,15 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {Object.entries(EXCHANGE_CONFIG).map(([key, config]) => {
-          const bias = getNetBias(key);
-
-          return (
+        {Object.entries(EXCHANGE_CONFIG).map(([key, config]) => (
             <div
               key={key}
               className="bg-neutral-50 dark:bg-slate-700/50 rounded-lg p-3"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2">
                 <span className="text-xs font-semibold text-neutral-900 dark:text-white">
                   {config.name}
                 </span>
-                {bias && (
-                  <span className={`text-[10px] font-mono ${bias.net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {bias.buyPct.toFixed(0)}% buy
-                  </span>
-                )}
               </div>
 
               {config.hasSpot
@@ -123,8 +94,7 @@ const ExchangeFlowSection = ({ exchangeFlowData }) => {
                 ? renderFlowBar(exchanges[key]?.perp, 'PERP')
                 : renderNaBar('PERP')}
             </div>
-          );
-        })}
+        ))}
       </div>
     </div>
   );
