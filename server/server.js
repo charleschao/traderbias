@@ -22,6 +22,7 @@ const biasProjection = require('./biasProjection');
 const dailyBiasProjection = require('./dailyBiasProjection');
 const winRateTracker = require('./winRateTracker');
 const backtestApi = require('./backtestApi');
+const vwapCalculator = require('./vwapCalculator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +38,9 @@ const CACHE_TTL = {
   daily: 4 * 60 * 60 * 1000,  // 4 hours
   '12hr': 60 * 60 * 1000      // 1 hour
 };
+
+// VWAP refresh interval (10 minutes)
+const VWAP_REFRESH_MS = 10 * 60 * 1000;
 
 // ============== MIDDLEWARE ==============
 
@@ -136,6 +140,32 @@ app.get('/api/whale-trades', (req, res) => {
   const limit = parseInt(req.query.limit) || 100;
   const trades = dataStore.getWhaleTrades(limit);
   res.json(trades);
+});
+
+/**
+ * Get VWAP levels for a coin
+ * GET /api/vwap/:coin
+ */
+app.get('/api/vwap/:coin', (req, res) => {
+  const { coin } = req.params;
+  const validCoins = ['btc', 'eth', 'sol'];
+
+  if (!validCoins.includes(coin.toLowerCase())) {
+    return res.status(400).json({
+      error: 'Invalid coin',
+      validCoins: ['btc', 'eth', 'sol']
+    });
+  }
+
+  const vwapData = dataStore.getVwap(coin.toUpperCase());
+  if (!vwapData) {
+    return res.status(503).json({
+      error: 'VWAP data not yet available',
+      message: 'Data is being calculated, try again shortly'
+    });
+  }
+
+  res.json(vwapData);
 });
 
 /**
@@ -685,6 +715,23 @@ function startServer() {
 
   // Start liquidation collector (Binance forced orders)
   liquidationCollector.start();
+
+  // ============== VWAP REFRESH ==============
+
+  async function refreshVwapData() {
+    try {
+      const vwapData = await vwapCalculator.calculateAllVwaps('BTCUSDT');
+      dataStore.updateVwap('BTC', vwapData);
+      console.log('[VWAP] BTC VWAP levels updated');
+    } catch (error) {
+      console.error('[VWAP] Failed to refresh VWAP data:', error.message);
+    }
+  }
+
+  // Start VWAP refresh
+  refreshVwapData(); // Initial fetch
+  setInterval(refreshVwapData, VWAP_REFRESH_MS);
+  console.log(`[VWAP] Refresh interval started (${VWAP_REFRESH_MS / 1000 / 60} minutes)`);
 
   // Start Express server
   app.listen(PORT, () => {
