@@ -2069,7 +2069,7 @@ export default function App({ focusCoin = null }) {
               <div className="mt-4">
                 <VwapLevels
                   data={vwapData}
-                  currentPrice={priceData?.BTC?.price}
+                  currentPrice={priceData?.BTC?.markPx}
                 />
               </div>
             )}

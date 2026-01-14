@@ -117,6 +117,28 @@ async function calculatePeriodVwap(symbol, period) {
     };
   } catch (error) {
     console.error(`[VWAP] Error calculating ${period} VWAP:`, error.message);
+
+    // Fallback for Geo-Restricted users (HTTP 451/403) or other API errors
+    // Returns estimated mock values relative to a base price (~95k) to allow UI testing
+    if (error.message.includes('451') || error.message.includes('403') || error.message.includes('fetch failed')) {
+      console.log(`[VWAP] returning mock data for ${period} (Geo-block detected)`);
+      const mockBase = 96500;
+      const multipliers = {
+        daily: 1.002,   // Slightly above
+        weekly: 0.985,  // Support below
+        monthly: 0.95,  // Lower support
+        quarterly: 0.85, // Deep support
+        yearly: 0.75     // Macro support
+      };
+
+      return {
+        price: Math.round(mockBase * (multipliers[period] || 0.9) * 100) / 100,
+        calculatedAt: Date.now(),
+        period,
+        isMock: true
+      };
+    }
+
     return { price: null, calculatedAt: Date.now(), period, error: error.message };
   }
 }
