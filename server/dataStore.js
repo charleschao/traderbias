@@ -58,6 +58,12 @@ class DataStore {
         BTC: this.createEmptyExchangeFlow(),
         ETH: this.createEmptyExchangeFlow(),
         SOL: this.createEmptyExchangeFlow()
+      },
+      // VWAP levels cache
+      vwap: {
+        BTC: null,
+        ETH: null,
+        SOL: null
       }
     };
 
@@ -590,6 +596,28 @@ class DataStore {
    */
   getAllExchangeFlow() {
     return this.data.exchangeFlow;
+  }
+
+  /**
+   * Update VWAP levels for a coin
+   */
+  updateVwap(coin, vwapData) {
+    if (!this.data.vwap[coin] && coin !== 'BTC') {
+      console.warn(`[DataStore] Unknown coin for VWAP: ${coin}`);
+      return;
+    }
+    this.data.vwap[coin] = {
+      ...vwapData,
+      updatedAt: Date.now()
+    };
+    this.isDirty = true;
+  }
+
+  /**
+   * Get VWAP levels for a coin
+   */
+  getVwap(coin) {
+    return this.data.vwap[coin] || null;
   }
 
   /**
