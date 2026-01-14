@@ -18,6 +18,7 @@ import LiquidationZones from './components/LiquidationZones';
 import MegaWhaleFeed from './components/MegaWhaleFeed';
 import TradingQuote from './components/TradingQuote';
 import OrderbookSection from './components/OrderbookSection';
+import VwapLevels from './components/VwapLevels';
 import PositionCard from './components/PositionCard';
 import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
 import TraderRow from './components/TraderRow';
@@ -40,7 +41,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, getLiquidationZones, getExchangeFlow } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, getLiquidationZones, getExchangeFlow, getVwapLevels } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -258,6 +259,9 @@ export default function App({ focusCoin = null }) {
     ETH: null,
     SOL: null
   });
+
+  // VWAP Levels state
+  const [vwapData, setVwapData] = useState(null);
 
   // Backtesting state
   const [backtestResults, setBacktestResults] = useState(null);
@@ -1506,6 +1510,27 @@ export default function App({ focusCoin = null }) {
     return () => clearInterval(exchangeFlowInterval);
   }, [dashboardTimeframe]);
 
+  // ============== VWAP LEVELS ==============
+  useEffect(() => {
+    if (!isBackendEnabled()) return;
+
+    const fetchVwap = async () => {
+      try {
+        const data = await getVwapLevels('btc');
+        if (data) {
+          setVwapData(data);
+        }
+      } catch (error) {
+        console.error('[App] Failed to fetch VWAP levels:', error);
+      }
+    };
+
+    fetchVwap(); // Initial fetch
+    const vwapInterval = setInterval(fetchVwap, 10 * 60 * 1000); // 10 minutes
+
+    return () => clearInterval(vwapInterval);
+  }, []);
+
   // Notify on new whale trades
   useEffect(() => {
     if (megaWhaleTrades.length > prevTradeCountRef.current) {
@@ -2036,6 +2061,16 @@ export default function App({ focusCoin = null }) {
                     onNotificationToggle={toggleNotifications}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* VWAP Levels */}
+            {!showTop10 && focusCoin === 'BTC' && (
+              <div className="mt-4">
+                <VwapLevels
+                  data={vwapData}
+                  currentPrice={priceData?.BTC?.price}
+                />
               </div>
             )}
 
