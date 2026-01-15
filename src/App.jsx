@@ -1820,8 +1820,26 @@ export default function App({ focusCoin = null }) {
                   />
                 )}
 
+                {/* Timeframe Selector */}
+                <div className="flex items-center gap-2 -mt-4">
+                  <span className="text-xs text-neutral-400 dark:text-slate-500">
+                    {hasEnoughHistoricalData ? `${dashboardTimeframe.toUpperCase()} rolling` : 'Collecting...'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {['5m', '15m', '1h'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => setDashboardTimeframe(tf)}
+                        className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${dashboardTimeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
+                      >
+                        {tf.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Liquidation Zones + BiasCard + Flow Confluence - 3 column grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 -mt-3">
                   {/* Liquidation Zones - Left */}
                   {isBackendEnabled() && (
                     <LiquidationZones zonesData={liquidationZonesData.BTC} coin="BTC" />
@@ -1843,7 +1861,6 @@ export default function App({ focusCoin = null }) {
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
                     projection={projections.BTC}
-                    onTimeframeChange={setDashboardTimeframe}
                     hasEnoughData={hasEnoughHistoricalData}
                   />
                   <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={['BTC']} getSparklineData={getSparklineData} />
@@ -1859,6 +1876,24 @@ export default function App({ focusCoin = null }) {
             {/* ETH/SOL Layout - BiasCard + Flow side by side */}
             {!showTop10 && focusCoin && focusCoin !== 'BTC' && (
               <div className="space-y-6">
+                {/* Timeframe Selector */}
+                <div className="flex items-center gap-2 -mt-4">
+                  <span className="text-xs text-neutral-400 dark:text-slate-500">
+                    {hasEnoughHistoricalData ? `${dashboardTimeframe.toUpperCase()} rolling` : 'Collecting...'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {['5m', '15m', '1h'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => setDashboardTimeframe(tf)}
+                        className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${dashboardTimeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
+                      >
+                        {tf.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <BiasCard
                     coin={focusCoin}
@@ -1877,7 +1912,6 @@ export default function App({ focusCoin = null }) {
                     timeframeMinutes={timeframeMinutes}
                     hasWhaleData={EXCHANGES[activeExchange]?.features.includes('whales')}
                     projection={projections[focusCoin]}
-                    onTimeframeChange={setDashboardTimeframe}
                     hasEnoughData={hasEnoughHistoricalData}
                   />
                   <FlowConfluenceSection oiData={timeframeOiData} cvdData={timeframeCvdData} priceData={timeframePriceData} timeframe={dashboardTimeframe} hasEnoughData={hasEnoughHistoricalData} coins={[focusCoin]} getSparklineData={getSparklineData} />

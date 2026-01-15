@@ -43,7 +43,6 @@ const BiasCard = ({
   timeframeMinutes = 5,
   hasWhaleData: hasWhaleDataProp = true,
   projection = null,
-  onTimeframeChange = null,
   hasEnoughData = true
 }) => {
   const hasWhaleData = biasData?.hasWhaleData ?? hasWhaleDataProp;
@@ -189,26 +188,6 @@ const BiasCard = ({
           </InfoTooltip>
         </div>
       </div>
-
-      {/* Timeframe Selector */}
-      {onTimeframeChange && (
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs text-neutral-400 dark:text-slate-500">
-            {hasEnoughData ? `${timeframe.toUpperCase()} rolling` : 'Collecting...'}
-          </span>
-          <div className="flex items-center gap-1">
-            {['5m', '15m', '1h'].map(tf => (
-              <button
-                key={tf}
-                onClick={() => onTimeframeChange(tf)}
-                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${timeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
-              >
-                {tf.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Event Alert */}
       {hasEventAlert && (
