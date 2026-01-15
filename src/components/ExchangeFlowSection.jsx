@@ -4,8 +4,8 @@ import { formatUSD } from '../utils/formatters';
 const EXCHANGE_CONFIG = {
   coinbase: { name: 'Coinbase', hasSpot: true, hasPerp: false },
   binance: { name: 'Binance', hasSpot: true, hasPerp: true },
-  bybit: { name: 'Bybit', hasSpot: true, hasPerp: true },
-  hyperliquid: { name: 'Hyperliquid', hasSpot: false, hasPerp: true }
+  hyperliquid: { name: 'Hyperliquid', hasSpot: false, hasPerp: true },
+  bybit: { name: 'Bybit', hasSpot: true, hasPerp: true }
 };
 
 const ExchangeFlowSection = ({ exchangeFlowData, timeframe = '15m' }) => {
