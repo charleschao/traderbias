@@ -41,7 +41,7 @@ import { calculateCompositeBias } from './utils/biasCalculations';
 import { formatUSD, formatPercent, formatAddress, getProfileUrl } from './utils/formatters';
 
 // Backend API imports
-import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, getLiquidationZones, getExchangeFlow, getVwapLevels } from './services/backendApi';
+import { isBackendEnabled, getExchangeData, getAllExchangesData, getCoinProjection, getDailyBias, get4HrBias, getLiquidationZones, getExchangeFlow, getVwapLevels } from './services/backendApi';
 
 // ============== LOCAL STORAGE HELPERS ==============
 const HISTORICAL_DATA_KEY = 'traderBias_historicalData';
@@ -252,6 +252,10 @@ export default function App({ focusCoin = null }) {
     ETH: false,
     SOL: false
   });
+
+  // 4hr Bias state (BTC only)
+  const [fourHrBiasData, setFourHrBiasData] = useState(null);
+  const [fourHrBiasLoading, setFourHrBiasLoading] = useState(false);
 
   // Liquidation Zones state
   const [liquidationZonesData, setLiquidationZonesData] = useState({
@@ -1458,6 +1462,24 @@ export default function App({ focusCoin = null }) {
       }
     };
 
+    // Fetch 4hr bias for BTC only (scalping/day trading)
+    const fetchFourHrBias = async () => {
+      setFourHrBiasLoading(true);
+      try {
+        const fourHrBias = await get4HrBias();
+        if (fourHrBias) {
+          setFourHrBiasData(fourHrBias);
+          if (fourHrBias.prediction) {
+            console.log(`[4hrBias] Updated BTC: ${fourHrBias.prediction.bias} (score: ${fourHrBias.prediction.score?.toFixed(2)})`);
+          }
+        }
+      } catch (error) {
+        console.error('[4hrBias] Failed to fetch BTC:', error);
+      } finally {
+        setFourHrBiasLoading(false);
+      }
+    };
+
     // Fetch liquidation zones for BTC (primary focus)
     const fetchLiquidationZones = async () => {
       try {
@@ -1473,18 +1495,22 @@ export default function App({ focusCoin = null }) {
     // Initial fetch for all
     fetchProjections();
     fetchDailyBias();
+    fetchFourHrBias();
     fetchLiquidationZones();
 
     // Refresh projections every 1 hour (8-12hr outlook doesn't need 30min updates)
     const projectionInterval = setInterval(fetchProjections, 60 * 60 * 1000);
     // Refresh daily bias every 2 hours (longer timeframe = less frequent updates)
     const dailyBiasInterval = setInterval(fetchDailyBias, 2 * 60 * 60 * 1000);
+    // Refresh 4hr bias every 5 minutes (shorter timeframe = more frequent updates)
+    const fourHrBiasInterval = setInterval(fetchFourHrBias, 5 * 60 * 1000);
     // Refresh liquidation zones every 5 minutes (real-time zone updates)
     const liqZonesInterval = setInterval(fetchLiquidationZones, 5 * 60 * 1000);
 
     return () => {
       clearInterval(projectionInterval);
       clearInterval(dailyBiasInterval);
+      clearInterval(fourHrBiasInterval);
       clearInterval(liqZonesInterval);
     };
   }, []); // No dependencies - fetch all coins on mount and at intervals
@@ -1815,8 +1841,11 @@ export default function App({ focusCoin = null }) {
                   <BiasProjectionTabs
                     projection={projections.BTC}
                     dailyBias={dailyBiasData.BTC}
+                    fourHrBias={fourHrBiasData}
                     projectionLoading={projectionLoading.BTC}
                     dailyBiasLoading={dailyBiasLoading.BTC}
+                    fourHrBiasLoading={fourHrBiasLoading}
+                    coin="BTC"
                   />
                 )}
 

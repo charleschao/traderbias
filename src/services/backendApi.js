@@ -165,6 +165,29 @@ export const getDailyBias = async (coin = 'BTC') => {
 };
 
 /**
+ * Get 4-hour bias projection for BTC
+ * Returns short-term directional bias for scalping/day trading
+ */
+export const get4HrBias = async () => {
+  if (!USE_BACKEND) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/btc/4hr-bias`);
+    if (!response.ok) {
+      console.error(`[BackendAPI] 4hr bias error: ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`[BackendAPI] Failed to fetch 4hr bias:`, error);
+    return null;
+  }
+};
+
+/**
  * Get liquidation zones for a coin
  * Returns estimated cascade zones based on OI clustering and leverage estimates
  */
@@ -335,6 +358,7 @@ export default {
   getBTCProjection,
   getCoinProjection,
   getDailyBias,
+  get4HrBias,
   getLiquidationZones,
   getExchangeFlow,
   getBacktestPredictions,
