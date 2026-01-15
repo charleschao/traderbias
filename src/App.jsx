@@ -1791,15 +1791,7 @@ export default function App({ focusCoin = null }) {
 
       <div className="max-w-[1600px] mx-auto px-3 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">
-              TRADER BIAS
-            </h1>
-            <p className="text-neutral-500 dark:text-slate-400 text-sm">
-              Session: {sessionDuration}min{lastUpdate && <span className="ml-2">• Updated {lastUpdate.toLocaleTimeString()}</span>}
-            </p>
-          </div>
+        <div className="flex justify-end mb-6">
           <div className="flex items-center gap-2">
             <ExchangeSelector
               onTop10Click={() => { setShowTop10(!showTop10); if (!showTop10) setTimeout(() => document.getElementById('top10-section')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
