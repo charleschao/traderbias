@@ -90,7 +90,7 @@ function calculateStats({ coin, type, from, to }) {
   // By regime (trending vs ranging)
   const byRegime = {};
   for (const regime of ['trending', 'ranging']) {
-    byRegime[regime] = calcWinRate(evaluated.filter(p => p.regime === regime));
+    byRegime[regime] = calcWinRate(evaluated.filter(p => p.signals?.regime === regime));
   }
 
   return { overall, byStrength, byConfidence, byCoin, byType, byRegime };

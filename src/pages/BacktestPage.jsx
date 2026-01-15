@@ -380,11 +380,11 @@ const PredictionTable = ({ predictions }) => {
                 </td>
                 <td className="py-2 px-3 text-slate-300">{pred.strength}</td>
                 <td className="py-2 px-3">
-                  {pred.regime ? (
+                  {pred.signals?.regime ? (
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      pred.regime === 'trending' ? 'bg-blue-900/50 text-blue-400' : 'bg-amber-900/50 text-amber-400'
+                      pred.signals.regime === 'trending' ? 'bg-blue-900/50 text-blue-400' : 'bg-amber-900/50 text-amber-400'
                     }`}>
-                      {pred.regime}
+                      {pred.signals.regime}
                     </span>
                   ) : (
                     <span className="text-slate-500">-</span>
