@@ -5,7 +5,7 @@
 # Recommended Cron: 15 14-23 * * 1-5 (Mon-Fri, 2:15 PM - 11:15 PM UTC)
 
 # Set the project path
-PROJECT_DIR="/var/www/traderbias/server"
+PROJECT_DIR="/var/www/traderbias.app/server"
 LOG_FILE="$PROJECT_DIR/logs/etf-update.log"
 
 # Ensure log directory exists

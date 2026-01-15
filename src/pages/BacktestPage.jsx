@@ -98,8 +98,11 @@ const FilterBar = ({ filters, setFilters }) => {
             className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white"
           >
             <option value="">All</option>
-            <option value="12hr">12hr</option>
-            <option value="daily">Daily</option>
+            <option value="12hr">12hr Composite</option>
+            <option value="daily">Daily Composite</option>
+            <option value="4hr">4hr Composite</option>
+            <option value="oi-4hr">OI Signal (4hr)</option>
+            <option value="cvd-2hr">CVD Signal (2hr)</option>
           </select>
         </div>
         <div>
@@ -144,18 +147,29 @@ const WinRateDashboard = ({ stats, streaks }) => {
         subtitle={`Longest: ${streaks?.longestWin || 0}W / ${streaks?.longestLoss || 0}L`}
         color={streaks?.currentStreak?.type === 'win' ? 'green' : 'red'}
       />
-      <StatCard
-        title="12hr Predictions"
-        value={`${stats.byType?.['12hr']?.winRate || 0}%`}
-        subtitle={`${stats.byType?.['12hr']?.total || 0} total`}
-        color="blue"
-      />
-      <StatCard
-        title="Daily Predictions"
-        value={`${stats.byType?.daily?.winRate || 0}%`}
-        subtitle={`${stats.byType?.daily?.total || 0} total`}
-        color="purple"
-      />
+      {/* By Prediction Type */}
+      <div className="col-span-full">
+        <h3 className="text-lg font-semibold mb-3">By Prediction Type</h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[
+            { key: '12hr', label: '12hr', color: 'blue' },
+            { key: 'daily', label: 'Daily', color: 'purple' },
+            { key: '4hr', label: '4hr', color: 'cyan' },
+            { key: 'oi-4hr', label: 'OI Signal', color: 'orange' },
+            { key: 'cvd-2hr', label: 'CVD Signal', color: 'pink' }
+          ].map(({ key, label, color }) => (
+            <div key={key} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+              <div className="text-sm text-slate-400">{label}</div>
+              <div className={`text-2xl font-bold ${
+                parseFloat(stats.byType?.[key]?.winRate || 0) >= 50 ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {stats.byType?.[key]?.winRate || 0}%
+              </div>
+              <div className="text-xs text-slate-500">{stats.byType?.[key]?.total || 0} predictions</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Breakdown by strength */}
       <div className="col-span-full">

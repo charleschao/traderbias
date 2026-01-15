@@ -83,7 +83,7 @@ function calculateStats({ coin, type, from, to }) {
 
   // By type
   const byType = {};
-  for (const t of ['12hr', 'daily']) {
+  for (const t of ['12hr', 'daily', '4hr', 'oi-4hr', 'cvd-2hr']) {
     byType[t] = calcWinRate(evaluated.filter(p => p.projectionType === t));
   }
 

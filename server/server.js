@@ -23,6 +23,7 @@ const dailyBiasProjection = require('./dailyBiasProjection');
 const winRateTracker = require('./winRateTracker');
 const backtestApi = require('./backtestApi');
 const vwapCalculator = require('./vwapCalculator');
+const componentSignals = require('./componentSignals');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -234,6 +235,22 @@ app.get('/api/:coin/projection', (req, res) => {
         generatedAt: projection.generatedAt || now
       };
       winRateTracker.recordPrediction(upperCoin, projection);
+
+      // Record 4hr composite (same projection, shorter eval window)
+      winRateTracker.recordPrediction(upperCoin, projection, '4hr');
+
+      // Record standalone component signals
+      const oiSignal = componentSignals.generateOISignal(upperCoin, dataStore);
+      if (oiSignal) {
+        const oiProjection = componentSignals.formatAsProjection(oiSignal);
+        winRateTracker.recordPrediction(upperCoin, oiProjection, 'oi-4hr');
+      }
+
+      const cvdSignal = componentSignals.generateCVDSignal(upperCoin, dataStore);
+      if (cvdSignal) {
+        const cvdProjection = componentSignals.formatAsProjection(cvdSignal);
+        winRateTracker.recordPrediction(upperCoin, cvdProjection, 'cvd-2hr');
+      }
     }
 
     // Add win rate stats to response

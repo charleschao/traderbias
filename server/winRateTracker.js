@@ -13,12 +13,18 @@ const WIN_RATE_FILE = path.join(__dirname, 'data', 'winrates.json');
 const MAX_HISTORY_DAYS = 365;
 const EVALUATION_DELAYS = {
   '12hr': 8 * 60 * 60 * 1000,   // 8 hours
-  'daily': 16 * 60 * 60 * 1000  // 16 hours
+  'daily': 16 * 60 * 60 * 1000, // 16 hours
+  '4hr': 3 * 60 * 60 * 1000,    // 3 hours
+  'oi-4hr': 3 * 60 * 60 * 1000, // 3 hours
+  'cvd-2hr': 1.5 * 60 * 60 * 1000 // 1.5 hours
 };
 // Minimum time between recording same coin+type predictions
 const RECORD_COOLDOWNS = {
   '12hr': 4 * 60 * 60 * 1000,   // 4 hour cooldown for 12hr projections
-  'daily': 4 * 60 * 60 * 1000   // 4 hour cooldown for daily projections
+  'daily': 4 * 60 * 60 * 1000,  // 4 hour cooldown for daily projections
+  '4hr': 2 * 60 * 60 * 1000,    // 2 hour cooldown for 4hr projections
+  'oi-4hr': 2 * 60 * 60 * 1000, // 2 hour cooldown for OI signals
+  'cvd-2hr': 1 * 60 * 60 * 1000 // 1 hour cooldown for CVD signals
 };
 
 class WinRateTracker {
