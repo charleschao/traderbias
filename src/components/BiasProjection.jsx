@@ -97,7 +97,7 @@ export default function BiasProjection({ projection, loading = false }) {
           <span className="text-sm font-semibold text-neutral-900 dark:text-white">12HR BIAS</span>
           <InfoTooltip position="bottom-right">
             <div className="space-y-2 text-xs">
-              <div className="font-bold text-neutral-900 dark:text-white">8-12 Hour Bias Prediction</div>
+              <div className="font-bold text-neutral-900 dark:text-white">12 Hour Bias Prediction</div>
               <div className="text-neutral-600 dark:text-slate-300">
                 Flow Confluence (55%) - Price + OI + CVD alignment<br/>
                 Funding Z-Score (17%) - Extreme positioning detection<br/>
