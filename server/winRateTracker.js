@@ -15,6 +15,7 @@ const EVALUATION_DELAYS = {
   '12hr': 8 * 60 * 60 * 1000,   // 8 hours
   'daily': 16 * 60 * 60 * 1000, // 16 hours
   '4hr': 3 * 60 * 60 * 1000,    // 3 hours
+  '4hr-composite': 3 * 60 * 60 * 1000, // 3 hours (dedicated 4hr algo)
   'oi-4hr': 3 * 60 * 60 * 1000, // 3 hours
   'cvd-2hr': 1.5 * 60 * 60 * 1000 // 1.5 hours
 };
@@ -23,6 +24,7 @@ const RECORD_COOLDOWNS = {
   '12hr': 4 * 60 * 60 * 1000,   // 4 hour cooldown for 12hr projections
   'daily': 4 * 60 * 60 * 1000,  // 4 hour cooldown for daily projections
   '4hr': 2 * 60 * 60 * 1000,    // 2 hour cooldown for 4hr projections
+  '4hr-composite': 1.5 * 60 * 60 * 1000, // 1.5 hour cooldown for dedicated 4hr algo
   'oi-4hr': 2 * 60 * 60 * 1000, // 2 hour cooldown for OI signals
   'cvd-2hr': 1 * 60 * 60 * 1000 // 1 hour cooldown for CVD signals
 };
