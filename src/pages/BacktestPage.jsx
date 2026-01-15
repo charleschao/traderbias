@@ -100,7 +100,8 @@ const FilterBar = ({ filters, setFilters }) => {
             <option value="">All</option>
             <option value="12hr">12hr Composite</option>
             <option value="daily">Daily Composite</option>
-            <option value="4hr">4hr Composite</option>
+            <option value="4hr-composite">4hr Composite</option>
+            <option value="4hr">4hr (Legacy)</option>
             <option value="oi-4hr">OI Signal (4hr)</option>
             <option value="cvd-2hr">CVD Signal (2hr)</option>
           </select>
@@ -154,7 +155,8 @@ const WinRateDashboard = ({ stats, streaks }) => {
           {[
             { key: '12hr', label: '12hr', color: 'blue' },
             { key: 'daily', label: 'Daily', color: 'purple' },
-            { key: '4hr', label: '4hr', color: 'cyan' },
+            { key: '4hr-composite', label: '4hr', color: 'cyan' },
+            { key: '4hr', label: '4hr (Legacy)', color: 'slate' },
             { key: 'oi-4hr', label: 'OI Signal', color: 'orange' },
             { key: 'cvd-2hr', label: 'CVD Signal', color: 'pink' }
           ].map(({ key, label, color }) => (
