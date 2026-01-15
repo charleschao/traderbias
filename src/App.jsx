@@ -1794,22 +1794,18 @@ export default function App({ focusCoin = null }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">
-              {EXCHANGES[activeExchange]?.name || 'TRADER BIAS'}
+              TRADER BIAS
             </h1>
             <p className="text-neutral-500 dark:text-slate-400 text-sm">
-              {EXCHANGES[activeExchange]?.status === 'active' ? (
-                <>Session: {sessionDuration}min{lastUpdate && <span className="ml-2">• Updated {lastUpdate.toLocaleTimeString()}</span>}</>
-              ) : EXCHANGES[activeExchange]?.description}
+              Session: {sessionDuration}min{lastUpdate && <span className="ml-2">• Updated {lastUpdate.toLocaleTimeString()}</span>}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
+          <div className="flex items-center gap-2">
             <ExchangeSelector
-              activeExchange={activeExchange}
-              onExchangeChange={(exchange) => { setActiveExchange(exchange); setShowTop10(false); }}
               onTop10Click={() => { setShowTop10(!showTop10); if (!showTop10) setTimeout(() => document.getElementById('top10-section')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
               showTop10={showTop10}
             />
+            <ThemeToggle />
           </div>
         </div>
 
