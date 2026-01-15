@@ -18,8 +18,11 @@ const InfoTooltip = ({ children, position = 'bottom-left' }) => {
         className="w-4 h-4 flex items-center justify-center rounded-full border border-neutral-300 dark:border-slate-600 text-neutral-400 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-900 dark:hover:border-slate-400 transition-colors text-[10px] font-semibold cursor-help"
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
+        onFocus={() => setIsVisible(true)}
+        onBlur={() => setIsVisible(false)}
         onClick={(e) => { e.stopPropagation(); setIsVisible(!isVisible); }}
         aria-label="More information"
+        aria-expanded={isVisible}
       >
         i
       </button>

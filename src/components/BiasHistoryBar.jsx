@@ -2,6 +2,7 @@ import React from 'react';
 
 const BiasHistoryBar = ({ history = [], label = '15m' }) => {
   const blocks = [];
+  const titles = [];
 
   for (let i = 0; i < 15; i++) {
     const entry = history[i];
@@ -28,18 +29,22 @@ const BiasHistoryBar = ({ history = [], label = '15m' }) => {
       }
     }
 
+    titles.push(title);
     blocks.push(
       <div
         key={i}
         className={`h-2 w-1.5 rounded-sm ${color} transition-colors duration-300`}
         title={title}
+        aria-hidden="true"
       />
     );
   }
 
+  const latestBias = titles[titles.length - 1] || 'No data';
+
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-0.5">
+    <div className="flex flex-col gap-1" role="img" aria-label={`Bias history over ${label}: current is ${latestBias}`}>
+      <div className="flex items-center gap-0.5" aria-hidden="true">
         {blocks}
       </div>
       <div className="flex justify-between text-[8px] text-neutral-400">

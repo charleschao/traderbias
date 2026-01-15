@@ -1778,10 +1778,11 @@ export default function App({ focusCoin = null }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center" role="status" aria-live="polite">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" aria-hidden="true" />
           <p className="text-slate-300 text-lg">Loading trader data...</p>
+          <p className="text-slate-500 text-sm mt-2">Connecting to exchanges</p>
         </div>
       </div>
     );
@@ -1792,7 +1793,7 @@ export default function App({ focusCoin = null }) {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 mb-4 text-lg">Error: {error}</p>
-          <button onClick={fetchLeaderboard} className="px-6 py-3 bg-cyan-500 rounded-xl text-white font-bold">Retry</button>
+          <button onClick={fetchLeaderboard} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-bold transition-colors">Retry</button>
         </div>
       </div>
     );
@@ -1800,6 +1801,13 @@ export default function App({ focusCoin = null }) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 text-neutral-900 dark:text-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 bg-neutral-900 dark:bg-slate-700 text-white px-4 py-2 rounded"
+      >
+        Skip to main content
+      </a>
+      <h1 className="sr-only">Trader Bias Dashboard - BTC Directional Bias</h1>
       {expandedCoin && (
         <DetailModal
           coin={expandedCoin}
@@ -1815,7 +1823,7 @@ export default function App({ focusCoin = null }) {
         />
       )}
 
-      <div className="max-w-[1600px] mx-auto px-3 py-6">
+      <div id="main-content" className="max-w-[1600px] mx-auto px-3 py-6">
         {/* Header */}
         <div className="flex justify-end mb-6">
           <div className="flex items-center gap-2">
@@ -1859,6 +1867,7 @@ export default function App({ focusCoin = null }) {
                       <button
                         key={tf}
                         onClick={() => setDashboardTimeframe(tf)}
+                        aria-pressed={dashboardTimeframe === tf}
                         className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${dashboardTimeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
                       >
                         {tf.toUpperCase()}
@@ -1915,6 +1924,7 @@ export default function App({ focusCoin = null }) {
                       <button
                         key={tf}
                         onClick={() => setDashboardTimeframe(tf)}
+                        aria-pressed={dashboardTimeframe === tf}
                         className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${dashboardTimeframe === tf ? 'bg-neutral-900 dark:bg-slate-600 text-white' : 'text-neutral-500 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'}`}
                       >
                         {tf.toUpperCase()}
@@ -1953,7 +1963,7 @@ export default function App({ focusCoin = null }) {
               <div className="mb-6 mt-6">
                 <button
                   onClick={() => setShowBacktest(!showBacktest)}
-                  className="px-4 py-2 rounded-xl font-bold transition-all bg-purple-800/50 text-purple-300 hover:bg-purple-700"
+                  className="px-4 py-2 rounded-xl font-bold transition-colors bg-blue-600/80 text-white hover:bg-blue-600"
                 >
                   📊 Backtesting
                   {backtestResults && (

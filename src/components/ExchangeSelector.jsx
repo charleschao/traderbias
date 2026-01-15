@@ -10,7 +10,7 @@ const ExchangeSelector = ({ onTop10Click, showTop10 = false }) => (
     }`}
     title="View Top 10 Hyperliquid Traders"
   >
-    <span className="text-base">🏆</span>
+    <span className="text-base" aria-hidden="true">🏆</span>
     <span className="hidden sm:inline">Top 10 HL Traders</span>
     <span className="sm:hidden">Top 10</span>
   </button>
