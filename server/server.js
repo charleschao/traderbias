@@ -20,6 +20,7 @@ const liquidationZoneCalculator = require('./liquidationZoneCalculator');
 const whaleWatcher = require('./whaleWatcher');
 const biasProjection = require('./biasProjection');
 const dailyBiasProjection = require('./dailyBiasProjection');
+const fourHrBiasProjection = require('./fourHrBiasProjection');
 const winRateTracker = require('./winRateTracker');
 const backtestApi = require('./backtestApi');
 const vwapCalculator = require('./vwapCalculator');
@@ -33,11 +34,13 @@ const PORT = process.env.PORT || 3001;
 // Daily bias: 4hr cache, 12hr bias: 1hr cache
 const biasCache = {
   daily: {}, // { BTC: { data: {...}, generatedAt: timestamp }, ... }
-  '12hr': {}
+  '12hr': {},
+  '4hr': {}
 };
 const CACHE_TTL = {
   daily: 4 * 60 * 60 * 1000,  // 4 hours
-  '12hr': 60 * 60 * 1000      // 1 hour
+  '12hr': 60 * 60 * 1000,     // 1 hour
+  '4hr': 30 * 60 * 1000       // 30 minutes
 };
 
 // VWAP refresh interval (10 minutes)
@@ -261,6 +264,57 @@ app.get('/api/:coin/projection', (req, res) => {
     console.error('[Projection Error]', error);
     res.status(500).json({
       error: 'Failed to generate projection',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get 4-hour bias projection (BTC only)
+ * GET /api/:coin/4hr-bias
+ *
+ * Returns quick directional bias for scalping/day trading
+ * Cached for 30 minutes
+ */
+app.get('/api/:coin/4hr-bias', (req, res) => {
+  const { coin } = req.params;
+  const upperCoin = coin.toUpperCase();
+
+  // BTC only
+  if (upperCoin !== 'BTC') {
+    return res.json({
+      error: '4hr Bias available for BTC only',
+      coin: upperCoin,
+      supported: false
+    });
+  }
+
+  try {
+    const now = Date.now();
+    const cached = biasCache['4hr'][upperCoin];
+
+    // Check if cache is valid
+    if (cached && (now - cached.generatedAt) < CACHE_TTL['4hr']) {
+      return res.json(cached.data);
+    }
+
+    // Generate new 4hr bias
+    const fourHrBias = fourHrBiasProjection.generate4HrBias(upperCoin, dataStore);
+
+    // Cache the bias (only if ACTIVE status)
+    if (fourHrBias.status === 'ACTIVE') {
+      biasCache['4hr'][upperCoin] = {
+        data: fourHrBias,
+        generatedAt: fourHrBias.generatedAt || now
+      };
+      winRateTracker.recordPrediction(upperCoin, fourHrBias, '4hr-composite');
+    }
+
+    res.json(fourHrBias);
+  } catch (error) {
+    console.error('[4hr Bias Error]', error);
+    res.status(500).json({
+      error: 'Failed to generate 4hr bias',
       message: error.message
     });
   }
