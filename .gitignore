@@ -12,6 +12,7 @@ server/docker-compose.yml
 */docker-compose.yml
 .env.example
 server/node_modules
+server/data/*.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
