@@ -14,7 +14,7 @@ const coinbaseSpotCollector = require('./coinbaseSpotCollector');
 const bybitSpotCollector = require('./bybitSpotCollector');
 const binancePerpCollector = require('./binancePerpCollector');
 const bybitPerpCollector = require('./bybitPerpCollector');
-const { startEtfFlowCollection, getCollectorStatus: getEtfStatus } = require('./etfFlowCollector');
+const { startEtfFlowCollection, getCollectorStatus: getEtfStatus, onDataChange: onEtfDataChange } = require('./etfFlowCollector');
 const liquidationCollector = require('./liquidationCollector');
 const liquidationZoneCalculator = require('./liquidationZoneCalculator');
 const whaleWatcher = require('./whaleWatcher');
@@ -783,6 +783,14 @@ function startServer() {
 
   // Start ETF flow collector (SoSoValue API)
   startEtfFlowCollection();
+
+  // Invalidate daily bias cache when ETF data date changes
+  onEtfDataChange((newDate) => {
+    if (biasCache.daily.BTC) {
+      delete biasCache.daily.BTC;
+      console.log(`[Bias Cache] Cleared BTC daily bias cache (ETF date: ${newDate})`);
+    }
+  });
 
   // Start liquidation collector (Binance forced orders)
   liquidationCollector.start();

@@ -41,6 +41,8 @@ const FLOW_THRESHOLDS = {
 
 let pollInterval = null;
 let lastSuccessfulFetch = null;
+let lastEtfDate = null;
+let onDataChangeCallback = null;
 
 /**
  * Check if US ETF market is open
@@ -319,6 +321,17 @@ async function updateEtfFlows() {
 
   const now = Date.now();
   const marketStatus = getMarketStatus();
+  const newDate = parsedData.today.date;
+
+  // Detect if ETF date changed (triggers bias cache invalidation)
+  const dateChanged = lastEtfDate && lastEtfDate !== newDate;
+  if (dateChanged) {
+    console.log(`[ETF Collector] Date changed: ${lastEtfDate} -> ${newDate}`);
+    if (onDataChangeCallback) {
+      onDataChangeCallback(newDate);
+    }
+  }
+  lastEtfDate = newDate;
 
   // Update dataStore
   dataStore.updateEtfFlows({
@@ -526,6 +539,14 @@ async function fetchNow() {
   return await updateEtfFlows();
 }
 
+/**
+ * Register callback for when ETF data date changes
+ * Used to invalidate bias cache
+ */
+function onDataChange(callback) {
+  onDataChangeCallback = callback;
+}
+
 module.exports = {
   startEtfFlowCollection,
   stopEtfFlowCollection,
@@ -536,6 +557,7 @@ module.exports = {
   isMarketOpen,
   getMarketStatus,
   fetchNow,
+  onDataChange,
   FLOW_THRESHOLDS,
   TRACKED_ETFS
 };
