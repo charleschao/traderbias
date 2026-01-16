@@ -20,13 +20,14 @@ module.exports = {
       // Environment variables
       env: {
         NODE_ENV: 'production',
-        PORT: 3001
+        PORT: 3001,
+        NODE_OPTIONS: '--max-old-space-size=3072'
       },
 
       // Restart policy
       autorestart: true,
       watch: false,
-      max_memory_restart: '800M', // Restart if exceeds 800MB (safety margin on 1GB VPS)
+      max_memory_restart: '2500M', // Restart if exceeds 2.5GB (6GB VPS)
 
       // Logging
       error_file: './logs/error.log',
