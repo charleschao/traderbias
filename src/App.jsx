@@ -1995,6 +1995,7 @@ export default function App({ focusCoin = null }) {
             {/* Whale & Top10 Sections - Hyperliquid only, shown when Top10 active */}
             {showTop10 && EXCHANGES[activeExchange]?.features.includes('whales') && (
               <div className="space-y-6">
+                <WhaleActivityFeed consensus={consensus} positionChanges={positionChanges} whaleTrades={whaleTrades} />
                 <ConsensusSection consensus={consensus} />
 
                 {/* Top 10 Leaderboard */}
@@ -2121,13 +2122,6 @@ export default function App({ focusCoin = null }) {
                     onNotificationToggle={toggleNotifications}
                   />
                 </div>
-              </div>
-            )}
-
-            {/* Live Whale Activity */}
-            {!showTop10 && focusCoin && EXCHANGES[activeExchange]?.features.includes('whales') && (
-              <div className="mt-4">
-                <WhaleActivityFeed consensus={consensus} positionChanges={positionChanges} whaleTrades={whaleTrades} />
               </div>
             )}
 
