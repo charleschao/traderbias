@@ -23,6 +23,7 @@ import PositionCard from './components/PositionCard';
 import PlatformImprovementsPanel from './components/PlatformImprovementsPanel';
 import TraderRow from './components/TraderRow';
 import WhaleActivityFeed from './components/WhaleActivityFeed';
+import LiveWhaleActivityFeed from './components/LiveWhaleActivityFeed';
 import BiasProjectionTabs from './components/BiasProjectionTabs';
 import ThemeToggle from './components/ThemeToggle';
 import { BacktestControlPanel, BacktestResults } from './components/BacktestPanel';
@@ -2122,6 +2123,13 @@ export default function App({ focusCoin = null }) {
                     onNotificationToggle={toggleNotifications}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* Live Whale Activity - Position changes from Hyperliquid Top 10 */}
+            {!showTop10 && focusCoin && EXCHANGES[activeExchange]?.features.includes('whales') && (
+              <div className="mt-4">
+                <LiveWhaleActivityFeed positionChanges={positionChanges} />
               </div>
             )}
 
