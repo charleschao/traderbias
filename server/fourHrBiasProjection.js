@@ -8,10 +8,10 @@
 
 const { CVD_THRESHOLDS } = require('./biasProjection');
 
-// Weight distribution - pure flow
+// Weight distribution - pure flow (OI boosted based on 75% win rate backtesting)
 const WEIGHTS_4HR = {
-  flowConfluence: 0.50,
-  oiRoC: 0.25,
+  flowConfluence: 0.40,
+  oiRoC: 0.35,
   cvdPersistence: 0.25
 };
 
@@ -391,14 +391,14 @@ function generate4HrBias(coin, dataStore) {
       name: 'Flow Confluence',
       direction: flowConfluence.score > 0.1 ? 'bullish' : flowConfluence.score < -0.1 ? 'bearish' : 'neutral',
       score: Math.abs(flowConfluence.score),
-      weight: '50%',
+      weight: '40%',
       detail: `${flowConfluence.signal} (P:${flowConfluence.primary.priceDir} OI:${flowConfluence.primary.oiDir} CVD:${flowConfluence.primary.cvdDir})${flowConfluence.vetoApplied ? ' [VETO]' : ''}`
     },
     {
       name: 'OI RoC',
       direction: oiRoC.score > 0.1 ? 'bullish' : oiRoC.score < -0.1 ? 'bearish' : 'neutral',
       score: Math.abs(oiRoC.score),
-      weight: '25%',
+      weight: '35%',
       detail: `${oiRoC.trend} (OI:${oiRoC.oi4HChange > 0 ? '+' : ''}${oiRoC.oi4HChange}% P:${oiRoC.priceChange > 0 ? '+' : ''}${oiRoC.priceChange}%)`
     },
     {

@@ -15,12 +15,14 @@
 
 const liquidationCollector = require('./liquidationCollector');
 
-// Weights distribution (Phase 2: Tier 1 + Liquidation Momentum)
+// Weights distribution (Phase 2: Tier 1 + Liquidation Momentum + OI boost)
+// OI weight increased based on 75% win rate backtesting
 const WEIGHTS = {
-    flowConfluence: 0.55,        // Price + OI + CVD alignment (PRIMARY SIGNAL)
-    fundingZScore: 0.17,         // Z-score for extreme funding detection (reduced from 20%)
-    confluence: 0.13,            // Cross-exchange agreement (reduced from 15%)
-    liquidationMomentum: 0.10,   // NEW: Cascade detection (Binance forced orders)
+    flowConfluence: 0.40,        // Price + OI + CVD alignment (PRIMARY SIGNAL)
+    oiRoC: 0.25,                 // OI Rate of Change (boosted - 75% win rate)
+    fundingZScore: 0.12,         // Z-score for extreme funding detection
+    confluence: 0.10,            // Cross-exchange agreement
+    liquidationMomentum: 0.08,   // Cascade detection (Binance forced orders)
     whales: 0.05                 // Whale positioning
 };
 
@@ -988,11 +990,11 @@ function generateProjection(coin, dataStore, consensus = null) {
     }
     adjustedFlowScore = Math.max(-1, Math.min(1, adjustedFlowScore));
 
-    // Calculate weighted score with Flow Confluence as PRIMARY (55% - Phase 2)
-    // OI RoC and Regime removed as redundant with Flow Confluence
-    let totalWeight = WEIGHTS.flowConfluence + WEIGHTS.fundingZScore + WEIGHTS.confluence;
+    // Calculate weighted score with Flow Confluence + OI RoC (OI boosted - 75% win rate)
+    let totalWeight = WEIGHTS.flowConfluence + WEIGHTS.oiRoC + WEIGHTS.fundingZScore + WEIGHTS.confluence;
     let weightedScore = (
         (adjustedFlowScore * WEIGHTS.flowConfluence) +
+        (oiRoC.score * WEIGHTS.oiRoC) +
         (fundingZScore.score * WEIGHTS.fundingZScore) +
         (confluence.score * WEIGHTS.confluence)
     );

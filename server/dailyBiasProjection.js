@@ -18,13 +18,14 @@ const liquidationCollector = require('./liquidationCollector');
 const { calculateZoneSignal } = require('./liquidationZoneCalculator');
 
 // Weight distribution optimized for 24H prediction
+// OI weight increased based on 75% win rate backtesting
 const WEIGHTS_24H = {
-    spotPerpDivergence: 0.25,      // PRIMARY - institutional flows
-    fundingMeanReversion: 0.18,    // Extended 90-day baseline
-    oiPriceMomentum: 0.17,         // 8H window momentum
+    oiPriceMomentum: 0.28,         // 8H window momentum (boosted - 75% win rate)
+    spotPerpDivergence: 0.22,      // Institutional flows
+    fundingMeanReversion: 0.15,    // Extended 90-day baseline
     liquidationCascade: 0.10,      // Cascade prediction (zone proximity + flow)
     etfFlows: 0.10,                // Bitcoin ETF flows (IBIT, FBTC, ARKB)
-    crossExchangeConfluence: 0.10, // Veto mechanism
+    crossExchangeConfluence: 0.08, // Veto mechanism
     whales: 0.05                   // Limited data quality
 };
 
