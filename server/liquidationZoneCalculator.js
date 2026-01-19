@@ -12,16 +12,17 @@
 const dataStore = require('./dataStore');
 
 // Funding rate thresholds for leverage estimation (annualized %)
+// Model high-leverage cascade triggers, not average positions
 const LEVERAGE_TIERS = {
-  HIGH: { threshold: 73, leverage: 17.5 },     // >0.02% per 8hr funding
-  MEDIUM: { threshold: 36, leverage: 12.5 },   // 0.01-0.02% per 8hr
-  LOW: { threshold: 0, leverage: 7.5 }         // <0.01% per 8hr
+  HIGH: { threshold: 73, leverage: 35 },     // Extreme funding = degens at 35x+
+  MEDIUM: { threshold: 36, leverage: 25 },   // Elevated funding = 25x positions
+  LOW: { threshold: 0, leverage: 20 }        // Normal = still assume 20x for cascades
 };
 
-// OI velocity modifiers
+// OI velocity modifiers - larger bumps since base leverage is already higher
 const OI_VELOCITY_MODIFIERS = {
-  EXTREME: { threshold: 20, bump: 5 },    // >20% daily OI rise
-  HIGH: { threshold: 10, bump: 2.5 },     // 10-20% daily OI rise
+  EXTREME: { threshold: 20, bump: 10 },   // +10x when OI surging >20%
+  HIGH: { threshold: 10, bump: 5 },       // +5x when OI rising 10-20%
   NORMAL: { threshold: 0, bump: 0 }       // <10% daily OI rise
 };
 
@@ -31,9 +32,6 @@ const PROBABILITY_TIERS = {
   MEDIUM: { oiMin: 100000000, distanceMax: 5 },  // $100-500M OI, 2-5% distance
   LOW: { oiMin: 0, distanceMax: 100 }            // <$100M OI or >5% distance
 };
-
-// ATR multiplier for volatility buffer
-const ATR_BUFFER_MULTIPLIER = 1.5;
 
 // Time windows
 const WINDOWS = {
@@ -174,8 +172,8 @@ function estimateLeverage(fundingRate, oiVelocity) {
     leverage += OI_VELOCITY_MODIFIERS.HIGH.bump;
   }
 
-  // Cap leverage at realistic bounds
-  return Math.max(5, Math.min(25, leverage));
+  // Cap leverage at realistic bounds (40x max = 2.5% min zone distance)
+  return Math.max(5, Math.min(40, leverage));
 }
 
 /**
@@ -218,17 +216,25 @@ function calculateLiquidationZones(coin = 'BTC') {
   // Estimate leverage
   const avgLeverage = estimateLeverage(avgFunding, oiVelocity);
 
-  // Calculate volatility buffer
-  const volBuffer = (atrPercent / 100) * ATR_BUFFER_MULTIPLIER;
-
-  // Calculate zones with downside bias for longs
+  // Calculate zones from leverage (no ATR buffer - ATR is informational only)
   const leverageComponent = 1 / avgLeverage;
-  const longLiqPrice = currentPrice * (1 - leverageComponent - volBuffer);
-  const shortLiqPrice = currentPrice * (1 + leverageComponent + volBuffer);
+  let longLiqPrice = currentPrice * (1 - leverageComponent);
+  let shortLiqPrice = currentPrice * (1 + leverageComponent);
 
   // Calculate distances
-  const longDistance = ((currentPrice - longLiqPrice) / currentPrice) * 100;
-  const shortDistance = ((shortLiqPrice - currentPrice) / currentPrice) * 100;
+  let longDistance = ((currentPrice - longLiqPrice) / currentPrice) * 100;
+  let shortDistance = ((shortLiqPrice - currentPrice) / currentPrice) * 100;
+
+  // Cap at maximum realistic distance (8%)
+  const MAX_ZONE_DISTANCE = 8;
+  if (longDistance > MAX_ZONE_DISTANCE) {
+    longLiqPrice = currentPrice * (1 - MAX_ZONE_DISTANCE / 100);
+    longDistance = MAX_ZONE_DISTANCE;
+  }
+  if (shortDistance > MAX_ZONE_DISTANCE) {
+    shortLiqPrice = currentPrice * (1 + MAX_ZONE_DISTANCE / 100);
+    shortDistance = MAX_ZONE_DISTANCE;
+  }
 
   // Estimate OI at risk (simplified: assume 30% of total OI near each zone)
   const oiAtRiskLong = aggregatedOI * 0.3;
@@ -270,8 +276,7 @@ function calculateLiquidationZones(coin = 'BTC') {
       aggregatedOI: aggregatedOI,
       oiVelocity: Math.round(oiVelocity * 10) / 10,
       atrPercent: Math.round(atrPercent * 100) / 100,
-      estimatedLeverage: Math.round(avgLeverage * 10) / 10,
-      volBuffer: Math.round(volBuffer * 10000) / 100 // As percentage
+      estimatedLeverage: Math.round(avgLeverage * 10) / 10
     },
     probability: overallProbability,
     generatedAt: Date.now()
