@@ -14,9 +14,9 @@ const dataStore = require('./dataStore');
 // Funding rate thresholds for leverage estimation (annualized %)
 // Model high-leverage cascade triggers, not average positions
 const LEVERAGE_TIERS = {
-  HIGH: { threshold: 73, leverage: 35 },     // Extreme funding = degens at 35x+
-  MEDIUM: { threshold: 36, leverage: 25 },   // Elevated funding = 25x positions
-  LOW: { threshold: 0, leverage: 20 }        // Normal = still assume 20x for cascades
+  HIGH: { threshold: 73, leverage: 100 },    // Extreme funding = degens at 100x (1% zones)
+  MEDIUM: { threshold: 36, leverage: 85 },   // Elevated funding = 85x positions (1.2% zones)
+  LOW: { threshold: 0, leverage: 75 }        // Normal = assume 75x for cascades (1.33% zones)
 };
 
 // OI velocity modifiers - larger bumps since base leverage is already higher
@@ -26,11 +26,11 @@ const OI_VELOCITY_MODIFIERS = {
   NORMAL: { threshold: 0, bump: 0 }       // <10% daily OI rise
 };
 
-// Probability thresholds
+// Probability thresholds (adjusted for tighter 75-100x leverage zones)
 const PROBABILITY_TIERS = {
-  HIGH: { oiMin: 500000000, distanceMax: 2 },    // >$500M OI, <2% distance
-  MEDIUM: { oiMin: 100000000, distanceMax: 5 },  // $100-500M OI, 2-5% distance
-  LOW: { oiMin: 0, distanceMax: 100 }            // <$100M OI or >5% distance
+  HIGH: { oiMin: 500000000, distanceMax: 1 },    // >$500M OI, <1% distance
+  MEDIUM: { oiMin: 100000000, distanceMax: 1.5 },// $100-500M OI, 1-1.5% distance
+  LOW: { oiMin: 0, distanceMax: 100 }            // <$100M OI or >1.5% distance
 };
 
 // Time windows
@@ -172,8 +172,8 @@ function estimateLeverage(fundingRate, oiVelocity) {
     leverage += OI_VELOCITY_MODIFIERS.HIGH.bump;
   }
 
-  // Cap leverage at realistic bounds (40x max = 2.5% min zone distance)
-  return Math.max(5, Math.min(40, leverage));
+  // Cap leverage at realistic bounds (125x max = 0.8% min zone distance)
+  return Math.max(50, Math.min(125, leverage));
 }
 
 /**
@@ -225,8 +225,8 @@ function calculateLiquidationZones(coin = 'BTC') {
   let longDistance = ((currentPrice - longLiqPrice) / currentPrice) * 100;
   let shortDistance = ((shortLiqPrice - currentPrice) / currentPrice) * 100;
 
-  // Cap at maximum realistic distance (8%)
-  const MAX_ZONE_DISTANCE = 8;
+  // Cap at maximum realistic distance (2%)
+  const MAX_ZONE_DISTANCE = 2;
   if (longDistance > MAX_ZONE_DISTANCE) {
     longLiqPrice = currentPrice * (1 - MAX_ZONE_DISTANCE / 100);
     longDistance = MAX_ZONE_DISTANCE;
@@ -315,7 +315,7 @@ function calculateZoneSignal(coin = 'BTC') {
     score = -0.7;
     signal = 'LONG_CASCADE_IMMINENT';
     description = `High risk of long cascade at $${long.price.toLocaleString()}`;
-  } else if (long.probability === 'MEDIUM' && long.distance < 3) {
+  } else if (long.probability === 'MEDIUM' && long.distance < 1.5) {
     score = -0.4;
     signal = 'LONG_CASCADE_RISK';
     description = `Elevated long cascade risk at $${long.price.toLocaleString()}`;
@@ -326,7 +326,7 @@ function calculateZoneSignal(coin = 'BTC') {
     score = 0.7;
     signal = 'SHORT_SQUEEZE_IMMINENT';
     description = `High risk of short squeeze at $${short.price.toLocaleString()}`;
-  } else if (short.probability === 'MEDIUM' && short.distance < 3) {
+  } else if (short.probability === 'MEDIUM' && short.distance < 1.5) {
     score = 0.4;
     signal = 'SHORT_SQUEEZE_RISK';
     description = `Elevated short squeeze risk at $${short.price.toLocaleString()}`;
