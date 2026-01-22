@@ -24,8 +24,8 @@ const cvdState = {
 
 let ws = null;
 let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_DELAY_MS = 5000;
+const MAX_RECONNECT_DELAY_MS = 60000; // Cap at 1 minute
 const MAX_HISTORY_MS = 60 * 60 * 1000; // 1 hour max storage
 const DEFAULT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes default
 
@@ -65,7 +65,7 @@ function connectWebsocket() {
   });
 
   ws.on('error', (err) => {
-    console.error('[CoinbaseSpot] WebSocket error:', err.message);
+    console.error('[CoinbaseSpot] WebSocket error:', err.message || err.code || err);
   });
 }
 
@@ -138,16 +138,12 @@ function processTrade(trade) {
 }
 
 /**
- * Schedule reconnection with exponential backoff
+ * Schedule reconnection with exponential backoff (capped at MAX_RECONNECT_DELAY_MS)
  */
 function scheduleReconnect() {
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error('[CoinbaseSpot] Max reconnect attempts reached');
-    return;
-  }
-
   reconnectAttempts++;
-  const delay = RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempts - 1);
+  // Exponential backoff capped at MAX_RECONNECT_DELAY_MS
+  const delay = Math.min(RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY_MS);
   console.log(`[CoinbaseSpot] Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
 
   setTimeout(connectWebsocket, delay);
