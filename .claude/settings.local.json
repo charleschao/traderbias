@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sudo nginx:*)",
+      "Bash(sudo systemctl:*)",
+      "Bash(sudo tail:*)",
+      "Bash(sudo usermod:*)",
+      "Bash(sudo chmod:*)",
+      "Bash(curl:*)",
+      "Bash(pm2 logs:*)",
+      "Bash(docker logs:*)",
+      "Bash(journalctl:*)",
+      "Bash(pm2 list:*)",
+      "Bash(docker restart:*)",
+      "Bash(ls:*)",
+      "Bash(docker inspect:*)",
+      "Bash(python3:*)",
+      "Bash(docker compose build:*)",
+      "Bash(docker compose:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(ssh:*)"
+    ]
+  }
+}
