@@ -39,3 +39,4 @@ TIPS.md
 *.njsproj
 *.sln
 *.sw?
+experiments/
