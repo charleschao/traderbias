@@ -25,6 +25,7 @@ const winRateTracker = require('./winRateTracker');
 const backtestApi = require('./backtestApi');
 const vwapCalculator = require('./vwapCalculator');
 const componentSignals = require('./componentSignals');
+const longShortCollector = require('./longShortCollector');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -610,6 +611,35 @@ app.get('/api/etf-flows', (req, res) => {
 });
 
 /**
+ * Get long/short ratio data (BTC only)
+ * GET /api/long-short-ratio/btc
+ *
+ * Returns Binance all accounts vs top traders positioning
+ * with daily high/low extremes and divergence signal
+ */
+app.get('/api/long-short-ratio/btc', (req, res) => {
+  const data = dataStore.getLongShortData();
+  const status = longShortCollector.getCollectorStatus();
+
+  if (!data || (!data.allAccounts && !data.topTraders)) {
+    return res.json({
+      status,
+      data: null,
+      message: 'Data not yet available'
+    });
+  }
+
+  res.json({
+    status,
+    allAccounts: data.allAccounts,
+    topTraders: data.topTraders,
+    daily: data.daily || {},
+    divergence: data.divergence || null,
+    resetAt: data.resetAt
+  });
+});
+
+/**
  * Get liquidation data
  * GET /api/liquidations/:coin
  *
@@ -783,6 +813,9 @@ function startServer() {
 
   // Start ETF flow collector (SoSoValue API)
   startEtfFlowCollection();
+
+  // Start long/short ratio collector (Binance Futures)
+  longShortCollector.startLongShortCollection();
 
   // Invalidate daily bias cache when ETF data date changes
   onEtfDataChange((newDate) => {

@@ -345,6 +345,23 @@ export const getVwapLevels = async (coin = 'btc') => {
   }
 };
 
+/**
+ * Get long/short ratio data for BTC
+ * Returns Binance all accounts vs top traders positioning with daily extremes
+ */
+export const fetchLongShortRatio = async () => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/long-short-ratio/btc`);
+    if (!response.ok) {
+      throw new Error(`Long/short ratio API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[BackendAPI] Failed to fetch long/short ratio:', error);
+    throw error;
+  }
+};
+
 // Backwards compatibility alias
 export const getBTCProjection = () => getCoinProjection('BTC');
 
@@ -365,5 +382,6 @@ export default {
   getBacktestStats,
   getBacktestEquityCurve,
   getBacktestStreaks,
-  getVwapLevels
+  getVwapLevels,
+  fetchLongShortRatio
 };

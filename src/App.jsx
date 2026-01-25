@@ -11,6 +11,7 @@ import ExchangeComingSoon from './components/ExchangeComingSoon';
 import ExchangeSelector from './components/ExchangeSelector';
 import ExchangeFlowSection from './components/ExchangeFlowSection';
 import FlowConfluenceSection from './components/FlowConfluenceSection';
+import LongShortRatioSection from './components/LongShortRatioSection';
 import FlowSignalsSection from './components/FlowSignalsSection';
 import LiquidationZones from './components/LiquidationZones';
 
@@ -1908,6 +1909,11 @@ export default function App({ focusCoin = null }) {
                 {/* Exchange Flow - Per-exchange spot/perp buy/sell breakdown */}
                 {isBackendEnabled() && exchangeFlowData && (
                   <ExchangeFlowSection exchangeFlowData={exchangeFlowData} timeframe={dashboardTimeframe} />
+                )}
+
+                {/* Long/Short Positioning - Retail vs Smart Money */}
+                {isBackendEnabled() && (
+                  <LongShortRatioSection />
                 )}
               </div>
             )}

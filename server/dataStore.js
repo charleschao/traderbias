@@ -64,6 +64,14 @@ class DataStore {
         BTC: null,
         ETH: null,
         SOL: null
+      },
+      // Long/Short ratio data (BTC only)
+      longShort: {
+        allAccounts: null,    // Retail sentiment
+        topTraders: null,     // Smart money
+        daily: {},            // Daily high/low extremes
+        divergence: null,
+        resetAt: null
       }
     };
 
@@ -618,6 +626,25 @@ class DataStore {
    */
   getVwap(coin) {
     return this.data.vwap[coin] || null;
+  }
+
+  /**
+   * Update long/short ratio data (BTC only)
+   */
+  updateLongShortData(data) {
+    if (!data) return;
+    this.data.longShort = {
+      ...this.data.longShort,
+      ...data
+    };
+    this.isDirty = true;
+  }
+
+  /**
+   * Get long/short ratio data
+   */
+  getLongShortData() {
+    return this.data.longShort || null;
   }
 
   /**
