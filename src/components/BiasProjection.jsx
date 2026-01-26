@@ -120,7 +120,7 @@ export default function BiasProjection({ projection, loading = false }) {
           )}
           <span className="text-xs text-neutral-400 dark:text-slate-500">
             {projection.validUntil
-              ? `Valid until ${new Date(projection.validUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              ? `Valid until ${new Date(projection.validUntil).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })} EST`
               : formatTimeAgo(generatedAt)}
           </span>
         </div>
